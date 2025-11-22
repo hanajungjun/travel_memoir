@@ -1,0 +1,16 @@
+name: Daily 9AM Push
+
+on:
+  schedule:
+    - cron: "0 0 0 9 * *"   # 한국시간 9시 (UTC 기준 조정 필요)
+  workflow_dispatch:
+
+jobs:
+  call_supabase_function:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Supabase sendPush Function
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            https://rjevhsseixukhghfkozl.supabase.co/functions/v1/sendPush
