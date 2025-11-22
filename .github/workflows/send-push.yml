@@ -2,7 +2,7 @@ name: Daily 9AM Push
 
 on:
   schedule:
-    - cron: "0 0 0 9 * *"   # 한국시간 9시 (UTC 기준 조정 필요)
+    - cron: "0 0 * * *"   # 한국시간 9시 (UTC 기준 조정 필요)
   workflow_dispatch:
 
 jobs:
