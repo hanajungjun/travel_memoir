@@ -30,7 +30,7 @@ class WordPagerPage extends StatelessWidget {
               .eq('date', today)
               .limit(1),
           builder: (context, snapshot) {
-            // 로딩 중
+            // 로딩
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
                 child: CircularProgressIndicator(color: Colors.white),
@@ -48,7 +48,7 @@ class WordPagerPage extends StatelessWidget {
               );
             }
 
-            // 결과 없음
+            // 데이터 없음
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return Center(
                 child: Text(
@@ -62,65 +62,25 @@ class WordPagerPage extends StatelessWidget {
             final data = snapshot.data!.first;
             final title = data['title'] ?? '제목 없음';
             final description = data['description'] ?? '';
-            // ✅ Supabase 테이블 컬럼 이름: image_url
             final imageUrl = data['image_url'];
 
             return Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // 🔥 이미지 표시
-                if (imageUrl != null && imageUrl.toString().isNotEmpty)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Image.network(
-                      imageUrl,
-                      height: 280,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, progress) {
-                        if (progress == null) return child;
-                        return const SizedBox(
-                          height: 280,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                else
-                  Container(
-                    height: 280,
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade800,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Center(
-                      child: Text('이미지 없음', style: AppTextStyles.bodyMuted),
-                    ),
-                  ),
-
-                const SizedBox(height: 30),
-
-                // 🔥 제목
+                /// 🔵 제목
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Text(
                     title,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.title,
+                    style: AppTextStyles.title, // 네가 쓰는 큰 제목 스타일에 맞춰 수정해도 됨
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // 🔥 설명 (스크롤 가능)
+                /// 🔵 설명 (스크롤)
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -128,7 +88,48 @@ class WordPagerPage extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
+
+                /// 🟡 이미지 — 화면 맨 아래 고정 느낌
+                if (imageUrl != null && imageUrl.toString().isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const SizedBox(
+                            height: 200,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade800,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Center(
+                        child: Text('이미지 없음', style: AppTextStyles.bodyMuted),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 30),
               ],
             );
           },
