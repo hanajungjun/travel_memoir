@@ -17,6 +17,8 @@ dependencies:
   # 웹에서도 동작하는 파일 선택
   file_picker: ^8.0.0
 
+  flutter_html: ^3.0.0
+
   # 로컬 알림 사용 X (admin web은 필요 없음)
   # → 필요하면 다시 추가 가능
 

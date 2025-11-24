@@ -36,6 +36,7 @@ class WordPagerPage extends StatelessWidget {
               .from('daily_words')
               .select()
               .eq('date', today)
+              .order('updated_at', ascending: false)
               .limit(1),
           builder: (context, snapshot) {
             // 로딩
@@ -47,9 +48,13 @@ class WordPagerPage extends StatelessWidget {
 
             // 오류
             if (snapshot.hasError) {
+              print("🔥 snapshot.error:");
+              print(snapshot.error);
               return Center(
                 child: Text(
-                  '데이터 불러오기 실패 🥲\n${snapshot.error}',
+                  //  '데이터 불러오기 실패 🥲\n${snapshot.error}',
+                  '데이터 불러오기 실패 🥲\n${snapshot.error.toString()}',
+
                   textAlign: TextAlign.center,
                   style: AppTextStyles.body,
                 ),
