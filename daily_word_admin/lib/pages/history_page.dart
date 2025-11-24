@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/daily_word_service.dart';
 import '../models/daily_word.dart';
 import 'history_detail_page.dart';
+import '../utils/date_formatter.dart'; // 🔥 포맷 가져오기
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -17,7 +18,13 @@ class _HistoryPageState extends State<HistoryPage> {
   @override
   void initState() {
     super.initState();
-    historyFuture = dailyWordService.fetchHistory();
+    _reload();
+  }
+
+  void _reload() {
+    setState(() {
+      historyFuture = dailyWordService.fetchHistory();
+    });
   }
 
   @override
@@ -40,26 +47,28 @@ class _HistoryPageState extends State<HistoryPage> {
           return ListView.builder(
             itemCount: list.length,
             itemBuilder: (context, i) {
-              final item = list[i]; // ← 여기 item이 row임
+              final item = list[i];
+              final updatedAt = DateTime.parse(item['updated_at']);
 
               return ListTile(
                 dense: true,
                 title: Text(item['title'] ?? ''),
                 subtitle: Text(
-                  item['updated_at'] ?? '',
+                  formatDate(updatedAt), // 🔥 포맷 사용
                   style: const TextStyle(fontSize: 13),
                 ),
                 trailing: const Icon(Icons.chevron_right),
 
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  final changed = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => HistoryDetailPage(
-                        word: DailyWord.fromMap(item), // ← 정답!
-                      ),
+                      builder: (_) =>
+                          HistoryDetailPage(word: DailyWord.fromMap(item)),
                     ),
                   );
+
+                  if (changed == true) _reload();
                 },
               );
             },
