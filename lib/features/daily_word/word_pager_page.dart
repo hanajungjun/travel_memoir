@@ -83,14 +83,11 @@ class WordPagerPage extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 70),
+                SizedBox(height: MediaQuery.of(context).size.height * 0.1),
 
                 // 🔥 제목 (중앙)
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 40,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 30),
                   child: Text(
                     title,
                     textAlign: TextAlign.center,
@@ -108,7 +105,7 @@ class WordPagerPage extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                SizedBox(height: MediaQuery.of(context).size.height * 0.06),
 
                 // 🔥 본문 HTML
                 Expanded(
