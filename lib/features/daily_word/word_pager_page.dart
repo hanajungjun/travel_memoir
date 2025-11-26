@@ -21,8 +21,10 @@ class WordPagerPage extends StatelessWidget {
   /// <pink> 태그를 HTML span 으로 바꿔주기
   String htmlProcessed(String raw) {
     return raw
-        .replaceAll('<pink>', '<span style="color:#FF5FA2; font-weight:bold;">')
-        .replaceAll('</pink>', '</span>');
+        .replaceAll('<pb>', '<span style="color:#EA6AA3; font-weight:bold;">')
+        .replaceAll('</pb>', '</span>')
+        .replaceAll('<p>', '<span style="color:#EA6AA3;">')
+        .replaceAll('</p>', '</span>');
   }
 
   @override
@@ -81,15 +83,28 @@ class WordPagerPage extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 70),
 
                 // 🔥 제목 (중앙)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 40,
+                  ),
                   child: Text(
                     title,
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.title,
+                    style: AppTextStyles.title.copyWith(
+                      shadows: [
+                        Shadow(
+                          color: AppColors.textcolor02.withOpacity(
+                            0.1,
+                          ), // 그림자 색상 (파란색)
+                          offset: Offset(6, 6), // 그림자 위치
+                          blurRadius: 4, // 그림자 번짐 정도
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -98,16 +113,10 @@ class WordPagerPage extends StatelessWidget {
                 // 🔥 본문 HTML
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: Html(
                       data: htmlBody,
-                      style: {
-                        "body": Style(
-                          color: AppColors.textcolor01,
-                          fontSize: FontSize(18),
-                          lineHeight: const LineHeight(1.6),
-                        ),
-                      },
+                      style: {"body": Style.fromTextStyle(AppTextStyles.body)},
                     ),
                   ),
                 ),
@@ -117,7 +126,7 @@ class WordPagerPage extends StatelessWidget {
                 // 🔥 라운드 깨끗하게 — 확실히 보이도록
                 if (imageUrl != null && imageUrl.toString().isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 30),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(22), // 1. 외부 컨테이너 라운드
                       child: Container(

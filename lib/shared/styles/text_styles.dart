@@ -18,9 +18,9 @@ class AppTextStyles {
 
   static const title = TextStyle(
     fontFamily: 'Noto Sans',
-    fontSize: 45,
+    fontSize: 50,
     color: AppColors.textcolor02,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
   );
 
   static const body = TextStyle(
