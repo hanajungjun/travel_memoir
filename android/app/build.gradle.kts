@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.hanajungjun.myapp1"
+    namespace = "com.hanajungjun.travelmemoir"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.hanajungjun.myapp1"
+        applicationId = "com.hanajungjun.travelmemoir"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

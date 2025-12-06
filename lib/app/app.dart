@@ -1,54 +1,47 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/features/intro/intro_page.dart';
-import 'package:my_app/features/daily_word/word_pager_page.dart';
+import '../features/intro/pages/intro_page.dart';
 import '../supabase/supabase.dart';
 
-class AppBootstrap {
-  static Future<void> run() async {
-    // 🔥 Supabase 초기화
-    await SupabaseManager.initialize();
+class TravelMemoirApp extends StatefulWidget {
+  const TravelMemoirApp({super.key});
 
-    final supabase = SupabaseManager.client;
-
-    // 🔐 관리자 자동 로그인
-    if (supabase.auth.currentSession == null) {
-      print("➡️ 관리자 자동 로그인 시도...");
-      try {
-        final res = await supabase.auth.signInWithPassword(
-          email: "kodero@kakao.com",
-          password: "0000",
-        );
-        print("🔐 관리자 로그인 성공: ${res.user?.email}");
-      } catch (e) {
-        print("❌ 관리자 로그인 실패: $e");
-      }
-    } else {
-      print("🔐 이미 로그인됨");
-    }
-  }
+  @override
+  State<TravelMemoirApp> createState() => _TravelMemoirAppState();
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class _TravelMemoirAppState extends State<TravelMemoirApp> {
+  bool _initialized = false;
 
-  // ⭐ navigatorKey 추가 (필수!!)
-  static final navigatorKey = GlobalKey<NavigatorState>();
+  @override
+  void initState() {
+    super.initState();
+    _initSupabase();
+  }
+
+  Future<void> _initSupabase() async {
+    await SupabaseManager.initialize(); // 🔥 Supabase 초기화
+    setState(() => _initialized = true);
+  }
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 Supabase 초기화 전 로딩 화면
+    if (!_initialized) {
+      return const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
+
+    // 🔥 초기화 완료 후 실제 앱 실행
     return MaterialApp(
-      title: 'HJ Communication',
+      title: "Travel Memoir",
       debugShowCheckedModeBanner: false,
-
-      // ⭐ navigatorKey 연결
-      navigatorKey: MyApp.navigatorKey,
-
-      initialRoute: IntroPage.routeName,
-      routes: {
-        IntroPage.routeName: (context) => const IntroPage(),
-        WordPagerPage.routeName: (context) => const WordPagerPage(),
-      },
-      theme: ThemeData.dark().copyWith(scaffoldBackgroundColor: Colors.black),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+        useMaterial3: true,
+      ),
+      home: const IntroPage(), // 앱 첫 화면
     );
   }
 }

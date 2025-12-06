@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:my_app/core/constants/app_colors.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
 
 class AppTextStyles {
   static const introMain = TextStyle(

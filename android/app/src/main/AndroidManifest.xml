@@ -2,7 +2,7 @@
     package="com.hanajungjun.myapp1">
     
     <application
-        android:label="my_app"
+        android:label="여행일기"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         
