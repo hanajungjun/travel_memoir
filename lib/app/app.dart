@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../features/intro/pages/intro_page.dart';
 import '../supabase/supabase.dart';
+import 'app_shell.dart';
 
 class TravelMemoirApp extends StatefulWidget {
   const TravelMemoirApp({super.key});
@@ -19,21 +19,12 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
   }
 
   Future<void> _initSupabase() async {
-    await SupabaseManager.initialize(); // 🔥 Supabase 초기화
+    await SupabaseManager.initialize();
     setState(() => _initialized = true);
   }
 
   @override
   Widget build(BuildContext context) {
-    // 🔥 Supabase 초기화 전 로딩 화면
-    if (!_initialized) {
-      return const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(body: Center(child: CircularProgressIndicator())),
-      );
-    }
-
-    // 🔥 초기화 완료 후 실제 앱 실행
     return MaterialApp(
       title: "Travel Memoir",
       debugShowCheckedModeBanner: false,
@@ -41,7 +32,9 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
         useMaterial3: true,
       ),
-      home: const IntroPage(), // 앱 첫 화면
+      home: _initialized
+          ? const AppShell() // ✅ 여기서 하단 탭 진입
+          : const Scaffold(body: Center(child: CircularProgressIndicator())),
     );
   }
 }

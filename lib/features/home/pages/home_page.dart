@@ -1,125 +1,117 @@
 import 'package:flutter/material.dart';
-import '../../travel_info/pages/travel_info_page.dart';
-import '../../ai_test/ai_test_page.dart';
+
+import '../../../services/travel_service.dart';
+import '../../travel_day/pages/travel_day_page.dart';
+import '../../../core/utils/date_utils.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  final VoidCallback onGoToTravel;
+
+  const HomePage({super.key, required this.onGoToTravel});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xfff7f7f7),
-
-      appBar: AppBar(
-        title: const Text("Travel Memoir"),
-        centerTitle: true,
-        elevation: 0,
-      ),
-
+      appBar: AppBar(title: const Text('Travel Memoir'), elevation: 0),
       body: Padding(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
+            // 📅 오늘 날짜
+            Text(
+              DateUtilsHelper.todayText(),
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
 
+            const SizedBox(height: 16),
+
+            // ✍️ 오늘의 일기
             const Text(
-              "무엇을 하시겠어요?",
+              '오늘의 일기',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 10),
 
-            const Text(
-              "여행을 추가하거나 이전 여행을 볼 수 있어요.",
-              style: TextStyle(fontSize: 14, color: Colors.black54),
+            const SizedBox(height: 12),
+
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final travel = await TravelService.getTodayTravel();
+
+                  // ❌ 오늘 여행 없음 → 여행 추가로 이동
+                  if (travel == null) {
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('여행이 없어요'),
+                        content: const Text('오늘은 여행 중이 아니에요.\n여행을 추가할까요?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('취소'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                              onGoToTravel(); // ⭐ 여행 탭으로 이동
+                            },
+                            child: const Text('여행 추가'),
+                          ),
+                        ],
+                      ),
+                    );
+                    return;
+                  }
+
+                  // ✅ 오늘 여행 있음 → TravelDayPage가 내부에서 오늘 day 생성/로드함
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TravelDayPage(
+                        travelId: travel['id'],
+                        city: travel['city'],
+                        startDate: DateTime.parse(travel['start_date']),
+                        endDate: DateTime.parse(travel['end_date']),
+                        date: DateTime.now(),
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  '✍️ 오늘 일기 쓰기',
+                  style: TextStyle(fontSize: 16),
+                ),
+              ),
             ),
 
             const SizedBox(height: 40),
 
-            // ✈️ 새로운 여행 만들기 버튼
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const TravelInfoPage()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blueAccent,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                "✈️ 새로운 여행 만들기",
-                style: TextStyle(fontSize: 18, color: Colors.white),
-              ),
+            // 🧳 최근 여행 (더미)
+            const Text(
+              '최근 여행',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
 
-            // 📚 여행 목록 보기 버튼
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PlaceholderPage()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey.shade300,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(12),
               ),
               child: const Text(
-                "📚 내가 기록한 여행 보기",
-                style: TextStyle(fontSize: 18, color: Colors.black87),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 🤖 AI 테스트 버튼
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AiTestPage()),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurpleAccent,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                "🤖 AI 여행 그림일기 테스트",
-                style: TextStyle(fontSize: 18, color: Colors.white),
+                '최근 여행이 여기에 표시됩니다.',
+                style: TextStyle(color: Colors.grey),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-// --------------------------------------------------
-// 임시 여행 목록 페이지 (나중에 TravelListPage로 교체 예정)
-// --------------------------------------------------
-class PlaceholderPage extends StatelessWidget {
-  const PlaceholderPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("여행 목록")),
-      body: const Center(child: Text("여기에 내가 기록한 여행들이 나타납니다!")),
     );
   }
 }
