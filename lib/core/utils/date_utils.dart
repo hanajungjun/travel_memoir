@@ -45,4 +45,52 @@ class DateUtilsHelper {
   }) {
     return currentDate.difference(startDate).inDays + 1;
   }
+
+  // =====================================================
+  // 🔒 미래 일기 잠금 문구
+  // =====================================================
+  static String getLockLabel(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+
+    final diff = target.difference(today).inDays;
+
+    if (diff <= 0) return ''; // 오늘 or 과거
+    if (diff == 1) return '내일 열려요';
+    return '${diff}일 후 열려요';
+  }
+
+  // =====================================================
+  // 🗓 yyyy.MM.dd 포맷
+  // 기록 탭 / 감성 요약 카드 날짜 표시용
+  // =====================================================
+  static String formatYMD(DateTime date) {
+    return '${date.year}.${_two(date.month)}.${_two(date.day)}';
+  }
+
+  // =====================================================
+  // ✨ 감성 상대 날짜 (기억용)
+  // 예) 오늘 / 어제 / 3일 전 / 1주 전 / 2주 전 / n달 전
+  // 기록 탭 상단 "마지막으로 떠났던 날" 표시용
+  // =====================================================
+  static String memoryTimeAgo(DateTime date) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(date.year, date.month, date.day);
+
+    final diff = today.difference(target).inDays;
+
+    if (diff <= 0) return '오늘';
+    if (diff == 1) return '어제';
+    if (diff < 7) return '$diff일 전';
+    if (diff < 14) return '1주 전';
+    if (diff < 28) return '2주 전';
+    return '${(diff / 30).floor()}달 전';
+  }
+
+  // =====================================================
+  // 🔢 내부 유틸: 두 자리 숫자 보정
+  // =====================================================
+  static String _two(int n) => n.toString().padLeft(2, '0');
 }

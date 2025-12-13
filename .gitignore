@@ -1,32 +1,29 @@
-# Flutter
+# Flutter / Dart
 .dart_tool/
-.packages
+.build/
+.pub/
 .flutter-plugins
 .flutter-plugins-dependencies
-.fvm/
+.packages
 build/
 
 # iOS
 ios/Pods/
-ios/Flutter/Flutter.podspec
-ios/build/
 ios/.symlinks/
-ios/ModuleCache.noindex/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
 
-# macOS
-macos/Pods/
-macos/Flutter/ephemeral/
-macos/build/
-macos/ModuleCache.noindex/
+# Android
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
 
-# Xcode
-DerivedData/
-*.xcworkspace
-*.xcuserstate
-*.xcuserdata/
+# Mac
+.DS_Store
 
-# Android Studio / IntelliJ
-.idea/
-
-# Others
-pubspec.lock
+# Env (나중에 분리 예정)
+.env
+lib/env.dart

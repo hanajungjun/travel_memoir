@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
-import '../env.dart';
+
 import 'package:http/http.dart' as http;
+import '../env.dart';
 
 class GeminiService {
   final String apiKey = AppEnv.geminiApiKey;
@@ -54,10 +55,8 @@ class GeminiService {
       body: jsonEncode(body),
     );
 
-    print("🟩 Summary Response:");
-    print(res.body);
-
     final data = jsonDecode(res.body);
+
     if (data["candidates"] == null) {
       return "요약 생성 오류: $data";
     }
@@ -66,13 +65,12 @@ class GeminiService {
   }
 
   // ---------------------------------------------------------
-  // 🎨 이미지 생성 — *절대 크래시 안 나게 수정 버전*
+  // 🎨 이미지 생성 (base64 → Uint8List)
   // ---------------------------------------------------------
   Future<Uint8List> generateImage(String prompt) async {
     final url =
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$apiKey";
 
-    // 안정적인 이미지 생성용 강제 프롬프트
     final strongPrompt =
         """
 $prompt
@@ -80,7 +78,7 @@ $prompt
 Rules:
 - MUST return image.
 - MUST include inlineData.
-- NO text, NO captions.
+- NO text, NO captions, NO letters.
 """;
 
     final body = {
@@ -99,9 +97,6 @@ Rules:
       body: jsonEncode(body),
     );
 
-    print("🟦 Image API Response:");
-    print(res.body);
-
     if (res.body.isEmpty) {
       throw Exception("❌ 빈 응답");
     }
@@ -118,7 +113,6 @@ Rules:
       throw Exception("❌ parts 없음: $data");
     }
 
-    // 🔥 inlineData 가진 파트를 자동으로 찾기
     final inlinePart = parts.firstWhere(
       (p) => p["inlineData"] != null,
       orElse: () => null,

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../features/home/pages/home_page.dart';
-import '../features/travel_info/pages/travel_info_page.dart';
-import '../features/intro/pages/intro_page.dart';
+import 'package:travel_memoir/features/home/pages/home_page.dart';
+import 'package:travel_memoir/features/travel_info/pages/travel_info_page.dart';
+import 'package:travel_memoir/features/record/pages/record_tab_page.dart';
+import 'package:travel_memoir/features/intro/pages/intro_page.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -19,14 +20,10 @@ class _AppShellState extends State<AppShell> {
   }
 
   late final List<Widget> _pages = [
-    HomePage(
-      onGoToTravel: () => _onTabSelected(1), // 홈 → 여행 탭 이동
-    ),
-    const TravelInfoPage(), // 여행 목록 / 여행 추가
-    const Center(
-      child: Text('기록을 선택해주세요'), // 기록 탭 (임시)
-    ),
-    const IntroPage(), // 마이 페이지
+    HomePage(onGoToTravel: () => _onTabSelected(1)),
+    const TravelInfoPage(),
+    const RecordTabPage(),
+    const IntroPage(),
   ];
 
   @override

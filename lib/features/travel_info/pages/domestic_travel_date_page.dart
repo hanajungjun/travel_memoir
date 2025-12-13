@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../services/travel_create_service.dart';
-import '../../travel_day/pages/travel_day_page.dart';
-import '../sheets/domestic_city_select_sheet.dart';
+import 'package:travel_memoir/services/travel_create_service.dart';
+import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
+import 'package:travel_memoir/features/travel_info/sheets/domestic_city_select_sheet.dart';
 
 class DomesticTravelDatePage extends StatefulWidget {
   const DomesticTravelDatePage({super.key});
@@ -112,14 +112,14 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
 
             const Spacer(),
 
-            // 👉 다음 → 바로 일기 작성
+            // 👉 다음 → 여행 기록 목록으로
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
                 onPressed: _canNext
                     ? () async {
-                        final travelId =
+                        final travel =
                             await TravelCreateService.createDomesticTravel(
                               city: _city!,
                               startDate: _startDate!,
@@ -128,21 +128,16 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
 
                         if (!mounted) return;
 
+                        // 🔥 여기 핵심 수정
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => TravelDayPage(
-                              travelId: travelId,
-                              city: _city!,
-                              startDate: _startDate!,
-                              endDate: _endDate!,
-                              date: _startDate!, // 여행 첫날
-                            ),
+                            builder: (_) => TravelDiaryListPage(travel: travel),
                           ),
                         );
                       }
                     : null,
-                child: const Text('일기 쓰러 가기', style: TextStyle(fontSize: 16)),
+                child: const Text('여행 생성', style: TextStyle(fontSize: 16)),
               ),
             ),
           ],
