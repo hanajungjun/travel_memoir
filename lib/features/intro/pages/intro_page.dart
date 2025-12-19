@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/features/auth/login_page.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 class IntroPage extends StatelessWidget {
   const IntroPage({super.key});
@@ -9,6 +11,7 @@ class IntroPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -17,16 +20,15 @@ class IntroPage extends StatelessWidget {
             children: [
               const Spacer(),
 
-              const Text(
-                'Travel Memoir',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
+              // 🧭 타이틀
+              Text('Travel Memoir', style: AppTextStyles.title),
 
               const SizedBox(height: 12),
 
-              const Text(
+              // ✨ 서브 문구
+              Text(
                 '여행의 순간을\n하루의 기록으로 남겨보세요.',
-                style: TextStyle(fontSize: 16, color: Colors.grey, height: 1.4),
+                style: AppTextStyles.bodyMuted.copyWith(height: 1.4),
               ),
 
               const Spacer(),
@@ -37,7 +39,11 @@ class IntroPage extends StatelessWidget {
                 height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
+                    backgroundColor: AppColors.error,
+                    foregroundColor: AppColors.textPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   onPressed: () async {
                     await Supabase.instance.client.auth.signOut();
@@ -50,7 +56,7 @@ class IntroPage extends StatelessWidget {
                       (route) => false,
                     );
                   },
-                  child: const Text('로그아웃', style: TextStyle(fontSize: 16)),
+                  child: Text('로그아웃', style: AppTextStyles.button),
                 ),
               ),
             ],

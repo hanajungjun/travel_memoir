@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({super.key});
 
@@ -123,8 +126,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('프로필 수정'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        title: Text('프로필 수정', style: AppTextStyles.appBarTitle),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
@@ -134,7 +140,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('저장'),
+                : Text('저장', style: AppTextStyles.button),
           ),
         ],
       ),
@@ -153,7 +159,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                       children: [
                         CircleAvatar(
                           radius: 48,
-                          backgroundColor: Colors.grey,
+                          backgroundColor: AppColors.surface,
                           backgroundImage: _pickedImage != null
                               ? FileImage(_pickedImage!)
                               : (_imageUrl != null
@@ -161,10 +167,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                                         : null)
                                     as ImageProvider?,
                           child: _pickedImage == null && _imageUrl == null
-                              ? const Icon(
+                              ? Icon(
                                   Icons.person,
                                   size: 48,
-                                  color: Colors.white,
+                                  color: AppColors.textDisabled,
                                 )
                               : null,
                         ),
@@ -173,14 +179,14 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                           right: 0,
                           child: Container(
                             padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Colors.black,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.camera_alt,
                               size: 16,
-                              color: Colors.white,
+                              color: AppColors.background,
                             ),
                           ),
                         ),
@@ -190,25 +196,43 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
                   const SizedBox(height: 32),
 
+                  // =========================
+                  // ✏️ 닉네임
+                  // =========================
                   TextField(
                     controller: nicknameController,
                     maxLength: 10,
-                    decoration: const InputDecoration(
+                    style: AppTextStyles.body,
+                    decoration: InputDecoration(
                       labelText: '닉네임',
-                      border: OutlineInputBorder(),
+                      labelStyle: AppTextStyles.bodyMuted,
                       counterText: '',
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
 
                   const SizedBox(height: 20),
 
+                  // =========================
+                  // ✍️ 한줄 소개
+                  // =========================
                   TextField(
                     controller: bioController,
                     maxLength: 40,
-                    decoration: const InputDecoration(
+                    style: AppTextStyles.body,
+                    decoration: InputDecoration(
                       labelText: '한줄 소개',
-                      border: OutlineInputBorder(),
+                      labelStyle: AppTextStyles.bodyMuted,
                       counterText: '',
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ],

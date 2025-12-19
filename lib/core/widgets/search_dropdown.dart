@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
 
-/// 나라(local 검색), 도시(remote 검색) 구분
 enum SearchMode { local, remote }
 
 class SearchDropdown<T> extends StatefulWidget {
@@ -34,38 +35,59 @@ class SearchDropdown<T> extends StatefulWidget {
   State<SearchDropdown<T>> createState() => _SearchDropdownState<T>();
 }
 
-class _SearchDropdownState<T> extends State<SearchDropdown<T>> {
+class _SearchDropdownState<T> extends State<SearchDropdown<T>>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _controller = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
   final LayerLink _layerLink = LayerLink();
 
   OverlayEntry? _overlayEntry;
   bool _isOpen = false;
 
   List<T> _filtered = [];
+  int _hoveredIndex = -1;
+
+  late AnimationController _focusController;
+  late Animation<double> _focusAnim;
 
   @override
   void initState() {
     super.initState();
     _filtered = widget.items;
+
+    _focusController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
+
+    _focusAnim = CurvedAnimation(
+      parent: _focusController,
+      curve: Curves.easeOut,
+    );
+
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus) {
+        _focusController.forward();
+        _openOverlay();
+      } else {
+        _focusController.reverse();
+        _removeOverlay();
+      }
+    });
   }
 
   @override
   void didUpdateWidget(covariant SearchDropdown<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-
-    // remote 검색: items 갱신되면 바로 overlay 갱신
-    if (widget.mode == SearchMode.remote) {
-      setState(() => _filtered = widget.items);
-      _refreshOverlay();
-    } else {
-      // local 검색: 필터 재적용
-      setState(() => _filtered = widget.items);
-    }
+    setState(() => _filtered = widget.items);
+    _refreshOverlay();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focusNode.dispose();
+    _focusController.dispose();
     _removeOverlay();
     super.dispose();
   }
@@ -85,84 +107,89 @@ class _SearchDropdownState<T> extends State<SearchDropdown<T>> {
   }
 
   void _openOverlay() {
-    _removeOverlay();
+    if (_isOpen) return;
 
     final overlay = Overlay.of(context);
     final size = (context.findRenderObject() as RenderBox).size;
 
     _overlayEntry = OverlayEntry(
-      builder: (context) => GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: _removeOverlay,
-        child: Stack(
-          children: [
-            Positioned(
-              width: size.width,
-              child: CompositedTransformFollower(
-                link: _layerLink,
-                offset: Offset(0, size.height + 4),
-                child: Material(
-                  elevation: 6,
-                  borderRadius: BorderRadius.circular(16),
-                  color: Colors.white,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 260),
-                    child: widget.loading
-                        ? const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                ),
-                                SizedBox(width: 12),
-                                Text("검색 중..."),
-                              ],
-                            ),
-                          )
-                        : _filtered.isEmpty
-                        ? const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Text("검색 결과가 없습니다."),
-                          )
-                        : ListView.builder(
-                            padding: EdgeInsets.zero,
-                            itemCount: _filtered.length,
-                            itemBuilder: (_, index) {
-                              final item = _filtered[index];
-                              return InkWell(
-                                onTap: () {
-                                  _controller.text = widget.displayString(item);
-                                  widget.onSelected(item);
-                                  _removeOverlay();
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 12,
-                                  ),
-                                  child: Text(widget.displayString(item)),
-                                ),
-                              );
-                            },
+      builder: (context) => Positioned(
+        width: size.width,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          offset: Offset(0, size.height + 8),
+          child: Material(
+            elevation: 10,
+            borderRadius: BorderRadius.circular(16),
+            color: AppColors.background,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 260),
+              child: widget.loading
+                  ? Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                  ),
-                ),
-              ),
+                          const SizedBox(width: 12),
+                          Text('검색 중...', style: AppTextStyles.bodyMuted),
+                        ],
+                      ),
+                    )
+                  : _filtered.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text(
+                        '검색 결과가 없습니다.',
+                        style: AppTextStyles.bodyMuted,
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      itemCount: _filtered.length,
+                      itemBuilder: (_, index) {
+                        final item = _filtered[index];
+                        final hovered = index == _hoveredIndex;
+
+                        return AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          color: hovered
+                              ? AppColors.primary.withOpacity(0.08)
+                              : Colors.transparent,
+                          child: InkWell(
+                            onTap: () {
+                              _controller.text = widget.displayString(item);
+                              widget.onSelected(item);
+                              _focusNode.unfocus();
+                            },
+                            onHover: (v) {
+                              setState(() => _hoveredIndex = v ? index : -1);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                              child: Text(
+                                widget.displayString(item),
+                                style: AppTextStyles.body,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
-          ],
+          ),
         ),
       ),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      overlay.insert(_overlayEntry!);
-      _isOpen = true;
-    });
+    overlay.insert(_overlayEntry!);
+    _isOpen = true;
   }
 
   void _filterLocal(String query) {
@@ -176,8 +203,6 @@ class _SearchDropdownState<T> extends State<SearchDropdown<T>> {
   }
 
   void _onChanged(String text) {
-    if (!_isOpen) _openOverlay();
-
     if (widget.mode == SearchMode.local) {
       _filterLocal(text);
     } else {
@@ -192,30 +217,54 @@ class _SearchDropdownState<T> extends State<SearchDropdown<T>> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-          ),
+          Text(widget.label, style: AppTextStyles.sectionTitle),
           const SizedBox(height: 6),
-          TextField(
-            controller: _controller,
-            enabled: widget.enabled,
-            onTap: () {
-              if (!_isOpen) _openOverlay();
+          AnimatedBuilder(
+            animation: _focusAnim,
+            builder: (context, _) {
+              return Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    if (_focusAnim.value > 0)
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(
+                          0.25 * _focusAnim.value,
+                        ),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  enabled: widget.enabled,
+                  onChanged: _onChanged,
+                  style: AppTextStyles.body,
+                  decoration: InputDecoration(
+                    hintText: widget.hintText,
+                    hintStyle: AppTextStyles.bodyMuted,
+                    filled: true,
+                    fillColor: AppColors.background,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: Color.lerp(
+                          AppColors.textDisabled,
+                          AppColors.primary,
+                          _focusAnim.value,
+                        )!,
+                      ),
+                    ),
+                  ),
+                ),
+              );
             },
-            onChanged: _onChanged,
-            decoration: InputDecoration(
-              hintText: widget.hintText,
-              filled: true,
-              fillColor: widget.enabled ? Colors.white : Colors.grey.shade200,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 14,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
           ),
         ],
       ),

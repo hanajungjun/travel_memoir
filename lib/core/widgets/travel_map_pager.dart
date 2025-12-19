@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
 import 'package:travel_memoir/features/map/pages/domestic_map_page.dart';
 import 'package:travel_memoir/features/map/pages/global_map_page.dart';
 import 'package:travel_memoir/features/map/pages/map_main_page.dart';
@@ -16,6 +19,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   int _index = 0;
 
   void _move(int i) {
+    if (_index == i) return;
     setState(() => _index = i);
     _controller.animateToPage(
       i,
@@ -33,7 +37,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.grey.shade200,
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
@@ -60,10 +64,40 @@ class _TravelMapPagerState extends State<TravelMapPager> {
             height: 220,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
-              child: PageView(
-                controller: _controller,
-                onPageChanged: (i) => setState(() => _index = i),
-                children: const [DomesticMapPage(), GlobalMapPage()],
+              child: Stack(
+                children: [
+                  PageView(
+                    controller: _controller,
+                    onPageChanged: (i) => setState(() => _index = i),
+                    children: const [DomesticMapPage(), GlobalMapPage()],
+                  ),
+
+                  // 클릭 유도 오버레이
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.35),
+                            Colors.transparent,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Icon(
+                      Icons.open_in_full,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -93,18 +127,17 @@ class _Tab extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 220),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: selected ? Colors.black : Colors.transparent,
+            color: selected ? AppColors.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Center(
             child: Text(
               label,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : Colors.grey,
+              style: AppTextStyles.button.copyWith(
+                color: selected ? AppColors.onPrimary : AppColors.textSecondary,
               ),
             ),
           ),

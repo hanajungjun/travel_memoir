@@ -11,6 +11,9 @@ import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
 import 'package:travel_memoir/services/travel_day_service.dart';
 
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
 class TravelDayPage extends StatefulWidget {
   final String travelId;
   final String city;
@@ -37,12 +40,12 @@ class _TravelDayPageState extends State<TravelDayPage> {
   DiaryStyle _selectedStyle = diaryStyles.first;
   final List<File> _photos = [];
 
-  Uint8List? _generatedImage; // 새로 생성된 AI 이미지
-  String? _imageUrl; // 서버에 저장된 AI 이미지 URL
+  Uint8List? _generatedImage;
+  String? _imageUrl;
   String? _summaryText;
 
   bool _loading = false;
-  bool _isNewDiary = true; // 🔥 핵심: 새 작성 여부
+  bool _isNewDiary = true;
 
   @override
   void initState() {
@@ -68,11 +71,8 @@ class _TravelDayPageState extends State<TravelDayPage> {
 
     final text = (diary['text'] ?? '').toString();
     _contentController.text = text;
-
-    // 🔥 텍스트가 비어 있으면 "새 작성"
     _isNewDiary = text.isEmpty;
 
-    // 기존 AI 이미지 URL 계산
     final imageUrl = TravelDayService.getAiImageUrl(
       travelId: widget.travelId,
       date: widget.date,
@@ -126,7 +126,6 @@ Content: $content
 NO TEXT, NO LETTERS
 ''');
 
-      // 🔥 AI 생성 직후: 일기 텍스트 + 요약 먼저 저장
       final dayNumber = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
@@ -146,7 +145,7 @@ NO TEXT, NO LETTERS
       setState(() {
         _summaryText = summary;
         _generatedImage = imageBytes;
-        _imageUrl = null; // 새 이미지 생성 시 기존 URL 무효
+        _imageUrl = null;
         _isNewDiary = false;
       });
     } catch (e) {
@@ -155,14 +154,12 @@ NO TEXT, NO LETTERS
         context,
       ).showSnackBar(SnackBar(content: Text('AI 생성 실패: $e')));
     } finally {
-      if (mounted) {
-        setState(() => _loading = false);
-      }
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   // -----------------------------
-  // 💾 AI 이미지 저장 (Storage)
+  // 💾 AI 이미지 저장
   // -----------------------------
   Future<void> _saveImage() async {
     if (_generatedImage == null) return;
@@ -193,32 +190,39 @@ NO TEXT, NO LETTERS
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.city} · ${dayNumber}일차')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: Text(
+          '${widget.city} · ${dayNumber}일차',
+          style: AppTextStyles.appBarTitle,
+        ),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              DateUtilsHelper.todayText(),
-              style: const TextStyle(color: Colors.grey),
-            ),
+            Text(DateUtilsHelper.todayText(), style: AppTextStyles.caption),
 
             const SizedBox(height: 16),
 
-            const Text(
-              '오늘의 여행기록을 작성하세요 ✍️',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            Text('오늘의 여행기록', style: AppTextStyles.sectionTitle),
 
             const SizedBox(height: 12),
 
             TextField(
               controller: _contentController,
               maxLines: 6,
-              decoration: const InputDecoration(
+              style: AppTextStyles.body,
+              decoration: InputDecoration(
                 hintText: '오늘 있었던 일을 적어보세요',
-                border: OutlineInputBorder(),
+                hintStyle: AppTextStyles.bodyMuted,
+                filled: true,
+                fillColor: AppColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
 
@@ -230,9 +234,9 @@ NO TEXT, NO LETTERS
               },
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            const Text('사진 (최대 3장)'),
+            Text('사진 (최대 3장)', style: AppTextStyles.sectionTitle),
             const SizedBox(height: 8),
 
             Row(
@@ -240,11 +244,14 @@ NO TEXT, NO LETTERS
                 ..._photos.map(
                   (file) => Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Image.file(
-                      file,
-                      width: 70,
-                      height: 70,
-                      fit: BoxFit.cover,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        file,
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
@@ -254,14 +261,17 @@ NO TEXT, NO LETTERS
                     child: Container(
                       width: 70,
                       height: 70,
-                      color: Colors.grey.shade300,
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: const Icon(Icons.add),
                     ),
                   ),
               ],
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 32),
 
             SizedBox(
               width: double.infinity,
@@ -269,27 +279,31 @@ NO TEXT, NO LETTERS
               child: ElevatedButton(
                 onPressed: _loading ? null : _generateAI,
                 child: _loading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const CircularProgressIndicator()
                     : const Text('🎨 AI 그림일기 생성하기'),
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 32),
 
-            // 🖼️ AI 이미지 표시
             if (_imageUrl != null)
-              Image.network(_imageUrl!)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.network(_imageUrl!),
+              )
             else if (_generatedImage != null)
-              Image.memory(_generatedImage!),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.memory(_generatedImage!),
+              ),
 
             if (_summaryText != null) ...[
-              const SizedBox(height: 12),
-              Text(_summaryText!),
+              const SizedBox(height: 16),
+              Text(_summaryText!, style: AppTextStyles.body),
             ],
 
-            // 🔥 새로 생성한 경우에만 저장 버튼 노출
             if (_generatedImage != null) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 height: 48,

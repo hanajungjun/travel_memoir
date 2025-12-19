@@ -7,6 +7,9 @@ import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 import 'package:travel_memoir/features/travel_info/pages/travel_type_select_page.dart';
 
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
 class TravelInfoPage extends StatefulWidget {
   const TravelInfoPage({super.key});
 
@@ -32,7 +35,10 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('내 여행'), elevation: 0),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('내 여행', style: AppTextStyles.appBarTitle),
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snapshot) {
@@ -41,14 +47,15 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           }
 
           final travels = snapshot.data ?? [];
+
           if (travels.isEmpty) {
             return const Center(
-              child: Text('아직 여행이 없어요', style: TextStyle(color: Colors.grey)),
+              child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
             );
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             itemCount: travels.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -63,14 +70,17 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
               return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   children: [
+                    // ======================
                     // 텍스트 영역
+                    // ======================
                     Expanded(
                       child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -83,14 +93,13 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 도시 + 여행완료 배지
+                            // 도시 + 배지
                             Row(
                               children: [
                                 Text(
                                   travel['city'] ?? '',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                  style: AppTextStyles.title.copyWith(
+                                    fontSize: 20,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -98,9 +107,9 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                               ],
                             ),
 
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 6),
 
-                            // ✍️ 기록 상태 (n / total)
+                            // ✍️ 기록 상태
                             FutureBuilder<int>(
                               future: TravelDayService.getWrittenDayCount(
                                 travelId: travel['id'],
@@ -109,31 +118,31 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                                 final written = snapshot.data ?? 0;
                                 return Text(
                                   '$written / $totalDays일 작성',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    color: Colors.grey,
-                                  ),
+                                  style: AppTextStyles.bodyMuted,
                                 );
                               },
                             ),
 
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 4),
 
                             // 날짜
                             Text(
                               '${travel['start_date']} ~ ${travel['end_date']}',
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
+                              style: AppTextStyles.caption,
                             ),
                           ],
                         ),
                       ),
                     ),
 
+                    // ======================
                     // ⋮ 메뉴
+                    // ======================
                     PopupMenuButton<String>(
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: AppColors.textSecondary,
+                      ),
                       onSelected: (value) async {
                         if (value == 'delete') {
                           final ok = await showDialog<bool>(
@@ -153,7 +162,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                                   onPressed: () => Navigator.pop(context, true),
                                   child: const Text(
                                     '삭제',
-                                    style: TextStyle(color: Colors.red),
+                                    style: TextStyle(color: AppColors.error),
                                   ),
                                 ),
                               ],
@@ -177,7 +186,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
                           value: 'delete',
                           child: Text(
                             '여행 삭제',
-                            style: TextStyle(color: Colors.red),
+                            style: TextStyle(color: AppColors.error),
                           ),
                         ),
                       ],
@@ -190,8 +199,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
         },
       ),
 
+      // ======================
       // ➕ 여행 추가
+      // ======================
       floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
         onPressed: () async {
           await Navigator.push(
             context,
@@ -199,7 +211,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
           );
           _refresh();
         },
-        child: const Icon(Icons.add),
+        child: const Icon(Icons.add, color: Colors.black),
       ),
     );
   }
@@ -216,7 +228,7 @@ class _FinishedBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: AppColors.divider,
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Text(
@@ -224,7 +236,7 @@ class _FinishedBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          color: Colors.black54,
+          color: AppColors.textSecondary,
         ),
       ),
     );

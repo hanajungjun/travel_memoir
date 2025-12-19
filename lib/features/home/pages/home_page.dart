@@ -9,6 +9,9 @@ import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/widgets/travel_map_pager.dart';
 
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
 class HomePage extends StatelessWidget {
   final VoidCallback onGoToTravel;
 
@@ -17,25 +20,24 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Travel Memoir'), elevation: 0),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Travel Memoir'),
+        elevation: 0,
+        backgroundColor: AppColors.background,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 📅 오늘 날짜
-            Text(
-              DateUtilsHelper.todayText(),
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
-            ),
+            Text(DateUtilsHelper.todayText(), style: AppTextStyles.bodyMuted),
 
             const SizedBox(height: 16),
 
             // ✍️ 오늘의 일기
-            const Text(
-              '오늘의 일기',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
+            Text('오늘의 일기', style: AppTextStyles.sectionTitle),
 
             const SizedBox(height: 12),
 
@@ -43,6 +45,13 @@ class HomePage extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
                 onPressed: () async {
                   final travel = await TravelService.getTodayTravel();
 
@@ -50,12 +59,19 @@ class HomePage extends StatelessWidget {
                     showDialog(
                       context: context,
                       builder: (_) => AlertDialog(
-                        title: const Text('여행이 없어요'),
-                        content: const Text('오늘은 여행 중이 아니에요.\n여행을 추가할까요?'),
+                        backgroundColor: AppColors.surface,
+                        title: Text(
+                          '여행이 없어요',
+                          style: AppTextStyles.sectionTitle,
+                        ),
+                        content: Text(
+                          '오늘은 여행 중이 아니에요.\n여행을 추가할까요?',
+                          style: AppTextStyles.body,
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('취소'),
+                            child: Text('취소', style: AppTextStyles.bodyMuted),
                           ),
                           ElevatedButton(
                             onPressed: () {
@@ -83,8 +99,15 @@ class HomePage extends StatelessWidget {
                     final action = await showDialog<String>(
                       context: context,
                       builder: (_) => AlertDialog(
-                        title: const Text('오늘의 일기가 있어요'),
-                        content: const Text('이미 작성한 일기가 있습니다.\n어떻게 할까요?'),
+                        backgroundColor: AppColors.surface,
+                        title: Text(
+                          '오늘의 일기가 있어요',
+                          style: AppTextStyles.sectionTitle,
+                        ),
+                        content: Text(
+                          '이미 작성한 일기가 있습니다.\n어떻게 할까요?',
+                          style: AppTextStyles.body,
+                        ),
                         actions: [
                           TextButton(
                             onPressed: () => Navigator.pop(context, 'edit'),
@@ -96,7 +119,7 @@ class HomePage extends StatelessWidget {
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context, null),
-                            child: const Text('취소'),
+                            child: Text('취소', style: AppTextStyles.bodyMuted),
                           ),
                         ],
                       ),
@@ -121,7 +144,7 @@ class HomePage extends StatelessWidget {
 
                     return Text(
                       hasDiary ? '✅ 오늘 일기 작성됨' : '✍️ 오늘 일기 쓰기',
-                      style: const TextStyle(fontSize: 16),
+                      style: AppTextStyles.button,
                     );
                   },
                 ),
@@ -131,10 +154,7 @@ class HomePage extends StatelessWidget {
             const SizedBox(height: 40),
 
             // 🧳 최근 여행
-            const Text(
-              '최근 여행',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
+            Text('최근 여행', style: AppTextStyles.sectionTitle),
 
             const SizedBox(height: 12),
 
@@ -160,7 +180,7 @@ class HomePage extends StatelessWidget {
                 );
 
                 return InkWell(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -173,8 +193,15 @@ class HomePage extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: AppColors.shadow,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -187,13 +214,13 @@ class HomePage extends StatelessWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
+                              color: AppColors.warning,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: const Text(
                               '여행중',
                               style: TextStyle(
-                                color: Colors.orange,
+                                color: Colors.black,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -201,15 +228,14 @@ class HomePage extends StatelessWidget {
                           ),
                         Text(
                           '${travel['city']} 여행',
-                          style: const TextStyle(
-                            fontSize: 18,
+                          style: AppTextStyles.body.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${travel['start_date']} ~ ${travel['end_date']}',
-                          style: const TextStyle(color: Colors.grey),
+                          style: AppTextStyles.bodyMuted,
                         ),
                       ],
                     ),
@@ -220,7 +246,7 @@ class HomePage extends StatelessWidget {
 
             const SizedBox(height: 40),
 
-            // 🗺️ 여행 지도 (스와이프)
+            // 🗺️ 여행 지도
             const TravelMapPager(),
           ],
         ),
@@ -253,7 +279,7 @@ class HomePage extends StatelessWidget {
   static bool _isOngoing(String start, String end) {
     final today = DateTime.now();
     final s = DateTime.parse(start);
-    final e = DateTime.parse(end); // ✅ 여기
+    final e = DateTime.parse(end);
     return !today.isBefore(s) && !today.isAfter(e);
   }
 
@@ -262,10 +288,10 @@ class HomePage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: const Text('아직 여행이 없어요', style: TextStyle(color: Colors.grey)),
+      child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
     );
   }
 }

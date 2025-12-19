@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../models/diary_style.dart';
+import 'package:travel_memoir/models/diary_style.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 class DiaryStylePicker extends StatefulWidget {
   final ValueChanged<DiaryStyle> onChanged;
@@ -17,7 +19,6 @@ class _DiaryStylePickerState extends State<DiaryStylePicker> {
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onChanged(diaryStyles[0]);
     });
@@ -43,8 +44,19 @@ class _DiaryStylePickerState extends State<DiaryStylePicker> {
             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: selected ? Colors.black : Colors.grey.shade200,
+              color: selected
+                  ? AppColors.primary
+                  : AppColors.background.withOpacity(0.08),
               borderRadius: BorderRadius.circular(16),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.15),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : [],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -52,19 +64,21 @@ class _DiaryStylePickerState extends State<DiaryStylePicker> {
                 Text(
                   style.title,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: selected ? Colors.white : Colors.black,
-                    fontSize: 16,
+                  style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: selected
+                        ? AppColors.background
+                        : AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   style.description,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: selected ? Colors.white70 : Colors.grey.shade600,
-                    fontSize: 13,
+                  style: AppTextStyles.bodyMuted.copyWith(
+                    color: selected
+                        ? AppColors.background.withOpacity(0.8)
+                        : AppColors.textSecondary,
                   ),
                 ),
               ],

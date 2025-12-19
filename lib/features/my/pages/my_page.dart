@@ -3,6 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -39,7 +41,7 @@ class _MyPageState extends State<MyPage> {
 
     if (updated == true) {
       setState(() {
-        _future = _fetchMyProfile(); // 🔥 수정 즉시 반영
+        _future = _fetchMyProfile();
       });
     }
   }
@@ -47,13 +49,19 @@ class _MyPageState extends State<MyPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('마이페이지'),
+        backgroundColor: AppColors.background,
+        elevation: 0,
         centerTitle: true,
-        actions: const [
+        title: Text('마이페이지', style: AppTextStyles.appBarTitle),
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.notifications_none),
+            padding: const EdgeInsets.only(right: 16),
+            child: Icon(
+              Icons.notifications_none,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
@@ -80,15 +88,15 @@ class _MyPageState extends State<MyPage> {
                 children: [
                   CircleAvatar(
                     radius: 36,
-                    backgroundColor: Colors.grey.shade300,
+                    backgroundColor: AppColors.surface,
                     backgroundImage: imageUrl != null
                         ? NetworkImage(imageUrl)
                         : null,
                     child: imageUrl == null
-                        ? const Icon(
+                        ? Icon(
                             Icons.person,
                             size: 36,
-                            color: Colors.white,
+                            color: AppColors.textDisabled,
                           )
                         : null,
                   ),
@@ -97,29 +105,23 @@ class _MyPageState extends State<MyPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          nickname,
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        Text(nickname, style: AppTextStyles.title),
                         if (bio.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(bio, style: const TextStyle(color: Colors.grey)),
+                          const SizedBox(height: 6),
+                          Text(bio, style: AppTextStyles.bodyMuted),
                         ],
                         const SizedBox(height: 4),
-                        Text(email, style: const TextStyle(color: Colors.grey)),
+                        Text(email, style: AppTextStyles.caption),
                       ],
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               // ======================
-              // 📊 요약 정보 (UI용)
+              // 📊 요약 정보
               // ======================
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -130,7 +132,7 @@ class _MyPageState extends State<MyPage> {
                 ],
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               // ======================
               // ✏️ 프로필 수정
@@ -139,27 +141,36 @@ class _MyPageState extends State<MyPage> {
                 width: double.infinity,
                 height: 48,
                 child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: AppColors.divider),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                   onPressed: _openEditProfile,
-                  child: const Text('프로필 수정'),
+                  child: Text('프로필 수정', style: AppTextStyles.button),
                 ),
               ),
 
               const SizedBox(height: 32),
 
               // ======================
-              // 📂 메뉴 리스트 (UI)
+              // 📂 메뉴 리스트
               // ======================
-              _MenuItem(icon: Icons.bookmark_border, title: '저장됨'),
-              _MenuItem(icon: Icons.mail_outline, title: '메시지'),
-              _MenuItem(icon: Icons.calendar_today, title: '내 예약'),
-              _MenuItem(icon: Icons.person_outline, title: '회원 정보 수정'),
-              _MenuItem(icon: Icons.group_outlined, title: '여행자 정보 관리'),
-              _MenuItem(icon: Icons.notifications_outlined, title: '알림 설정'),
-              _MenuItem(icon: Icons.help_outline, title: '공지사항 및 FAQ'),
-              _MenuItem(icon: Icons.support_agent, title: '문의하기'),
-              _MenuItem(icon: Icons.description_outlined, title: '이용 약관'),
+              const _MenuItem(icon: Icons.bookmark_border, title: '저장됨'),
+              const _MenuItem(icon: Icons.mail_outline, title: '메시지'),
+              const _MenuItem(icon: Icons.calendar_today, title: '내 예약'),
+              const _MenuItem(icon: Icons.person_outline, title: '회원 정보 수정'),
+              const _MenuItem(icon: Icons.group_outlined, title: '여행자 정보 관리'),
+              const _MenuItem(
+                icon: Icons.notifications_outlined,
+                title: '알림 설정',
+              ),
+              const _MenuItem(icon: Icons.help_outline, title: '공지사항 및 FAQ'),
+              const _MenuItem(icon: Icons.support_agent, title: '문의하기'),
+              const _MenuItem(icon: Icons.description_outlined, title: '이용 약관'),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 36),
 
               // ======================
               // 🔴 로그아웃
@@ -169,7 +180,11 @@ class _MyPageState extends State<MyPage> {
                 height: 48,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent,
+                    backgroundColor: AppColors.error,
+                    foregroundColor: AppColors.textPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                   onPressed: () async {
                     await Supabase.instance.client.auth.signOut();
@@ -182,7 +197,7 @@ class _MyPageState extends State<MyPage> {
                       (_) => false,
                     );
                   },
-                  child: const Text('로그아웃', style: TextStyle(fontSize: 16)),
+                  child: Text('로그아웃', style: AppTextStyles.button),
                 ),
               ),
             ],
@@ -206,12 +221,9 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        Text(value, style: AppTextStyles.title),
         const SizedBox(height: 4),
-        Text(title, style: const TextStyle(color: Colors.grey)),
+        Text(title, style: AppTextStyles.caption),
       ],
     );
   }
@@ -230,9 +242,9 @@ class _MenuItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
-      leading: Icon(icon),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right),
+      leading: Icon(icon, color: AppColors.textSecondary),
+      title: Text(title, style: AppTextStyles.body),
+      trailing: Icon(Icons.chevron_right, color: AppColors.textDisabled),
       onTap: () {},
     );
   }

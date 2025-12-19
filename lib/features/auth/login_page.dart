@@ -7,7 +7,10 @@ import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:travel_memoir/app/app_shell.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -27,8 +30,6 @@ class _LoginPageState extends State<LoginPage> {
     _authSub = supabase.auth.onAuthStateChange.listen((data) async {
       final user = data.session?.user;
       if (user == null) return;
-
-      debugPrint('🔥 AUTH UID = ${user.id}');
 
       await supabase.from('users').upsert({
         'auth_uid': user.id,
@@ -59,13 +60,11 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // =====================
-  // 🟡 Kakao SDK + Supabase Auth
+  // Login handlers
   // =====================
   Future<void> _loginWithKakao() async {
     try {
       final token = await UserApi.instance.loginWithKakaoAccount();
-
-      // 🔴 aud 찍는 줄 (이거만 보면 됨)
       debugPrint('🧨 KAKAO aud = ${parseJwt(token.idToken!)['aud']}');
 
       await supabase.auth.signInWithIdToken(
@@ -77,9 +76,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // =====================
-  // 🔵 Google SDK
-  // =====================
   Future<void> _loginWithGoogle() async {
     try {
       final googleUser = await GoogleSignIn().signIn();
@@ -97,9 +93,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // =====================
-  // ⚪ Apple SDK
-  // =====================
   Future<void> _loginWithApple() async {
     try {
       final credential = await SignInWithApple.getAppleIDCredential(
@@ -118,18 +111,17 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // =====================
-  // 📧 Email
-  // =====================
   Future<void> _loginWithEmail() async {
     final controller = TextEditingController();
 
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('이메일로 로그인'),
+        backgroundColor: AppColors.surface,
+        title: Text('이메일로 로그인', style: AppTextStyles.sectionTitle),
         content: TextField(
           controller: controller,
+          style: AppTextStyles.body,
           decoration: const InputDecoration(hintText: 'email@example.com'),
         ),
         actions: [
@@ -149,37 +141,63 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // =====================
+  // UI
+  // =====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              const Text(
-                'Travel Memoir',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+
+              Text('Travel Memoir', style: AppTextStyles.title),
+              const SizedBox(height: 12),
+              Text(
+                '여행의 순간을\n하루의 기록으로 남겨보세요.',
+                style: AppTextStyles.bodyMuted,
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
-              _bigButton(
+
+              const SizedBox(height: 48),
+
+              _loginButton(
                 text: '카카오로 로그인',
-                color: const Color(0xFFFEE500),
+                background: const Color(0xFFFEE500),
                 textColor: Colors.black,
                 onTap: _loginWithKakao,
               ),
+
               const SizedBox(height: 12),
-              _bigButton(text: 'Google로 로그인', onTap: _loginWithGoogle),
-              const SizedBox(height: 12),
-              if (Platform.isIOS)
-                _bigButton(text: 'Apple로 로그인', onTap: _loginWithApple),
-              const SizedBox(height: 12),
+
+              _loginButton(
+                text: 'Google로 로그인',
+                background: AppColors.surface,
+                textColor: AppColors.textPrimary,
+                onTap: _loginWithGoogle,
+              ),
+
+              if (Platform.isIOS) ...[
+                const SizedBox(height: 12),
+                _loginButton(
+                  text: 'Apple로 로그인',
+                  background: Colors.black,
+                  textColor: Colors.white,
+                  onTap: _loginWithApple,
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
               TextButton(
                 onPressed: _loginWithEmail,
-                child: const Text('이메일로 로그인'),
+                child: Text('이메일로 로그인', style: AppTextStyles.bodyMuted),
               ),
+
               const Spacer(),
             ],
           ),
@@ -188,22 +206,25 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _bigButton({
+  Widget _loginButton({
     required String text,
+    required Color background,
+    required Color textColor,
     required VoidCallback onTap,
-    Color? color,
-    Color? textColor,
   }) {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: color,
+          backgroundColor: background,
           foregroundColor: textColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
         onPressed: onTap,
-        child: Text(text, style: const TextStyle(fontSize: 16)),
+        child: Text(text, style: AppTextStyles.button),
       ),
     );
   }

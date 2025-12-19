@@ -5,6 +5,9 @@ import 'package:travel_memoir/services/travel_create_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 import 'package:travel_memoir/features/travel_info/sheets/domestic_city_select_sheet.dart';
 
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
 class DomesticTravelDatePage extends StatefulWidget {
   const DomesticTravelDatePage({super.key});
 
@@ -29,6 +32,17 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
       context: context,
       firstDate: DateTime(now.year - 5),
       lastDate: DateTime(now.year + 5),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.dark(
+              primary: AppColors.primary,
+              surface: AppColors.surface,
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (range == null) return;
@@ -46,12 +60,14 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) {
         return DomesticCitySelectSheet(
           onSelected: (city) {
-            setState(() {
-              _city = city;
-            });
+            setState(() => _city = city);
           },
         );
       },
@@ -62,17 +78,14 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
   // 🚀 여행 생성
   // =========================
   Future<void> _createTravel() async {
-    // 🔥 현재 로그인 유저 확인
     final user = Supabase.instance.client.auth.currentUser;
-
-    debugPrint('🔥 AUTH UID = ${user?.id}');
 
     if (user == null) {
       throw Exception('로그인이 필요합니다');
     }
 
     final travel = await TravelCreateService.createDomesticTravel(
-      userId: user.id, // 🔥 RLS 핵심
+      userId: user.id,
       city: _city!,
       startDate: _startDate!,
       endDate: _endDate!,
@@ -89,73 +102,83 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('국내 여행')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('국내 여행', style: AppTextStyles.appBarTitle),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ======================
             // 📅 날짜
-            const Text(
-              '여행 날짜',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            // ======================
+            Text('여행 날짜', style: AppTextStyles.sectionTitle),
             const SizedBox(height: 8),
-            InkWell(
+
+            _SelectBox(
+              text: _startDate == null || _endDate == null
+                  ? '날짜를 선택해주세요'
+                  : '${_startDate!.year}.${_startDate!.month}.${_startDate!.day}'
+                        ' ~ '
+                        '${_endDate!.year}.${_endDate!.month}.${_endDate!.day}',
               onTap: _pickDateRange,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  _startDate == null || _endDate == null
-                      ? '날짜를 선택해주세요'
-                      : '${_startDate!.year}.${_startDate!.month}.${_startDate!.day}'
-                            ' ~ '
-                            '${_endDate!.year}.${_endDate!.month}.${_endDate!.day}',
-                ),
-              ),
             ),
 
             const SizedBox(height: 32),
 
+            // ======================
             // 📍 도시
-            const Text(
-              '도시',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
+            // ======================
+            Text('도시', style: AppTextStyles.sectionTitle),
             const SizedBox(height: 8),
-            InkWell(
-              onTap: _pickCity,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(_city ?? '도시를 선택해주세요'),
-              ),
-            ),
+
+            _SelectBox(text: _city ?? '도시를 선택해주세요', onTap: _pickCity),
 
             const Spacer(),
 
-            // 👉 여행 생성
+            // ======================
+            // 🚀 여행 생성
+            // ======================
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
                 onPressed: _canNext ? _createTravel : null,
-                child: const Text('여행 생성', style: TextStyle(fontSize: 16)),
+                child: const Text('여행 생성', style: AppTextStyles.button),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ==============================
+// 🔹 공통 선택 박스
+// ==============================
+class _SelectBox extends StatelessWidget {
+  final String text;
+  final VoidCallback onTap;
+
+  const _SelectBox({required this.text, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.divider),
+        ),
+        child: Text(text, style: AppTextStyles.body),
       ),
     );
   }

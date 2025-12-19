@@ -5,6 +5,9 @@ import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
 class RecordTabPage extends StatefulWidget {
   const RecordTabPage({super.key});
 
@@ -14,7 +17,6 @@ class RecordTabPage extends StatefulWidget {
 
 class _RecordTabPageState extends State<RecordTabPage> {
   final PageController _controller = PageController();
-
   late Future<List<Map<String, dynamic>>> _future;
 
   @override
@@ -26,6 +28,7 @@ class _RecordTabPageState extends State<RecordTabPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snapshot) {
@@ -36,7 +39,9 @@ class _RecordTabPageState extends State<RecordTabPage> {
           final travels = snapshot.data!;
 
           if (travels.isEmpty) {
-            return const Center(child: Text('아직 기록된 여행이 없어요'));
+            return Center(
+              child: Text('아직 기록된 여행이 없어요', style: AppTextStyles.bodyMuted),
+            );
           }
 
           return PageView.builder(
@@ -54,7 +59,6 @@ class _RecordTabPageState extends State<RecordTabPage> {
               }
 
               final travel = travels[index - 1];
-
               return _AnimatedPage(child: _TravelRecordCard(travel: travel));
             },
           );
@@ -148,29 +152,33 @@ class _SummaryHeroCard extends StatelessWidget {
           children: [
             const Spacer(),
 
-            const Text(
-              '기억을 다시 꺼내볼까요?',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
+            Text('기억을 다시 꺼내볼까요?', style: AppTextStyles.title),
 
             const SizedBox(height: 24),
 
-            Text('지금까지의 여행 · 총 $totalCount번'),
+            Text('지금까지의 여행 · 총 $totalCount번', style: AppTextStyles.body),
             const SizedBox(height: 8),
-            Text('마지막 여행 · ${DateUtilsHelper.formatYMD(end)}'),
+            Text(
+              '마지막 여행 · ${DateUtilsHelper.formatYMD(end)}',
+              style: AppTextStyles.body,
+            ),
             Text(
               DateUtilsHelper.memoryTimeAgo(end),
-              style: const TextStyle(color: Colors.grey),
+              style: AppTextStyles.bodyMuted,
             ),
 
             const Spacer(),
 
-            const Center(
+            Center(
               child: Column(
                 children: [
-                  Icon(Icons.keyboard_arrow_up, size: 28),
-                  SizedBox(height: 4),
-                  Text('위로 올려 여행 기록 보기', style: TextStyle(color: Colors.grey)),
+                  Icon(
+                    Icons.keyboard_arrow_up,
+                    size: 28,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 4),
+                  Text('위로 올려 여행 기록 보기', style: AppTextStyles.caption),
                 ],
               ),
             ),
@@ -217,7 +225,7 @@ class _TravelRecordCard extends StatelessWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: imageUrl == null
-                      ? Container(color: Colors.grey.shade300)
+                      ? Container(color: AppColors.surface)
                       : Image.network(
                           imageUrl,
                           width: double.infinity,
@@ -228,19 +236,13 @@ class _TravelRecordCard extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              Text(
-                '${travel['city']} 여행',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text('${travel['city']} 여행', style: AppTextStyles.sectionTitle),
 
               const SizedBox(height: 6),
 
               Text(
                 '${travel['start_date']} ~ ${travel['end_date']}',
-                style: const TextStyle(color: Colors.grey),
+                style: AppTextStyles.bodyMuted,
               ),
             ],
           ),

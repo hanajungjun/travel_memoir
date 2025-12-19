@@ -4,6 +4,9 @@ import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/features/travel_day/pages/travel_day_page.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
 class TravelDiaryListPage extends StatelessWidget {
   final Map<String, dynamic> travel;
 
@@ -18,13 +21,14 @@ class TravelDiaryListPage extends StatelessWidget {
     final isFinished = DateTime.now().isAfter(endDate);
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         elevation: 0,
         title: Row(
           children: [
-            Text('${travel['city']} 여행 기록'),
+            Text('${travel['city']} 여행 기록', style: AppTextStyles.appBarTitle),
             const SizedBox(width: 8),
-            if (isFinished) _FinishedBadge(),
+            if (isFinished) const _FinishedBadge(),
           ],
         ),
       ),
@@ -53,7 +57,7 @@ class TravelDiaryListPage extends StatelessWidget {
                     );
 
               return InkWell(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 onTap: () {
                   Navigator.push(
                     context,
@@ -72,15 +76,17 @@ class TravelDiaryListPage extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
                     children: [
-                      // 썸네일
+                      // ======================
+                      // 🖼 썸네일
+                      // ======================
                       if (imageUrl != null)
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
                           child: Image.network(
                             imageUrl,
                             width: 56,
@@ -93,8 +99,8 @@ class TravelDiaryListPage extends StatelessWidget {
                           width: 56,
                           height: 56,
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(8),
+                            color: AppColors.divider,
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(
                             Icons.image_not_supported,
@@ -102,19 +108,18 @@ class TravelDiaryListPage extends StatelessWidget {
                           ),
                         ),
 
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
 
-                      // 텍스트
+                      // ======================
+                      // 📝 텍스트
+                      // ======================
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               '${DateUtilsHelper.formatMonthDay(date)} · ${dayIndex}일차',
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
-                              ),
+                              style: AppTextStyles.caption,
                             ),
                             const SizedBox(height: 6),
                             Text(
@@ -123,10 +128,9 @@ class TravelDiaryListPage extends StatelessWidget {
                                   : '아직 작성하지 않았어요',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: hasDiary ? Colors.black : Colors.grey,
-                              ),
+                              style: hasDiary
+                                  ? AppTextStyles.body
+                                  : AppTextStyles.bodyMuted,
                             ),
                           ],
                         ),
@@ -136,7 +140,9 @@ class TravelDiaryListPage extends StatelessWidget {
 
                       Icon(
                         hasDiary ? Icons.check_circle : Icons.edit,
-                        color: hasDiary ? Colors.green : Colors.grey,
+                        color: hasDiary
+                            ? AppColors.success
+                            : AppColors.textDisabled,
                       ),
                     ],
                   ),
@@ -154,21 +160,19 @@ class TravelDiaryListPage extends StatelessWidget {
 // 🔒 여행 완료 배지
 // ==============================
 class _FinishedBadge extends StatelessWidget {
+  const _FinishedBadge();
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.grey.shade300,
+        color: AppColors.divider,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Text(
+      child: Text(
         '여행완료',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-          color: Colors.black54,
-        ),
+        style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w600),
       ),
     );
   }
