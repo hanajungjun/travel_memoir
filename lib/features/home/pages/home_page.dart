@@ -7,6 +7,7 @@ import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 
 import 'package:travel_memoir/core/utils/date_utils.dart';
+import 'package:travel_memoir/core/widgets/travel_map_pager.dart';
 
 class HomePage extends StatelessWidget {
   final VoidCallback onGoToTravel;
@@ -17,7 +18,7 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Travel Memoir'), elevation: 0),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,7 +46,6 @@ class HomePage extends StatelessWidget {
                 onPressed: () async {
                   final travel = await TravelService.getTodayTravel();
 
-                  // ❌ 오늘 여행 없음
                   if (travel == null) {
                     showDialog(
                       context: context,
@@ -70,20 +70,16 @@ class HomePage extends StatelessWidget {
                     return;
                   }
 
-                  final today = DateTime.now();
-
-                  // 📚 오늘 일기 존재 여부 확인
                   final diary = await TravelDayService.getDiaryByDate(
                     travelId: travel['id'],
-                    date: today,
+                    date: DateTime.now(),
                   );
 
-                  final hasTodayDiary =
+                  final hasDiary =
                       diary != null &&
                       (diary['text'] ?? '').toString().isNotEmpty;
 
-                  // 🔔 이미 작성된 경우 → 선택 다이얼로그
-                  if (hasTodayDiary) {
+                  if (hasDiary) {
                     final action = await showDialog<String>(
                       context: context,
                       builder: (_) => AlertDialog(
@@ -109,7 +105,6 @@ class HomePage extends StatelessWidget {
                     if (action == null) return;
                   }
 
-                  // 👉 항상 여행별 일기 목록으로 이동
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -147,7 +142,10 @@ class HomePage extends StatelessWidget {
               future: _getRecentTravel(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
                 }
 
                 final travel = snapshot.data;
@@ -164,7 +162,6 @@ class HomePage extends StatelessWidget {
                 return InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () {
-                    // 👉 최근 여행도 동일하게 목록으로 이동
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -220,6 +217,11 @@ class HomePage extends StatelessWidget {
                 );
               },
             ),
+
+            const SizedBox(height: 40),
+
+            // 🗺️ 여행 지도 (스와이프)
+            const TravelMapPager(),
           ],
         ),
       ),
@@ -251,7 +253,7 @@ class HomePage extends StatelessWidget {
   static bool _isOngoing(String start, String end) {
     final today = DateTime.now();
     final s = DateTime.parse(start);
-    final e = DateTime.parse(end);
+    final e = DateTime.parse(end); // ✅ 여기
     return !today.isBefore(s) && !today.isAfter(e);
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/services/travel_create_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
@@ -18,7 +19,9 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
 
   bool get _canNext => _startDate != null && _endDate != null && _city != null;
 
-  // ===== 날짜 선택 =====
+  // =========================
+  // 📅 날짜 선택
+  // =========================
   Future<void> _pickDateRange() async {
     final now = DateTime.now();
 
@@ -36,7 +39,9 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
     });
   }
 
-  // ===== 도시 선택 =====
+  // =========================
+  // 📍 도시 선택
+  // =========================
   Future<void> _pickCity() async {
     await showModalBottomSheet(
       context: context,
@@ -50,6 +55,34 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
           },
         );
       },
+    );
+  }
+
+  // =========================
+  // 🚀 여행 생성
+  // =========================
+  Future<void> _createTravel() async {
+    // 🔥 현재 로그인 유저 확인
+    final user = Supabase.instance.client.auth.currentUser;
+
+    debugPrint('🔥 AUTH UID = ${user?.id}');
+
+    if (user == null) {
+      throw Exception('로그인이 필요합니다');
+    }
+
+    final travel = await TravelCreateService.createDomesticTravel(
+      userId: user.id, // 🔥 RLS 핵심
+      city: _city!,
+      startDate: _startDate!,
+      endDate: _endDate!,
+    );
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => TravelDiaryListPage(travel: travel)),
     );
   }
 
@@ -112,31 +145,12 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
 
             const Spacer(),
 
-            // 👉 다음 → 여행 기록 목록으로
+            // 👉 여행 생성
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: _canNext
-                    ? () async {
-                        final travel =
-                            await TravelCreateService.createDomesticTravel(
-                              city: _city!,
-                              startDate: _startDate!,
-                              endDate: _endDate!,
-                            );
-
-                        if (!mounted) return;
-
-                        // 🔥 여기 핵심 수정
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TravelDiaryListPage(travel: travel),
-                          ),
-                        );
-                      }
-                    : null,
+                onPressed: _canNext ? _createTravel : null,
                 child: const Text('여행 생성', style: TextStyle(fontSize: 16)),
               ),
             ),

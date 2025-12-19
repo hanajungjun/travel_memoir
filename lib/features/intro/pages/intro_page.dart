@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../app/app_shell.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:travel_memoir/features/auth/login_page.dart';
 
 class IntroPage extends StatelessWidget {
   const IntroPage({super.key});
@@ -29,17 +31,26 @@ class IntroPage extends StatelessWidget {
 
               const Spacer(),
 
+              // 🔴 로그아웃 버튼
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                  ),
+                  onPressed: () async {
+                    await Supabase.instance.client.auth.signOut();
+
+                    if (!context.mounted) return;
+
+                    Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (_) => const AppShell()),
+                      MaterialPageRoute(builder: (_) => const LoginPage()),
+                      (route) => false,
                     );
                   },
-                  child: const Text('시작하기', style: TextStyle(fontSize: 16)),
+                  child: const Text('로그아웃', style: TextStyle(fontSize: 16)),
                 ),
               ),
             ],

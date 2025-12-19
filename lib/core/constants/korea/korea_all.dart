@@ -2,7 +2,7 @@ import 'korea_region.dart';
 
 import 'gyeongbuk.dart';
 import 'gyeonggi.dart';
-import 'seoul.dart';
+//import 'seoul.dart';
 import 'gyeongnam.dart';
 import 'chungbuk.dart';
 import 'chungnam.dart';
@@ -15,7 +15,7 @@ import 'metropolitan.dart';
 const List<KoreaRegion> koreaRegions = [
   ...gyeongbukRegions,
   ...gyeonggiRegions,
-  ...seoulRegions,
+  //...seoulRegions,
   ...chungbukRegions,
   ...chungnamRegions,
   ...gyeongnamRegions,

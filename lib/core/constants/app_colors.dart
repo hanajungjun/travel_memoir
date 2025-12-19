@@ -1,9 +1,31 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const background = Color(0xFF19150B); // 배경 색상
+  // =========================
+  // 🎨 Base
+  // =========================
+  static const background = Color(0xFF19150B); // 전체 배경 (다크)
 
-  static const textcolor01 = Color(0xFFFFFFFF); // 기본 텍스트 색상
-  static const textcolor02 = Color(0xFF11D1EA); // 포인트 텍스트 색상1
-  static const textcolor03 = Color(0xFFEA6AA3); // 포인트 텍스트 색상2
+  static const surface = Color(0xFF221D12); // 카드 / 컨테이너 배경
+  static const divider = Color(0xFF2F2A1E); // 구분선
+
+  // =========================
+  // ✍️ Text
+  // =========================
+  static const textPrimary = Color(0xFFFFFFFF); // 기본 텍스트
+  static const textSecondary = Color(0xFFB8B4A8); // 보조 텍스트
+  static const textDisabled = Color(0xFF6F6B5E); // 비활성
+
+  // =========================
+  // 🌈 Accent / Brand
+  // =========================
+  static const primary = Color(0xFF11D1EA); // 메인 포인트 (하늘/여행)
+  static const accent = Color(0xFFEA6AA3); // 감성 포인트 (일기/기억)
+
+  // =========================
+  // 🚦 State
+  // =========================
+  static const success = Color(0xFF4CAF50);
+  static const warning = Color(0xFFFFB300);
+  static const error = Color(0xFFE53935);
 }

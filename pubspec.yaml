@@ -36,6 +36,11 @@ dependencies:
   # 앱 아이콘
   flutter_launcher_icons: ^0.14.4
 
+  # 로그인
+  kakao_flutter_sdk_user: ^1.9.6
+  sign_in_with_apple: ^6.1.0
+  google_sign_in: ^6.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

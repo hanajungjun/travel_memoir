@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class TravelDayService {
-  static final _supabase = Supabase.instance.client;
+  static final SupabaseClient _supabase = Supabase.instance.client;
 
   /// yyyy-MM-dd
   static String _dateOnly(DateTime d) => d.toIso8601String().substring(0, 10);
@@ -13,6 +13,9 @@ class TravelDayService {
     required String travelId,
     required DateTime date,
   }) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return null;
+
     return await _supabase
         .from('travel_days')
         .select()
@@ -22,7 +25,7 @@ class TravelDayService {
   }
 
   // =====================================================
-  // 💾 일기 저장 (없으면 insert, 있으면 update) - upsert
+  // 💾 일기 저장 (없으면 insert, 있으면 update)
   // =====================================================
   static Future<Map<String, dynamic>> upsertDiary({
     required String travelId,
@@ -32,6 +35,11 @@ class TravelDayService {
     String? aiSummary,
     String? aiStyle,
   }) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      throw Exception('로그인 필요');
+    }
+
     final res = await _supabase
         .from('travel_days')
         .upsert({
@@ -49,10 +57,12 @@ class TravelDayService {
   }
 
   // =====================================================
-  // ✍️ 작성된 일기 개수 (기록 상태용)
-  // ✅ 버전 안 타게: rows 받아서 length로 계산
+  // ✍️ 작성된 일기 개수
   // =====================================================
   static Future<int> getWrittenDayCount({required String travelId}) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return 0;
+
     final res = await _supabase
         .from('travel_days')
         .select('id')
@@ -60,15 +70,14 @@ class TravelDayService {
         .not('text', 'is', null)
         .neq('text', '');
 
-    // supabase dart는 select 결과가 List 형태
     if (res is List) return res.length;
     return 0;
   }
 
   // =====================================================
-  // 🤖 AI 이미지 URL 계산 (DB 조회 ❌ / user 이미지 섞임 ❌)
-  // - bucket: travel_images
-  // - path: ai/{travelId}/{yyyy-MM-dd}.png
+  // 🤖 AI 이미지 URL
+  // bucket: travel_images
+  // path: ai/{travelId}/{yyyy-MM-dd}.png
   // =====================================================
   static String getAiImageUrl({
     required String travelId,
@@ -81,8 +90,7 @@ class TravelDayService {
   }
 
   // =====================================================
-  // ✅ 별칭(혹시 다른 파일에서 이 이름으로 부르면 안 터지게)
-  // "AI 이미지 = 일기 이미지" 컨셉 통일용
+  // ✅ 별칭
   // =====================================================
   static String getDiaryImageUrl({
     required String travelId,

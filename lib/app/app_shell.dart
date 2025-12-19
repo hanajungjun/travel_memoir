@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:travel_memoir/features/home/pages/home_page.dart';
 import 'package:travel_memoir/features/travel_info/pages/travel_info_page.dart';
 import 'package:travel_memoir/features/record/pages/record_tab_page.dart';
-import 'package:travel_memoir/features/intro/pages/intro_page.dart';
+import 'package:travel_memoir/features/my/pages/my_page.dart'; // ✅ MyPage 추가
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -23,7 +23,7 @@ class _AppShellState extends State<AppShell> {
     HomePage(onGoToTravel: () => _onTabSelected(1)),
     const TravelInfoPage(),
     const RecordTabPage(),
-    const IntroPage(),
+    const MyPage(), // ✅ IntroPage → MyPage
   ];
 
   @override
