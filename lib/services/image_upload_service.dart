@@ -33,7 +33,6 @@ class ImageUploadService {
 
   // =====================================================
   // ✍️ 일기 이미지 업로드 (AI 이미지 alias)
-  // 👉 "AI 이미지 = 일기 이미지" 개념 통일용
   // =====================================================
   static Future<String> uploadDiaryImage({
     required Uint8List imageBytes,
@@ -64,6 +63,54 @@ class ImageUploadService {
           path,
           file,
           fileOptions: const FileOptions(contentType: 'image/jpeg'),
+        );
+
+    return _supabase.storage.from('travel_images').getPublicUrl(path);
+  }
+
+  // =====================================================
+  // 🖼 여행 완료 후 AI 커버 이미지 업로드 (추가)
+  // path: ai/{travelId}/cover.png
+  // =====================================================
+  static Future<String> uploadTravelCoverImage({
+    required Uint8List imageBytes,
+    required String travelId,
+  }) async {
+    final path = 'ai/$travelId/cover.png';
+
+    await _supabase.storage
+        .from('travel_images')
+        .uploadBinary(
+          path,
+          imageBytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/png',
+            upsert: true,
+          ),
+        );
+
+    return _supabase.storage.from('travel_images').getPublicUrl(path);
+  }
+
+  // =====================================================
+  // 🗺 여행 완료 후 AI 지도 이미지 업로드 (추가)
+  // path: ai/{travelId}/map.png
+  // =====================================================
+  static Future<String> uploadTravelMapImage({
+    required Uint8List imageBytes,
+    required String travelId,
+  }) async {
+    final path = 'ai/$travelId/map.png';
+
+    await _supabase.storage
+        .from('travel_images')
+        .uploadBinary(
+          path,
+          imageBytes,
+          fileOptions: const FileOptions(
+            contentType: 'image/png',
+            upsert: true,
+          ),
         );
 
     return _supabase.storage.from('travel_images').getPublicUrl(path);

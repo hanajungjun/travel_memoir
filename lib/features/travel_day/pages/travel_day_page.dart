@@ -7,8 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
 import 'package:travel_memoir/services/travel_day_service.dart';
-
 import 'package:travel_memoir/services/prompt_cache.dart';
+import 'package:travel_memoir/services/travel_complete_service.dart';
 
 import 'package:travel_memoir/models/image_style_model.dart';
 import 'package:travel_memoir/core/widgets/image_style_picker.dart';
@@ -40,18 +40,14 @@ class TravelDayPage extends StatefulWidget {
 class _TravelDayPageState extends State<TravelDayPage> {
   final TextEditingController _contentController = TextEditingController();
 
-  // ✅ DB 기반 스타일로 변경
   ImageStyleModel? _selectedStyle;
-
-  // ✅ 사진은 요약에 넣을 거라서 필요함
   final List<File> _photos = [];
 
-  Uint8List? _generatedImage;
-  String? _imageUrl;
-  String? _summaryText;
+  Uint8List? _generatedImage; // 미리보기
+  String? _imageUrl; // 저장된 이미지 URL
+  String? _summaryText; // 요약
 
   bool _loading = false;
-  bool _isNewDiary = true;
 
   @override
   void initState() {
@@ -66,7 +62,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
   }
 
   // -----------------------------
-  // 📖 기존 일기 로드
+  // 기존 일기 로드
   // -----------------------------
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
@@ -76,14 +72,9 @@ class _TravelDayPageState extends State<TravelDayPage> {
 
     if (!mounted) return;
 
-    if (diary == null) {
-      _isNewDiary = true;
-      return;
+    if (diary != null) {
+      _contentController.text = (diary['text'] ?? '').toString();
     }
-
-    final text = (diary['text'] ?? '').toString();
-    _contentController.text = text;
-    _isNewDiary = text.isEmpty;
 
     final imageUrl = TravelDayService.getAiImageUrl(
       travelId: widget.travelId,
@@ -96,7 +87,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
   }
 
   // -----------------------------
-  // 📸 사진 선택
+  // 사진 선택
   // -----------------------------
   Future<void> _pickPhoto() async {
     if (_photos.length >= 3) return;
@@ -105,18 +96,21 @@ class _TravelDayPageState extends State<TravelDayPage> {
     final file = await picker.pickImage(source: ImageSource.gallery);
 
     if (file != null) {
-      setState(() {
-        _photos.add(File(file.path));
-      });
+      setState(() => _photos.add(File(file.path)));
     }
   }
 
   // -----------------------------
-  // 🤖 AI 생성
+  // AI 생성 (미리보기만)
   // -----------------------------
   Future<void> _generateAI() async {
     final content = _contentController.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('내용을 먼저 작성해주세요')));
+      return;
+    }
 
     if (_selectedStyle == null) {
       ScaffoldMessenger.of(
@@ -130,12 +124,9 @@ class _TravelDayPageState extends State<TravelDayPage> {
     try {
       final gemini = GeminiService();
 
-      // ✅ 1) DB에서 가져온 "텍스트 요약 프롬프트" 사용 (하드코딩 ❌)
-      final textBasePrompt = PromptCache.textPrompt.content;
-
-      final summaryFinalPrompt =
+      final summaryPrompt =
           '''
-$textBasePrompt
+${PromptCache.textPrompt.content}
 
 도시: ${widget.city}
 날짜: ${DateUtilsHelper.formatMonthDay(widget.date)}
@@ -143,16 +134,13 @@ $textBasePrompt
 ''';
 
       final summary = await gemini.generateSummary(
-        finalPrompt: summaryFinalPrompt,
+        finalPrompt: summaryPrompt,
         photos: _photos,
       );
 
-      // ✅ 2) DB에서 가져온 "이미지 프롬프트" + "선택된 스타일 prompt" 조합 (하드코딩 ❌)
-      final imageBasePrompt = PromptCache.imagePrompt.content;
-
-      final imageFinalPrompt =
+      final imagePrompt =
           '''
-$imageBasePrompt
+${PromptCache.imagePrompt.content}
 
 Style:
 ${_selectedStyle!.prompt}
@@ -161,31 +149,14 @@ Summary:
 $summary
 ''';
 
-      final imageBytes = await gemini.generateImage(
-        finalPrompt: imageFinalPrompt,
-      );
-
-      final dayNumber = DateUtilsHelper.calculateDayNumber(
-        startDate: widget.startDate,
-        currentDate: widget.date,
-      );
-
-      await TravelDayService.upsertDiary(
-        travelId: widget.travelId,
-        dayIndex: dayNumber,
-        date: widget.date,
-        text: content,
-        aiSummary: summary,
-        aiStyle: _selectedStyle!.id, // ✅ DB 스타일 id 저장
-      );
+      final imageBytes = await gemini.generateImage(finalPrompt: imagePrompt);
 
       if (!mounted) return;
 
       setState(() {
         _summaryText = summary;
         _generatedImage = imageBytes;
-        _imageUrl = null;
-        _isNewDiary = false;
+        _imageUrl = null; // 미리보기 우선
       });
     } catch (e) {
       if (!mounted) return;
@@ -198,27 +169,74 @@ $summary
   }
 
   // -----------------------------
-  // 💾 AI 이미지 저장
+  // 저장 (🔥 수정된 부분)
   // -----------------------------
-  Future<void> _saveImage() async {
-    if (_generatedImage == null) return;
+  Future<void> _saveDiary() async {
+    final text = _contentController.text.trim();
+    final hasNewAi = _generatedImage != null;
 
-    final url = await ImageUploadService.uploadDiaryImage(
-      travelId: widget.travelId,
-      date: widget.date,
-      imageBytes: _generatedImage!,
-    );
+    if (text.isEmpty) return;
 
-    if (!mounted) return;
+    setState(() => _loading = true);
 
-    setState(() {
-      _imageUrl = url;
-      _generatedImage = null;
-    });
+    try {
+      String? imageUrl;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('일기 저장 완료 🎉')));
+      // ✅ 새 AI 생성했을 때만 이미지 업로드
+      if (hasNewAi) {
+        imageUrl = await ImageUploadService.uploadDiaryImage(
+          travelId: widget.travelId,
+          date: widget.date,
+          imageBytes: _generatedImage!,
+        );
+      }
+
+      final dayNumber = DateUtilsHelper.calculateDayNumber(
+        startDate: widget.startDate,
+        currentDate: widget.date,
+      );
+
+      // ✅ 텍스트는 항상 저장
+      await TravelDayService.upsertDiary(
+        travelId: widget.travelId,
+        dayIndex: dayNumber,
+        date: widget.date,
+        text: text,
+        aiSummary: _summaryText,
+        aiStyle: _selectedStyle?.id,
+      );
+
+      if (!mounted) return;
+
+      if (imageUrl != null) {
+        setState(() {
+          _imageUrl = imageUrl;
+          _generatedImage = null;
+        });
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('일기 저장 완료 🎉')));
+
+      // 🔥 목록 새로고침 신호
+      Navigator.of(context).pop(true);
+
+      // 🔁 여행 완료 여부 체크 (백그라운드)
+      TravelCompleteService.tryCompleteTravel(
+        travelId: widget.travelId,
+        city: widget.city,
+        startDate: widget.startDate,
+        endDate: widget.endDate,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('저장 실패: $e')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -231,6 +249,7 @@ $summary
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        elevation: 0,
         title: Text(
           '${widget.city} · ${dayNumber}일차',
           style: AppTextStyles.appBarTitle,
@@ -241,7 +260,10 @@ $summary
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(DateUtilsHelper.todayText(), style: AppTextStyles.caption),
+            Text(
+              DateUtilsHelper.formatYMD(widget.date),
+              style: AppTextStyles.caption,
+            ),
             const SizedBox(height: 16),
 
             Text('오늘의 여행기록', style: AppTextStyles.sectionTitle),
@@ -250,9 +272,7 @@ $summary
             TextField(
               controller: _contentController,
               maxLines: 6,
-              style: AppTextStyles.body.copyWith(
-                color: AppColors.textPrimary, // ✅ 글씨 안 보이던거 방지
-              ),
+              style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 hintText: '오늘 있었던 일을 적어보세요',
                 hintStyle: AppTextStyles.bodyMuted,
@@ -267,11 +287,8 @@ $summary
 
             const SizedBox(height: 20),
 
-            // ✅ DB 기반 스타일 선택 위젯
             ImageStylePicker(
-              onChanged: (style) {
-                setState(() => _selectedStyle = style);
-              },
+              onChanged: (style) => setState(() => _selectedStyle = style),
             ),
 
             const SizedBox(height: 24),
@@ -297,7 +314,7 @@ $summary
                 ),
                 if (_photos.length < 3)
                   GestureDetector(
-                    onTap: _pickPhoto,
+                    onTap: _loading ? null : _pickPhoto,
                     child: Container(
                       width: 70,
                       height: 70,
@@ -314,7 +331,7 @@ $summary
               ],
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
 
             SizedBox(
               width: double.infinity,
@@ -327,12 +344,15 @@ $summary
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
 
             if (_imageUrl != null)
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
-                child: Image.network(_imageUrl!),
+                child: Image.network(
+                  '$_imageUrl?ts=${DateTime.now().millisecondsSinceEpoch}',
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
               )
             else if (_generatedImage != null)
               ClipRRect(
@@ -345,14 +365,17 @@ $summary
               Text(_summaryText!, style: AppTextStyles.body),
             ],
 
-            if (_generatedImage != null) ...[
-              const SizedBox(height: 24),
+            if (_generatedImage != null ||
+                _contentController.text.isNotEmpty) ...[
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: _saveImage,
-                  child: const Text('💾 일기 저장'),
+                  onPressed: _loading ? null : _saveDiary,
+                  child: _loading
+                      ? const CircularProgressIndicator()
+                      : const Text('💾 일기 저장'),
                 ),
               ),
             ],

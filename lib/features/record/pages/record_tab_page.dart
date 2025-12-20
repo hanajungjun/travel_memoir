@@ -75,28 +75,8 @@ class _RecordTabPageState extends State<RecordTabPage> {
     final List<Map<String, dynamic>> completed = [];
 
     for (final travel in travels) {
-      final start = DateTime.parse(travel['start_date']);
-      final end = DateTime.parse(travel['end_date']);
-
-      if (!DateTime.now().isAfter(end)) continue;
-
-      final totalDays = end.difference(start).inDays + 1;
-      bool allWritten = true;
-
-      for (int i = 0; i < totalDays; i++) {
-        final date = start.add(Duration(days: i));
-        final diary = await TravelDayService.getDiaryByDate(
-          travelId: travel['id'],
-          date: date,
-        );
-
-        if (diary == null || (diary['text'] ?? '').toString().isEmpty) {
-          allWritten = false;
-          break;
-        }
-      }
-
-      if (allWritten) completed.add(travel);
+      if (travel['is_completed'] != true) continue;
+      completed.add(travel);
     }
 
     completed.sort((a, b) => b['end_date'].compareTo(a['end_date']));
@@ -105,7 +85,7 @@ class _RecordTabPageState extends State<RecordTabPage> {
 }
 
 // ==============================
-// 🎞️ 페이지 애니메이션 (Fade + Slide)
+// 🎞️ 페이지 애니메이션
 // ==============================
 class _AnimatedPage extends StatelessWidget {
   final Widget child;
@@ -190,7 +170,7 @@ class _SummaryHeroCard extends StatelessWidget {
 }
 
 // ==============================
-// 🧳 여행 기록 카드
+// 🧳 여행 기록 카드 (🔥 여기 핵심)
 // ==============================
 class _TravelRecordCard extends StatelessWidget {
   final Map<String, dynamic> travel;
@@ -199,12 +179,7 @@ class _TravelRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final start = DateTime.parse(travel['start_date']);
-
-    final imageUrl = TravelDayService.getAiImageUrl(
-      travelId: travel['id'],
-      date: start,
-    );
+    final coverUrl = travel['cover_image_url'];
 
     return SafeArea(
       child: Padding(
@@ -224,12 +199,14 @@ class _TravelRecordCard extends StatelessWidget {
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: imageUrl == null
+                  child: coverUrl == null
                       ? Container(color: AppColors.surface)
                       : Image.network(
-                          imageUrl,
+                          coverUrl,
                           width: double.infinity,
                           fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Container(color: AppColors.surface),
                         ),
                 ),
               ),

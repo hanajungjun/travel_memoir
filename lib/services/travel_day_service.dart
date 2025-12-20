@@ -57,24 +57,6 @@ class TravelDayService {
   }
 
   // =====================================================
-  // ✍️ 작성된 일기 개수
-  // =====================================================
-  static Future<int> getWrittenDayCount({required String travelId}) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return 0;
-
-    final res = await _supabase
-        .from('travel_days')
-        .select('id')
-        .eq('travel_id', travelId)
-        .not('text', 'is', null)
-        .neq('text', '');
-
-    if (res is List) return res.length;
-    return 0;
-  }
-
-  // =====================================================
   // 🤖 AI 이미지 URL
   // bucket: travel_images
   // path: ai/{travelId}/{yyyy-MM-dd}.png
@@ -85,7 +67,6 @@ class TravelDayService {
   }) {
     final fileName = '${_dateOnly(date)}.png';
     final path = 'ai/$travelId/$fileName';
-
     return _supabase.storage.from('travel_images').getPublicUrl(path);
   }
 
@@ -97,5 +78,77 @@ class TravelDayService {
     required DateTime date,
   }) {
     return getAiImageUrl(travelId: travelId, date: date);
+  }
+
+  // =====================================================
+  // ✅ 일기작성완료 + 여행완료 체크
+  // =====================================================
+  static Future<bool> completeDayAndCheckTravel({
+    required String travelId,
+    required DateTime date,
+  }) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return false;
+
+    // 1) 해당 날짜 일기 완료 처리
+    await _supabase
+        .from('travel_days')
+        .update({'is_completed': true})
+        .eq('travel_id', travelId)
+        .eq('date', _dateOnly(date));
+
+    // 2) 여행 정보 조회
+    final travel = await _supabase
+        .from('travels')
+        .select('start_date, end_date, is_completed')
+        .eq('id', travelId)
+        .single();
+
+    if (travel['is_completed'] == true) return false;
+
+    final startDate = DateTime.parse(travel['start_date']);
+    final endDate = DateTime.parse(travel['end_date']);
+    final expectedDays = endDate.difference(startDate).inDays + 1;
+
+    // 3) 완료된 일기 수
+    final completedDays = await _supabase
+        .from('travel_days')
+        .select('id')
+        .eq('travel_id', travelId)
+        .eq('is_completed', true);
+
+    if (completedDays.length != expectedDays) return false;
+
+    // 4) 여행 완료 처리
+    await _supabase
+        .from('travels')
+        .update({
+          'is_completed': true,
+          'completed_at': DateTime.now().toIso8601String(),
+        })
+        .eq('id', travelId);
+
+    return true;
+  }
+
+  // =====================================================
+  // ✍️ 작성 완료된 일기 개수 (is_completed 기준)
+  // =====================================================
+  static Future<int> getWrittenDayCount({required String travelId}) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return 0;
+
+    final res = await _supabase
+        .from('travel_days')
+        .select('id, text')
+        .eq('travel_id', travelId);
+
+    if (res is! List) return 0;
+
+    // text가 실제로 채워진 row만 카운트
+    return res.where((row) {
+      final text = (row['text'] ?? '').toString().trim();
+      return text.isNotEmpty;
+    }).length;
   }
 }

@@ -7,15 +7,20 @@ import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
-class TravelDiaryListPage extends StatelessWidget {
+class TravelDiaryListPage extends StatefulWidget {
   final Map<String, dynamic> travel;
 
   const TravelDiaryListPage({super.key, required this.travel});
 
   @override
+  State<TravelDiaryListPage> createState() => _TravelDiaryListPageState();
+}
+
+class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
+  @override
   Widget build(BuildContext context) {
-    final startDate = DateTime.parse(travel['start_date']);
-    final endDate = DateTime.parse(travel['end_date']);
+    final startDate = DateTime.parse(widget.travel['start_date']);
+    final endDate = DateTime.parse(widget.travel['end_date']);
     final totalDays = endDate.difference(startDate).inDays + 1;
 
     final isFinished = DateTime.now().isAfter(endDate);
@@ -26,7 +31,10 @@ class TravelDiaryListPage extends StatelessWidget {
         elevation: 0,
         title: Row(
           children: [
-            Text('${travel['city']} 여행 기록', style: AppTextStyles.appBarTitle),
+            Text(
+              '${widget.travel['city']} 여행 기록',
+              style: AppTextStyles.appBarTitle,
+            ),
             const SizedBox(width: 8),
             if (isFinished) const _FinishedBadge(),
           ],
@@ -41,7 +49,7 @@ class TravelDiaryListPage extends StatelessWidget {
 
           return FutureBuilder<Map<String, dynamic>?>(
             future: TravelDayService.getDiaryByDate(
-              travelId: travel['id'],
+              travelId: widget.travel['id'],
               date: date,
             ),
             builder: (context, snapshot) {
@@ -52,25 +60,30 @@ class TravelDiaryListPage extends StatelessWidget {
               final imageUrl = diary == null
                   ? null
                   : TravelDayService.getAiImageUrl(
-                      travelId: travel['id'],
+                      travelId: widget.travel['id'],
                       date: date,
                     );
 
               return InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  Navigator.push(
+                onTap: () async {
+                  // 🔥🔥🔥 여기 핵심 수정
+                  final changed = await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => TravelDayPage(
-                        travelId: travel['id'],
-                        city: travel['city'],
+                        travelId: widget.travel['id'],
+                        city: widget.travel['city'],
                         startDate: startDate,
                         endDate: endDate,
                         date: date,
                       ),
                     ),
                   );
+
+                  if (changed == true && mounted) {
+                    setState(() {}); // 🔥 목록 새로고침
+                  }
                 },
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -88,7 +101,7 @@ class TravelDiaryListPage extends StatelessWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: Image.network(
-                            imageUrl,
+                            '$imageUrl?ts=${DateTime.now().millisecondsSinceEpoch}',
                             width: 56,
                             height: 56,
                             fit: BoxFit.cover,
