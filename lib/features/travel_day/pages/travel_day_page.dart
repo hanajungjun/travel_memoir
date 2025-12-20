@@ -4,13 +4,16 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:travel_memoir/models/diary_style.dart';
-import 'package:travel_memoir/core/widgets/diary_style_picker.dart';
-import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
 import 'package:travel_memoir/services/travel_day_service.dart';
 
+import 'package:travel_memoir/services/prompt_cache.dart';
+
+import 'package:travel_memoir/models/image_style_model.dart';
+import 'package:travel_memoir/core/widgets/image_style_picker.dart';
+
+import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -37,7 +40,10 @@ class TravelDayPage extends StatefulWidget {
 class _TravelDayPageState extends State<TravelDayPage> {
   final TextEditingController _contentController = TextEditingController();
 
-  DiaryStyle _selectedStyle = diaryStyles.first;
+  // ✅ DB 기반 스타일로 변경
+  ImageStyleModel? _selectedStyle;
+
+  // ✅ 사진은 요약에 넣을 거라서 필요함
   final List<File> _photos = [];
 
   Uint8List? _generatedImage;
@@ -51,6 +57,12 @@ class _TravelDayPageState extends State<TravelDayPage> {
   void initState() {
     super.initState();
     _loadDiary();
+  }
+
+  @override
+  void dispose() {
+    _contentController.dispose();
+    super.dispose();
   }
 
   // -----------------------------
@@ -106,25 +118,52 @@ class _TravelDayPageState extends State<TravelDayPage> {
     final content = _contentController.text.trim();
     if (content.isEmpty) return;
 
+    if (_selectedStyle == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('스타일을 먼저 선택해주세요')));
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
       final gemini = GeminiService();
 
+      // ✅ 1) DB에서 가져온 "텍스트 요약 프롬프트" 사용 (하드코딩 ❌)
+      final textBasePrompt = PromptCache.textPrompt.content;
+
+      final summaryFinalPrompt =
+          '''
+$textBasePrompt
+
+도시: ${widget.city}
+날짜: ${DateUtilsHelper.formatMonthDay(widget.date)}
+내용: $content
+''';
+
       final summary = await gemini.generateSummary(
-        city: widget.city,
-        date: DateUtilsHelper.formatMonthDay(widget.date),
-        content: content,
+        finalPrompt: summaryFinalPrompt,
         photos: _photos,
       );
 
-      final imageBytes = await gemini.generateImage('''
-${_selectedStyle.prompt}
-Travel diary illustration.
-City: ${widget.city}
-Content: $content
-NO TEXT, NO LETTERS
-''');
+      // ✅ 2) DB에서 가져온 "이미지 프롬프트" + "선택된 스타일 prompt" 조합 (하드코딩 ❌)
+      final imageBasePrompt = PromptCache.imagePrompt.content;
+
+      final imageFinalPrompt =
+          '''
+$imageBasePrompt
+
+Style:
+${_selectedStyle!.prompt}
+
+Summary:
+$summary
+''';
+
+      final imageBytes = await gemini.generateImage(
+        finalPrompt: imageFinalPrompt,
+      );
 
       final dayNumber = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
@@ -137,7 +176,7 @@ NO TEXT, NO LETTERS
         date: widget.date,
         text: content,
         aiSummary: summary,
-        aiStyle: _selectedStyle.id,
+        aiStyle: _selectedStyle!.id, // ✅ DB 스타일 id 저장
       );
 
       if (!mounted) return;
@@ -203,17 +242,17 @@ NO TEXT, NO LETTERS
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(DateUtilsHelper.todayText(), style: AppTextStyles.caption),
-
             const SizedBox(height: 16),
 
             Text('오늘의 여행기록', style: AppTextStyles.sectionTitle),
-
             const SizedBox(height: 12),
 
             TextField(
               controller: _contentController,
               maxLines: 6,
-              style: AppTextStyles.body,
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textPrimary, // ✅ 글씨 안 보이던거 방지
+              ),
               decoration: InputDecoration(
                 hintText: '오늘 있었던 일을 적어보세요',
                 hintStyle: AppTextStyles.bodyMuted,
@@ -228,7 +267,8 @@ NO TEXT, NO LETTERS
 
             const SizedBox(height: 20),
 
-            DiaryStylePicker(
+            // ✅ DB 기반 스타일 선택 위젯
+            ImageStylePicker(
               onChanged: (style) {
                 setState(() => _selectedStyle = style);
               },
@@ -264,8 +304,11 @@ NO TEXT, NO LETTERS
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.textSecondary.withOpacity(0.3),
+                        ),
                       ),
-                      child: const Icon(Icons.add),
+                      child: const Icon(Icons.add_a_photo),
                     ),
                   ),
               ],
