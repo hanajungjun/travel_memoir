@@ -89,4 +89,16 @@ class TravelListService {
     // 중복 제거 + null 방어
     return res.map<String>((e) => e['province'] as String).toSet().toList();
   }
+
+  static Future<List<Map<String, dynamic>>> getRecentTravels({
+    int limit = 3,
+  }) async {
+    final res = await Supabase.instance.client
+        .from('travels')
+        .select()
+        .order('start_date', ascending: false)
+        .limit(limit);
+
+    return List<Map<String, dynamic>>.from(res);
+  }
 }
