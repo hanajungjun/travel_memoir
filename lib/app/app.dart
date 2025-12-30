@@ -5,6 +5,9 @@ import '../supabase/supabase.dart';
 import '../features/auth/login_page.dart';
 import 'app_shell.dart';
 
+// 🔥 추가
+import 'route_observer.dart';
+
 class TravelMemoirApp extends StatefulWidget {
   const TravelMemoirApp({super.key});
 
@@ -31,6 +34,10 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
     return MaterialApp(
       title: 'Travel Memoir',
       debugShowCheckedModeBanner: false,
+
+      // 🔥🔥🔥 핵심 (이거 없으면 didPopNext 안 탐)
+      navigatorObservers: [routeObserver],
+
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),

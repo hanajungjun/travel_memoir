@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:travel_memoir/services/travel_list_service.dart';
-import 'package:travel_memoir/services/travel_day_service.dart';
-import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
+import 'package:travel_memoir/features/travel_album/pages/travel_album_page.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
@@ -18,11 +19,30 @@ class RecordTabPage extends StatefulWidget {
 class _RecordTabPageState extends State<RecordTabPage> {
   final PageController _controller = PageController();
   late Future<List<Map<String, dynamic>>> _future;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
-    _future = _getCompletedTravels();
+    _reload();
+
+    _pollingTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _reload(),
+    );
+  }
+
+  void _reload() {
+    setState(() {
+      _future = _getCompletedTravels();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -37,7 +57,6 @@ class _RecordTabPageState extends State<RecordTabPage> {
           }
 
           final travels = snapshot.data!;
-
           if (travels.isEmpty) {
             return Center(
               child: Text('아직 기록된 여행이 없어요', style: AppTextStyles.bodyMuted),
@@ -50,16 +69,14 @@ class _RecordTabPageState extends State<RecordTabPage> {
             itemCount: travels.length + 1,
             itemBuilder: (context, index) {
               if (index == 0) {
-                return _AnimatedPage(
-                  child: _SummaryHeroCard(
-                    totalCount: travels.length,
-                    lastTravel: travels.first,
-                  ),
+                return _SummaryHeroCard(
+                  totalCount: travels.length,
+                  lastTravel: travels.first,
                 );
               }
 
               final travel = travels[index - 1];
-              return _AnimatedPage(child: _TravelRecordCard(travel: travel));
+              return _TravelRecordCard(travel: travel, onReturn: _reload);
             },
           );
         },
@@ -67,52 +84,29 @@ class _RecordTabPageState extends State<RecordTabPage> {
     );
   }
 
-  // ==============================
-  // 🔒 모든 일기 작성 완료된 여행만
-  // ==============================
   Future<List<Map<String, dynamic>>> _getCompletedTravels() async {
     final travels = await TravelListService.getTravels();
-    final List<Map<String, dynamic>> completed = [];
-
-    for (final travel in travels) {
-      if (travel['is_completed'] != true) continue;
-      completed.add(travel);
-    }
+    final completed = travels.where((t) => t['is_completed'] == true).toList();
 
     completed.sort((a, b) => b['end_date'].compareTo(a['end_date']));
+
+    final stillProcessing = completed.any(
+      (t) =>
+          (t['cover_image_url'] == null ||
+          (t['ai_cover_summary'] ?? '').toString().isEmpty),
+    );
+
+    if (!stillProcessing) {
+      _pollingTimer?.cancel();
+      HapticFeedback.lightImpact();
+    }
+
     return completed;
   }
 }
 
 // ==============================
-// 🎞️ 페이지 애니메이션
-// ==============================
-class _AnimatedPage extends StatelessWidget {
-  final Widget child;
-
-  const _AnimatedPage({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeOut,
-      builder: (context, value, _) {
-        return Opacity(
-          opacity: value,
-          child: Transform.translate(
-            offset: Offset(0, 40 * (1 - value)),
-            child: child,
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ==============================
-// 0️⃣ 요약 카드
+// 🧭 요약 카드
 // ==============================
 class _SummaryHeroCard extends StatelessWidget {
   final int totalCount;
@@ -131,11 +125,8 @@ class _SummaryHeroCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Spacer(),
-
             Text('기억을 다시 꺼내볼까요?', style: AppTextStyles.title),
-
             const SizedBox(height: 24),
-
             Text('지금까지의 여행 · 총 $totalCount번', style: AppTextStyles.body),
             const SizedBox(height: 8),
             Text(
@@ -146,22 +137,8 @@ class _SummaryHeroCard extends StatelessWidget {
               DateUtilsHelper.memoryTimeAgo(end),
               style: AppTextStyles.bodyMuted,
             ),
-
             const Spacer(),
-
-            Center(
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.keyboard_arrow_up,
-                    size: 28,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(height: 4),
-                  Text('위로 올려 여행 기록 보기', style: AppTextStyles.caption),
-                ],
-              ),
-            ),
+            const Center(child: Icon(Icons.keyboard_arrow_up, size: 28)),
           ],
         ),
       ),
@@ -170,16 +147,21 @@ class _SummaryHeroCard extends StatelessWidget {
 }
 
 // ==============================
-// 🧳 여행 기록 카드 (🔥 여기 핵심)
+// 🧳 여행 카드
 // ==============================
 class _TravelRecordCard extends StatelessWidget {
   final Map<String, dynamic> travel;
+  final VoidCallback onReturn;
 
-  const _TravelRecordCard({required this.travel});
+  const _TravelRecordCard({required this.travel, required this.onReturn});
 
   @override
   Widget build(BuildContext context) {
     final coverUrl = travel['cover_image_url'];
+    final summary = (travel['ai_cover_summary'] ?? '').toString().trim();
+
+    final hasCover = coverUrl != null && coverUrl.isNotEmpty;
+    final hasSummary = summary.isNotEmpty;
 
     return SafeArea(
       child: Padding(
@@ -189,40 +171,69 @@ class _TravelRecordCard extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => TravelDiaryListPage(travel: travel),
+                builder: (_) => TravelAlbumPage(travel: travel),
               ),
-            );
+            ).then((_) => onReturn());
           },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: coverUrl == null
-                      ? Container(color: AppColors.surface)
-                      : Image.network(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: hasCover
+                      ? Image.network(
                           coverUrl,
-                          width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              Container(color: AppColors.surface),
-                        ),
+                          loadingBuilder: (_, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          },
+                        )
+                      : const Center(child: CircularProgressIndicator()),
                 ),
-              ),
 
-              const SizedBox(height: 16),
+                if (hasCover && !hasSummary) _BottomLabel(text: 'AI 여행 정리중…'),
 
-              Text('${travel['city']} 여행', style: AppTextStyles.sectionTitle),
-
-              const SizedBox(height: 6),
-
-              Text(
-                '${travel['start_date']} ~ ${travel['end_date']}',
-                style: AppTextStyles.bodyMuted,
-              ),
-            ],
+                if (hasSummary) _BottomLabel(text: summary, gradient: true),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomLabel extends StatelessWidget {
+  final String text;
+  final bool gradient;
+
+  const _BottomLabel({required this.text, this.gradient = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: gradient
+            ? const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.transparent, Colors.black54],
+                ),
+              )
+            : const BoxDecoration(color: Colors.black45),
+        child: Text(
+          text,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.body.copyWith(color: Colors.white),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:travel_memoir/core/constants/korea/korea_region.dart';
 import 'package:travel_memoir/services/travel_create_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 import 'package:travel_memoir/features/travel_info/sheets/domestic_city_select_sheet.dart';
@@ -18,9 +19,13 @@ class DomesticTravelDatePage extends StatefulWidget {
 class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
   DateTime? _startDate;
   DateTime? _endDate;
-  String? _city;
 
-  bool get _canNext => _startDate != null && _endDate != null && _city != null;
+  /// ✅ String city ❌
+  /// ✅ KoreaRegion region ⭕️
+  KoreaRegion? _region;
+
+  bool get _canNext =>
+      _startDate != null && _endDate != null && _region != null;
 
   // =========================
   // 📅 날짜 선택
@@ -34,10 +39,12 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
       lastDate: DateTime(now.year + 5),
       builder: (context, child) {
         return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.dark(
+          data: ThemeData.light().copyWith(
+            colorScheme: ColorScheme.light(
               primary: AppColors.primary,
-              surface: AppColors.surface,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
             ),
           ),
           child: child!,
@@ -66,8 +73,8 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
       ),
       builder: (_) {
         return DomesticCitySelectSheet(
-          onSelected: (city) {
-            setState(() => _city = city);
+          onSelected: (region) {
+            setState(() => _region = region);
           },
         );
       },
@@ -79,22 +86,22 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
   // =========================
   Future<void> _createTravel() async {
     final user = Supabase.instance.client.auth.currentUser;
-
-    if (user == null) {
-      throw Exception('로그인이 필요합니다');
-    }
+    if (user == null) return;
 
     final travel = await TravelCreateService.createDomesticTravel(
       userId: user.id,
-      city: _city!,
+      region: _region!, // 🔥 핵심
       startDate: _startDate!,
       endDate: _endDate!,
     );
 
     if (!mounted) return;
 
-    Navigator.pushReplacement(
-      context,
+    // 홈까지 정리
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    // 바로 여행 일기 페이지로
+    Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => TravelDiaryListPage(travel: travel)),
     );
   }
@@ -134,12 +141,12 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
             Text('도시', style: AppTextStyles.sectionTitle),
             const SizedBox(height: 8),
 
-            _SelectBox(text: _city ?? '도시를 선택해주세요', onTap: _pickCity),
+            _SelectBox(text: _region?.name ?? '도시를 선택해주세요', onTap: _pickCity),
 
             const Spacer(),
 
             // ======================
-            // 🚀 여행 생성
+            // 🚀 생성 버튼
             // ======================
             SizedBox(
               width: double.infinity,

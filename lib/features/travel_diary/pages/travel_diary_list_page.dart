@@ -17,10 +17,54 @@ class TravelDiaryListPage extends StatefulWidget {
 }
 
 class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
+  late Map<String, dynamic> _travel;
+
+  /// 🔥 날짜별 일기 캐시
+  Map<String, Map<String, dynamic>?> _diaryCache = {};
+
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _travel = widget.travel;
+    _loadAllDiaries();
+  }
+
+  // ======================
+  // 🔥 모든 날짜 일기 한 번에 로드
+  // ======================
+  Future<void> _loadAllDiaries() async {
+    setState(() => _loading = true);
+
+    final startDate = DateTime.parse(_travel['start_date']);
+    final endDate = DateTime.parse(_travel['end_date']);
+    final totalDays = endDate.difference(startDate).inDays + 1;
+
+    final Map<String, Map<String, dynamic>?> temp = {};
+
+    for (int i = 0; i < totalDays; i++) {
+      final date = startDate.add(Duration(days: i));
+      final diary = await TravelDayService.getDiaryByDate(
+        travelId: _travel['id'],
+        date: date,
+      );
+
+      final key = DateUtilsHelper.formatYMD(date);
+      temp[key] = diary;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _diaryCache = temp;
+      _loading = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final startDate = DateTime.parse(widget.travel['start_date']);
-    final endDate = DateTime.parse(widget.travel['end_date']);
+    final startDate = DateTime.parse(_travel['start_date']);
+    final endDate = DateTime.parse(_travel['end_date']);
     final totalDays = endDate.difference(startDate).inDays + 1;
 
     final isFinished = DateTime.now().isAfter(endDate);
@@ -29,10 +73,18 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop(true);
+          },
+        ),
         title: Row(
           children: [
             Text(
-              '${widget.travel['city']} 여행 기록',
+              _travel['travel_type'] == 'domestic'
+                  ? '${_travel['region_name']} 여행 기록'
+                  : '${_travel['country_name']} 여행 기록',
               style: AppTextStyles.appBarTitle,
             ),
             const SizedBox(width: 8),
@@ -40,131 +92,149 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
           ],
         ),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: totalDays,
-        itemBuilder: (context, index) {
-          final date = startDate.add(Duration(days: index));
-          final dayIndex = index + 1;
 
-          return FutureBuilder<Map<String, dynamic>?>(
-            future: TravelDayService.getDiaryByDate(
-              travelId: widget.travel['id'],
-              date: date,
+      // 🔥🔥🔥 여기부터 추가된 부분
+      body: Column(
+        children: [
+          // ===== 디버그 페이지 라벨 =====
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            color: Colors.black.withOpacity(0.04),
+            child: const Text(
+              'PAGE: TravelDiaryListPage',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
-            builder: (context, snapshot) {
-              final diary = snapshot.data;
-              final hasDiary =
-                  diary != null && (diary['text'] ?? '').toString().isNotEmpty;
+          ),
 
-              final imageUrl = diary == null
-                  ? null
-                  : TravelDayService.getAiImageUrl(
-                      travelId: widget.travel['id'],
-                      date: date,
-                    );
+          // ===== 기존 body =====
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: totalDays,
+                    itemBuilder: (context, index) {
+                      final date = startDate.add(Duration(days: index));
+                      final dayIndex = index + 1;
 
-              return InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: () async {
-                  // 🔥🔥🔥 여기 핵심 수정
-                  final changed = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TravelDayPage(
-                        travelId: widget.travel['id'],
-                        city: widget.travel['city'],
-                        startDate: startDate,
-                        endDate: endDate,
-                        date: date,
-                      ),
-                    ),
-                  );
+                      final diary =
+                          _diaryCache[DateUtilsHelper.formatYMD(date)];
+                      final hasDiary =
+                          diary != null &&
+                          (diary['text'] ?? '').toString().isNotEmpty;
 
-                  if (changed == true && mounted) {
-                    setState(() {}); // 🔥 목록 새로고침
-                  }
-                },
-                child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      // ======================
-                      // 🖼 썸네일
-                      // ======================
-                      if (imageUrl != null)
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            '$imageUrl?ts=${DateTime.now().millisecondsSinceEpoch}',
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      else
-                        Container(
-                          width: 56,
-                          height: 56,
+                      final imageUrl = diary == null
+                          ? null
+                          : TravelDayService.getAiImageUrl(
+                              travelId: _travel['id'],
+                              date: date,
+                            );
+
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () async {
+                          final placeName = _travel['travel_type'] == 'domestic'
+                              ? _travel['region_name']
+                              : _travel['country_name'];
+
+                          final changed = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => TravelDayPage(
+                                travelId: _travel['id'],
+                                placeName: placeName,
+                                startDate: startDate,
+                                endDate: endDate,
+                                date: date,
+                              ),
+                            ),
+                          );
+
+                          if (changed == true && mounted) {
+                            await _loadAllDiaries();
+                          }
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppColors.divider,
-                            borderRadius: BorderRadius.circular(10),
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                          child: const Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey,
+                          child: Row(
+                            children: [
+                              if (imageUrl != null)
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: Image.network(
+                                    '$imageUrl?ts=${DateTime.now().millisecondsSinceEpoch}',
+                                    width: 56,
+                                    height: 56,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => _emptyThumb(),
+                                  ),
+                                )
+                              else
+                                _emptyThumb(),
+
+                              const SizedBox(width: 14),
+
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '${DateUtilsHelper.formatMonthDay(date)} · ${dayIndex}일차',
+                                      style: AppTextStyles.caption,
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      hasDiary
+                                          ? (diary!['text'] as String)
+                                                .split('\n')
+                                                .first
+                                          : '아직 작성하지 않았어요',
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: hasDiary
+                                          ? AppTextStyles.body
+                                          : AppTextStyles.bodyMuted,
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(width: 8),
+
+                              Icon(
+                                hasDiary ? Icons.check_circle : Icons.edit,
+                                color: hasDiary
+                                    ? AppColors.success
+                                    : AppColors.textDisabled,
+                              ),
+                            ],
                           ),
                         ),
-
-                      const SizedBox(width: 14),
-
-                      // ======================
-                      // 📝 텍스트
-                      // ======================
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${DateUtilsHelper.formatMonthDay(date)} · ${dayIndex}일차',
-                              style: AppTextStyles.caption,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              hasDiary
-                                  ? (diary!['text'] as String).split('\n').first
-                                  : '아직 작성하지 않았어요',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: hasDiary
-                                  ? AppTextStyles.body
-                                  : AppTextStyles.bodyMuted,
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(width: 8),
-
-                      Icon(
-                        hasDiary ? Icons.check_circle : Icons.edit,
-                        color: hasDiary
-                            ? AppColors.success
-                            : AppColors.textDisabled,
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                ),
-              );
-            },
-          );
-        },
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _emptyThumb() {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.image_not_supported, color: Colors.grey),
     );
   }
 }

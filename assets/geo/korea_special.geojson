@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "KR_SPECIAL_ULLEUNG", "type": "special", "name": "울릉도" },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [130.9057, 37.4844]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "id": "KR_SPECIAL_DOKDO", "type": "special", "name": "독도" },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [131.8645, 37.2411]
+      }
+    }
+  ]
+}

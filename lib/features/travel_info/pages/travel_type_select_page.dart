@@ -4,6 +4,7 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 import 'domestic_travel_date_page.dart';
+import 'overseas_travel_date_page.dart';
 
 class TravelTypeSelectPage extends StatelessWidget {
   const TravelTypeSelectPage({super.key});
@@ -21,31 +22,51 @@ class TravelTypeSelectPage extends StatelessWidget {
           children: [
             const SizedBox(height: 20),
 
+            // ======================
+            // 🇰🇷 국내 여행
+            // ======================
             _TravelTypeCard(
               title: '국내 여행',
               subtitle: '대한민국 도시 여행',
               icon: Icons.map,
               accent: AppColors.primary,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const DomesticTravelDatePage(),
-                  ),
-                );
+              onTap: () async {
+                final createdTravel =
+                    await Navigator.push<Map<String, dynamic>>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DomesticTravelDatePage(),
+                      ),
+                    );
+
+                if (createdTravel != null && context.mounted) {
+                  Navigator.pop(context, createdTravel);
+                }
               },
             ),
 
             const SizedBox(height: 20),
 
+            // ======================
+            // 🌍 해외 여행
+            // ======================
             _TravelTypeCard(
               title: '해외 여행',
               subtitle: '다른 나라로 떠나는 여행',
               icon: Icons.public,
               accent: AppColors.accent,
-              onTap: () {
-                // TODO: 해외 여행 플로우
-                debugPrint('해외 여행 선택');
+              onTap: () async {
+                final createdTravel =
+                    await Navigator.push<Map<String, dynamic>>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const OverseasTravelDatePage(),
+                      ),
+                    );
+
+                if (createdTravel != null && context.mounted) {
+                  Navigator.pop(context, createdTravel);
+                }
               },
             ),
           ],
@@ -56,8 +77,7 @@ class TravelTypeSelectPage extends StatelessWidget {
 }
 
 // ==============================
-// 🧭 여행 타입 카드
-// ==============================
+// 🧭 여행 타입 카드 위젯
 class _TravelTypeCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -88,7 +108,6 @@ class _TravelTypeCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // 아이콘 영역
             Container(
               width: 56,
               height: 56,
@@ -101,7 +120,6 @@ class _TravelTypeCard extends StatelessWidget {
 
             const SizedBox(width: 20),
 
-            // 텍스트 영역
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

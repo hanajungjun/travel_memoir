@@ -5,8 +5,9 @@ import 'package:travel_memoir/features/map/pages/global_map_page.dart';
 
 class MapMainPage extends StatefulWidget {
   final int initialIndex;
+  final String travelId;
 
-  const MapMainPage({super.key, this.initialIndex = 0});
+  const MapMainPage({super.key, required this.travelId, this.initialIndex = 0});
 
   @override
   State<MapMainPage> createState() => _MapMainPageState();
@@ -24,6 +25,7 @@ class _MapMainPageState extends State<MapMainPage> {
   }
 
   void _move(int i) {
+    if (_index == i) return;
     setState(() => _index = i);
     _controller.animateToPage(
       i,
@@ -33,12 +35,17 @@ class _MapMainPageState extends State<MapMainPage> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('여행 지도'), centerTitle: true),
       body: Column(
         children: [
-          // ===== 탭 =====
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -48,13 +55,11 @@ class _MapMainPageState extends State<MapMainPage> {
               ],
             ),
           ),
-
-          // ===== 지도 =====
           Expanded(
             child: PageView(
               controller: _controller,
               onPageChanged: (i) => setState(() => _index = i),
-              children: const [DomesticMapPage(), GlobalMapPage()],
+              children: [DomesticMapPage(), const GlobalMapPage()],
             ),
           ),
         ],
@@ -63,9 +68,6 @@ class _MapMainPageState extends State<MapMainPage> {
   }
 }
 
-// ======================
-// 🔹 탭 버튼
-// ======================
 class _Tab extends StatelessWidget {
   final String label;
   final bool selected;

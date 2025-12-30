@@ -7,6 +7,41 @@ class TravelDayService {
   static String _dateOnly(DateTime d) => d.toIso8601String().substring(0, 10);
 
   // =====================================================
+  // 🛡️ travel_day 정규화 (🔥 핵심)
+  // =====================================================
+  static Map<String, dynamic> _normalizeDay(Map<String, dynamic> day) {
+    final String? text = day['text'] as String?;
+    final String? aiSummary = day['ai_summary'] as String?;
+    final String? aiStyle = day['ai_style'] as String?;
+    final String? imageUrl = day['image_url'] as String?;
+    final String? dateRaw = day['date'] as String?;
+
+    return {
+      ...day,
+
+      // ✅ text / ai_summary : null 방지
+      'text': text?.trim() ?? '',
+      'ai_summary': aiSummary?.trim() ?? '',
+
+      // ✅ ai_style 기본값
+      'ai_style': (aiStyle != null && aiStyle.trim().isNotEmpty)
+          ? aiStyle
+          : 'default',
+
+      // ✅ image_url: 빈 문자열 제거
+      'image_url': (imageUrl != null && imageUrl.trim().isNotEmpty)
+          ? imageUrl
+          : null,
+
+      // ✅ date: null 방지
+      'date': dateRaw ?? DateTime.now().toIso8601String().substring(0, 10),
+
+      // ✅ is_completed 기본값
+      'is_completed': day['is_completed'] == true,
+    };
+  }
+
+  // =====================================================
   // 📌 특정 날짜 일기 조회
   // =====================================================
   static Future<Map<String, dynamic>?> getDiaryByDate({
@@ -16,12 +51,16 @@ class TravelDayService {
     final user = _supabase.auth.currentUser;
     if (user == null) return null;
 
-    return await _supabase
+    final res = await _supabase
         .from('travel_days')
         .select()
         .eq('travel_id', travelId)
         .eq('date', _dateOnly(date))
         .maybeSingle();
+
+    if (res == null) return null;
+
+    return _normalizeDay(Map<String, dynamic>.from(res));
   }
 
   // =====================================================
@@ -46,20 +85,20 @@ class TravelDayService {
           'travel_id': travelId,
           'day_index': dayIndex,
           'date': _dateOnly(date),
-          'text': text,
-          if (aiSummary != null) 'ai_summary': aiSummary,
-          if (aiStyle != null) 'ai_style': aiStyle,
+
+          // ✅ write 시점에서도 정규화
+          'text': text.trim(),
+          'ai_summary': aiSummary?.trim(),
+          'ai_style': aiStyle?.trim() ?? 'default',
         }, onConflict: 'travel_id,date')
         .select()
         .single();
 
-    return res;
+    return _normalizeDay(Map<String, dynamic>.from(res));
   }
 
   // =====================================================
   // 🤖 AI 이미지 URL
-  // bucket: travel_images
-  // path: ai/{travelId}/{yyyy-MM-dd}.png
   // =====================================================
   static String getAiImageUrl({
     required String travelId,
@@ -132,7 +171,7 @@ class TravelDayService {
   }
 
   // =====================================================
-  // ✍️ 작성 완료된 일기 개수 (is_completed 기준)
+  // ✍️ 작성 완료된 일기 개수
   // =====================================================
   static Future<int> getWrittenDayCount({required String travelId}) async {
     final user = _supabase.auth.currentUser;
@@ -140,15 +179,48 @@ class TravelDayService {
 
     final res = await _supabase
         .from('travel_days')
-        .select('id, text')
+        .select('text')
         .eq('travel_id', travelId);
 
     if (res is! List) return 0;
 
-    // text가 실제로 채워진 row만 카운트
     return res.where((row) {
       final text = (row['text'] ?? '').toString().trim();
       return text.isNotEmpty;
     }).length;
+  }
+
+  static Future<List<Map<String, dynamic>>> getDiariesByTravel({
+    required String travelId,
+  }) async {
+    final res = await _supabase
+        .from('travel_days')
+        .select()
+        .eq('travel_id', travelId)
+        .order('date');
+
+    return List<Map<String, dynamic>>.from(res);
+  }
+
+  // ✅ 앨범에 필요한 날짜 목록 (date + ai_summary + image_url)
+  static Future<List<Map<String, dynamic>>> getAlbumDays({
+    required String travelId,
+  }) async {
+    final res = await _supabase
+        .from('travel_days')
+        .select('date, ai_summary')
+        .eq('travel_id', travelId)
+        .order('date', ascending: true);
+
+    if (res == null || res is! List) return [];
+
+    return res
+        .where((e) => e['date'] != null)
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  static Future<Map<String, dynamic>> getTravelById(String travelId) async {
+    return await _supabase.from('travels').select().eq('id', travelId).single();
   }
 }

@@ -12,19 +12,48 @@ import 'package:travel_memoir/core/widgets/travel_map_pager.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   final VoidCallback onGoToTravel;
 
   const HomePage({super.key, required this.onGoToTravel});
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late Future<Map<String, dynamic>?> _recentFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint('==============================');
+    debugPrint('🧪 [HOME] initState');
+    debugPrint('==============================');
+
+    _recentFuture = _getRecentTravel();
+  }
+
+  void _refresh() {
+    debugPrint('==============================');
+    debugPrint('🧪 [HOME] _refresh called');
+    debugPrint('==============================');
+
+    setState(() {
+      _recentFuture = _getRecentTravel();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    debugPrint('🧪 [HOME] build');
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Travel Memoir'),
-        elevation: 0,
         backgroundColor: AppColors.background,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -38,7 +67,6 @@ class HomePage extends StatelessWidget {
 
             // ✍️ 오늘의 일기
             Text('오늘의 일기', style: AppTextStyles.sectionTitle),
-
             const SizedBox(height: 12),
 
             SizedBox(
@@ -53,7 +81,12 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 onPressed: () async {
+                  debugPrint('==============================');
+                  debugPrint('🧪 [HOME] 오늘의 일기 버튼 클릭');
+                  debugPrint('==============================');
+
                   final travel = await TravelService.getTodayTravel();
+                  debugPrint('🧪 [HOME] getTodayTravel = $travel');
 
                   if (travel == null) {
                     showDialog(
@@ -76,7 +109,7 @@ class HomePage extends StatelessWidget {
                           ElevatedButton(
                             onPressed: () {
                               Navigator.pop(context);
-                              onGoToTravel();
+                              widget.onGoToTravel();
                             },
                             child: const Text('여행 추가'),
                           ),
@@ -94,6 +127,9 @@ class HomePage extends StatelessWidget {
                   final hasDiary =
                       diary != null &&
                       (diary['text'] ?? '').toString().isNotEmpty;
+
+                  debugPrint('🧪 [HOME] today diary = $diary');
+                  debugPrint('🧪 [HOME] hasDiary = $hasDiary');
 
                   if (hasDiary) {
                     final action = await showDialog<String>(
@@ -125,15 +161,18 @@ class HomePage extends StatelessWidget {
                       ),
                     );
 
+                    debugPrint('🧪 [HOME] dialog action = $action');
                     if (action == null) return;
                   }
 
-                  Navigator.push(
+                  await Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => TravelDiaryListPage(travel: travel),
                     ),
                   );
+
+                  _refresh(); // 🔥 작성 후 홈 갱신
                 },
                 child: FutureBuilder<Map<String, dynamic>?>(
                   future: _getTodayDiaryStatus(),
@@ -155,79 +194,60 @@ class HomePage extends StatelessWidget {
 
             // 🧳 최근 여행
             Text('최근 여행', style: AppTextStyles.sectionTitle),
-
             const SizedBox(height: 12),
 
             FutureBuilder<Map<String, dynamic>?>(
-              future: _getRecentTravel(),
+              future: _recentFuture,
               builder: (context, snapshot) {
+                debugPrint('==============================');
+                debugPrint(
+                  '🧪 [HOME] recentFuture state=${snapshot.connectionState}',
+                );
+                debugPrint('🧪 [HOME] recentFuture data=${snapshot.data}');
+                debugPrint('🧪 [HOME] recentFuture error=${snapshot.error}');
+                debugPrint('==============================');
+
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator()),
+                    child: CircularProgressIndicator(),
                   );
                 }
 
                 final travel = snapshot.data;
-
                 if (travel == null) {
                   return _emptyRecentTravel();
                 }
 
-                final bool isOngoing = _isOngoing(
-                  travel['start_date'],
-                  travel['end_date'],
-                );
+                final title = travel['travel_type'] == 'domestic'
+                    ? (travel['city_name'] ?? travel['city'])
+                    : travel['country_name'];
 
                 return InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () {
-                    Navigator.push(
+                  onTap: () async {
+                    debugPrint(
+                      '🧪 [HOME] recent travel tap -> travel=${travel['id']}',
+                    );
+
+                    await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => TravelDiaryListPage(travel: travel),
                       ),
                     );
+                    _refresh();
                   },
                   child: Container(
-                    width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: AppColors.shadow,
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (isOngoing)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 6),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.warning,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              '여행중',
-                              style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
                         Text(
-                          '${travel['city']} 여행',
+                          '$title 여행',
                           style: AppTextStyles.body.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -237,55 +257,76 @@ class HomePage extends StatelessWidget {
                           '${travel['start_date']} ~ ${travel['end_date']}',
                           style: AppTextStyles.bodyMuted,
                         ),
+                        const SizedBox(height: 24),
+                        // ✅ 지도 미리보기 (travelId 전달)
+                        TravelMapPager(travelId: travel['id']),
                       ],
                     ),
                   ),
                 );
               },
             ),
-
-            const SizedBox(height: 40),
-
-            // 🗺️ 여행 지도
-            const TravelMapPager(),
           ],
         ),
       ),
     );
   }
 
-  // ===== helpers =====
+  // ================= helpers =================
 
   static Future<Map<String, dynamic>?> _getTodayDiaryStatus() async {
+    debugPrint('🧪 [HOME] _getTodayDiaryStatus START');
+
     final travel = await TravelService.getTodayTravel();
+    debugPrint('🧪 [HOME] _getTodayDiaryStatus travel=$travel');
+
     if (travel == null) return null;
 
-    return await TravelDayService.getDiaryByDate(
+    final diary = await TravelDayService.getDiaryByDate(
       travelId: travel['id'],
       date: DateTime.now(),
     );
+
+    debugPrint('🧪 [HOME] _getTodayDiaryStatus diary=$diary');
+    return diary;
   }
 
-  static Future<Map<String, dynamic>?> _getRecentTravel() async {
-    final todayTravel = await TravelService.getTodayTravel();
-    if (todayTravel != null) return todayTravel;
+  Future<Map<String, dynamic>?> _getRecentTravel() async {
+    debugPrint('==============================');
+    debugPrint('🧪 [HOME] _getRecentTravel START');
 
     final travels = await TravelListService.getTravels();
-    if (travels.isEmpty) return null;
+
+    debugPrint('🧪 [HOME] travels.length = ${travels.length}');
+    debugPrint('🧪 [HOME] travels raw = $travels');
+
+    if (travels.isEmpty) {
+      debugPrint('🧪 [HOME] travels EMPTY -> return null');
+      debugPrint('==============================');
+      return null;
+    }
+
+    for (final t in travels) {
+      debugPrint(
+        '🧪 [HOME] travel id=${t['id']} created_at=${t['created_at']}',
+      );
+    }
+
+    // created_at 안전 정렬 (null/타입혼합 방지)
+    travels.sort((a, b) {
+      final ad = a['created_at']?.toString() ?? '';
+      final bd = b['created_at']?.toString() ?? '';
+      return bd.compareTo(ad);
+    });
+
+    debugPrint('🧪 [HOME] AFTER SORT -> first = ${travels.first}');
+    debugPrint('==============================');
 
     return travels.first;
   }
 
-  static bool _isOngoing(String start, String end) {
-    final today = DateTime.now();
-    final s = DateTime.parse(start);
-    final e = DateTime.parse(end);
-    return !today.isBefore(s) && !today.isAfter(e);
-  }
-
   Widget _emptyRecentTravel() {
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,

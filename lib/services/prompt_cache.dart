@@ -26,10 +26,10 @@ class PromptCache {
     _textPrompt = await PromptService.fetchActivePrompt();
     _imagePrompt = await ImagePromptService.fetchActiveImagePrompt();
 
-    debugPrint('✅ [PromptCache] 프롬프트 로드 완료');
-    debugPrint('📝 TEXT (${_textPrompt!.title})');
-    debugPrint(_textPrompt!.content);
-    debugPrint('🎨 IMAGE (${_imagePrompt!.title})');
-    debugPrint(_imagePrompt!.content);
+    //  debugPrint('✅ [PromptCache] 프롬프트 로드 완료');
+    //  debugPrint('📝 TEXT (${_textPrompt!.title})');
+    //  debugPrint(_textPrompt!.content);
+    //  debugPrint('🎨 IMAGE (${_imagePrompt!.title})');
+    //  debugPrint(_imagePrompt!.content);
   }
 }

@@ -8,7 +8,9 @@ import 'package:travel_memoir/features/map/pages/global_map_page.dart';
 import 'package:travel_memoir/features/map/pages/map_main_page.dart';
 
 class TravelMapPager extends StatefulWidget {
-  const TravelMapPager({super.key});
+  final String travelId;
+
+  const TravelMapPager({super.key, required this.travelId});
 
   @override
   State<TravelMapPager> createState() => _TravelMapPagerState();
@@ -18,6 +20,9 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   final PageController _controller = PageController();
   int _index = 0;
 
+  // 🔥 지도 강제 리렌더용 key
+  int _mapKey = 0;
+
   void _move(int i) {
     if (_index == i) return;
     setState(() => _index = i);
@@ -26,6 +31,19 @@ class _TravelMapPagerState extends State<TravelMapPager> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
+  }
+
+  // 🔥 MapMainPage에서 돌아오면 호출
+  void _refreshMap() {
+    setState(() {
+      _mapKey++;
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -50,55 +68,46 @@ class _TravelMapPagerState extends State<TravelMapPager> {
 
         const SizedBox(height: 16),
 
-        // ===== 지도 미리보기 (클릭 시 해당 탭으로 이동) =====
-        GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MapMainPage(initialIndex: _index),
-              ),
-            );
-          },
-          child: SizedBox(
-            height: 220,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Stack(
-                children: [
-                  PageView(
-                    controller: _controller,
-                    onPageChanged: (i) => setState(() => _index = i),
-                    children: const [DomesticMapPage(), GlobalMapPage()],
-                  ),
+        // ===== 지도 미리보기 =====
+        SizedBox(
+          height: 220,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(
+              children: [
+                PageView(
+                  controller: _controller,
+                  onPageChanged: (i) => setState(() => _index = i),
+                  children: [
+                    // 🔥 key 변경 → DomesticMapPage 완전 재생성
+                    DomesticMapPage(key: ValueKey('domestic-map-$_mapKey')),
+                    const GlobalMapPage(),
+                  ],
+                ),
 
-                  // 클릭 유도 오버레이
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.35),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
+                // 🔥 전체 지도 이동
+                Positioned.fill(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => MapMainPage(
+                              travelId: widget.travelId,
+                              initialIndex: _index,
+                            ),
+                          ),
+                        );
+
+                        // 🔥 돌아오면 지도 리프레시
+                        _refreshMap();
+                      },
                     ),
                   ),
-
-                  const Positioned(
-                    bottom: 12,
-                    right: 12,
-                    child: Icon(
-                      Icons.open_in_full,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

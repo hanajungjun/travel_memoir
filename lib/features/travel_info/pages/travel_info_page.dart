@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:travel_memoir/app/route_observer.dart';
 
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/services/travel_create_service.dart';
@@ -17,7 +18,7 @@ class TravelInfoPage extends StatefulWidget {
   State<TravelInfoPage> createState() => _TravelInfoPageState();
 }
 
-class _TravelInfoPageState extends State<TravelInfoPage> {
+class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   late Future<List<Map<String, dynamic>>> _future;
 
   @override
@@ -26,10 +27,40 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
     _future = TravelListService.getTravels();
   }
 
+  // ======================
+  // 🔥 새로고침
+  // ======================
   void _refresh() {
     setState(() {
       _future = TravelListService.getTravels();
     });
+  }
+
+  // ======================
+  // 🔥 route observer 연결
+  // ======================
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // ======================
+  // 🔥 다른 페이지 갔다가 돌아왔을 때
+  // ======================
+  @override
+  void didPopNext() {
+    debugPrint('🔥 TravelInfoPage didPopNext -> refresh');
+    _refresh();
   }
 
   @override
@@ -39,177 +70,219 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
       appBar: AppBar(
         title: const Text('내 여행', style: AppTextStyles.appBarTitle),
       ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: Column(
+        children: [
+          // ===== 🔥 디버그 화면 아이디 (절대 삭제 금지) =====
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            color: Colors.black.withOpacity(0.04),
+            child: const Text(
+              'PAGE: TravelInfoPage',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ),
 
-          final travels = snapshot.data ?? [];
+          // ===== 실제 내용 =====
+          Expanded(
+            child: FutureBuilder<List<Map<String, dynamic>>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          if (travels.isEmpty) {
-            return const Center(
-              child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
-            );
-          }
+                final travels = snapshot.data ?? [];
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(20),
-            itemCount: travels.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final travel = travels[index];
+                if (travels.isEmpty) {
+                  return const Center(
+                    child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
+                  );
+                }
 
-              final startDate = DateTime.parse(travel['start_date']);
-              final endDate = DateTime.parse(travel['end_date']);
-              final totalDays = endDate.difference(startDate).inDays + 1;
+                return ListView.separated(
+                  padding: const EdgeInsets.all(20),
+                  itemCount: travels.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, index) {
+                    final travel = travels[index];
 
-              final isFinished = DateTime.now().isAfter(endDate);
+                    final isDomestic = travel['travel_type'] == 'domestic';
 
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    // ======================
-                    // 텍스트 영역
-                    // ======================
-                    Expanded(
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  TravelDiaryListPage(travel: travel),
-                            ),
-                          );
-                        },
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // 도시 + 배지
-                            Row(
-                              children: [
-                                Text(
-                                  travel['city'] ?? '',
-                                  style: AppTextStyles.title.copyWith(
-                                    fontSize: 20,
+                    // ✅ 핵심 수정 포인트
+                    final String titleText = isDomestic
+                        ? (travel['region_name'] ?? '')
+                        : (travel['country_name'] ?? '');
+
+                    final startDate = DateTime.parse(travel['start_date']);
+                    final endDate = DateTime.parse(travel['end_date']);
+                    final totalDays = endDate.difference(startDate).inDays + 1;
+
+                    final isFinished = DateTime.now().isAfter(endDate);
+
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDomestic
+                            ? AppColors.surface
+                            : AppColors.accent.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        TravelDiaryListPage(travel: travel),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                if (isFinished) const _FinishedBadge(),
-                              ],
-                            ),
-
-                            const SizedBox(height: 6),
-
-                            // ✍️ 기록 상태
-                            FutureBuilder<int>(
-                              future: TravelDayService.getWrittenDayCount(
-                                travelId: travel['id'],
-                              ),
-                              builder: (context, snapshot) {
-                                final written = snapshot.data ?? 0;
-                                return Text(
-                                  '$written / $totalDays일 작성',
-                                  style: AppTextStyles.bodyMuted,
                                 );
+                                if (!mounted) return;
+                                _refresh();
                               },
-                            ),
-
-                            const SizedBox(height: 4),
-
-                            // 날짜
-                            Text(
-                              '${travel['start_date']} ~ ${travel['end_date']}',
-                              style: AppTextStyles.caption,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // ======================
-                    // ⋮ 메뉴
-                    // ======================
-                    PopupMenuButton<String>(
-                      icon: const Icon(
-                        Icons.more_vert,
-                        color: AppColors.textSecondary,
-                      ),
-                      onSelected: (value) async {
-                        if (value == 'delete') {
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            builder: (_) => AlertDialog(
-                              title: const Text('여행 삭제'),
-                              content: const Text(
-                                '이 여행과 모든 일기가 삭제됩니다.\n정말 삭제할까요?',
-                              ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context, false),
-                                  child: const Text('취소'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(context, true),
-                                  child: const Text(
-                                    '삭제',
-                                    style: TextStyle(color: AppColors.error),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      if (!isDomestic) ...[
+                                        const Icon(
+                                          Icons.public,
+                                          size: 18,
+                                          color: AppColors.accent,
+                                        ),
+                                        const SizedBox(width: 6),
+                                      ],
+                                      Text(
+                                        titleText,
+                                        style: AppTextStyles.title.copyWith(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700,
+                                          color: isDomestic
+                                              ? AppColors.textPrimary
+                                              : AppColors.accent,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      if (isFinished) const _FinishedBadge(),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 6),
+                                  FutureBuilder<int>(
+                                    future: TravelDayService.getWrittenDayCount(
+                                      travelId: travel['id'],
+                                    ),
+                                    builder: (context, snapshot) {
+                                      final written = snapshot.data ?? 0;
+                                      return Text(
+                                        '$written / $totalDays일 작성',
+                                        style: AppTextStyles.bodyMuted,
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${travel['start_date']} ~ ${travel['end_date']}',
+                                    style: AppTextStyles.caption,
+                                  ),
+                                ],
+                              ),
                             ),
-                          );
-
-                          if (ok == true) {
-                            await TravelCreateService.deleteTravel(
-                              travel['id'],
-                            );
-                            if (!mounted) return;
-                            _refresh();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('여행이 삭제되었습니다')),
-                            );
-                          }
-                        }
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Text(
-                            '여행 삭제',
-                            style: TextStyle(color: AppColors.error),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
-      ),
+                          PopupMenuButton<String>(
+                            icon: const Icon(
+                              Icons.more_vert,
+                              color: AppColors.textSecondary,
+                            ),
+                            onSelected: (value) async {
+                              if (value == 'delete') {
+                                final ok = await showDialog<bool>(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    title: const Text('여행 삭제'),
+                                    content: const Text(
+                                      '이 여행과 모든 일기가 삭제됩니다.\n정말 삭제할까요?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, false),
+                                        child: const Text('취소'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.pop(context, true),
+                                        child: const Text(
+                                          '삭제',
+                                          style: TextStyle(
+                                            color: AppColors.error,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
 
-      // ======================
-      // ➕ 여행 추가
-      // ======================
+                                if (ok == true) {
+                                  await TravelCreateService.deleteTravel(
+                                    travel['id'],
+                                  );
+                                  if (!mounted) return;
+                                  _refresh();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('여행이 삭제되었습니다'),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text(
+                                  '여행 삭제',
+                                  style: TextStyle(color: AppColors.error),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
         onPressed: () async {
-          await Navigator.push(
+          final createdTravel = await Navigator.push<Map<String, dynamic>>(
             context,
             MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
           );
-          _refresh();
+
+          if (!mounted) return;
+
+          if (createdTravel != null) {
+            _refresh();
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TravelDiaryListPage(travel: createdTravel),
+              ),
+            );
+            if (!mounted) return;
+            _refresh();
+          }
         },
         child: const Icon(Icons.add, color: Colors.black),
       ),
@@ -218,7 +291,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> {
 }
 
 // ==============================
-// 🧳 여행완료 배지
+// 🔒 여행 완료 배지
 // ==============================
 class _FinishedBadge extends StatelessWidget {
   const _FinishedBadge();

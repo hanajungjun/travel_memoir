@@ -3,107 +3,117 @@
 <plist version="1.0">
 <dict>
 
-  <key>CADisableMinimumFrameDurationOnPhone</key>
-  <true/>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 
-  <key>CFBundleDevelopmentRegion</key>
-  <string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
 
-  <key>CFBundleDisplayName</key>
-  <string>여행일기</string>
+	<key>CFBundleDisplayName</key>
+	<string>여행일기</string>
 
-  <key>CFBundleExecutable</key>
-  <string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
 
-  <key>CFBundleIdentifier</key>
-  <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 
-  <key>CFBundleInfoDictionaryVersion</key>
-  <string>6.0</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
 
-  <key>CFBundleName</key>
-  <string>my_app</string>
+	<key>CFBundleName</key>
+	<string>my_app</string>
 
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
 
-  <key>CFBundleShortVersionString</key>
-  <string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
 
-  <key>CFBundleVersion</key>
-  <string>$(FLUTTER_BUILD_NUMBER)</string>
+	<!-- 🔑 URL SCHEMES (중요) -->
+	<key>CFBundleURLTypes</key>
+	<array>
 
-  <key>LSRequiresIPhoneOS</key>
-  <true/>
+		<!-- Supabase OAuth Callback -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>supabase</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>io.supabase.flutter</string>
+			</array>
+		</dict>
 
-  <!-- Safari / OAuth -->
-  <key>LSApplicationQueriesSchemes</key>
-  <array>
-    <string>https</string>
-  </array>
+		<!-- Google Sign-In -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>google</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.277385353976-5807hspd33fcvloonsr814ra0559bsbe</string>
+			</array>
+		</dict>
 
-  <key>NSAppTransportSecurity</key>
-  <dict>
-    <key>NSAllowsArbitraryLoads</key>
-    <true/>
-    <key>NSAllowsArbitraryLoadsInWebContent</key>
-    <true/>
-    <key>NSAllowsLocalNetworking</key>
-    <true/>
-  </dict>
+	</array>
 
-  <key>UIApplicationSupportsIndirectInputEvents</key>
-  <true/>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
 
-  <key>UILaunchStoryboardName</key>
-  <string>LaunchScreen</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>https</string>
+	</array>
 
-  <key>UIMainStoryboardFile</key>
-  <string>Main</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
 
-  <key>UISupportedInterfaceOrientations</key>
-  <array>
-    <string>UIInterfaceOrientationPortrait</string>
-    <string>UIInterfaceOrientationLandscapeLeft</string>
-    <string>UIInterfaceOrientationLandscapeRight</string>
-  </array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 
-  <key>UISupportedInterfaceOrientations~ipad</key>
-  <array>
-    <string>UIInterfaceOrientationPortrait</string>
-    <string>UIInterfaceOrientationPortraitUpsideDown</string>
-    <string>UIInterfaceOrientationLandscapeLeft</string>
-    <string>UIInterfaceOrientationLandscapeRight</string>
-  </array>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>생성된 이미지를 앨범에 저장하기 위해 필요한 권한입니다.</string>
 
-  <key>NSPhotoLibraryAddUsageDescription</key>
-  <string>생성된 이미지를 앨범에 저장하기 위해 필요한 권한입니다.</string>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
 
-  <!-- 🔥 URL Schemes -->
-  <key>CFBundleURLTypes</key>
-  <array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
 
-    <!-- Kakao -->
-    <dict>
-      <key>CFBundleTypeRole</key>
-      <string>Editor</string>
-      <key>CFBundleURLSchemes</key>
-      <array>
-        <string>com.hanajungjun.travelmemoir</string>
-      </array>
-    </dict>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
 
-    <!-- Supabase Email / OAuth -->
-    <dict>
-      <key>CFBundleTypeRole</key>
-      <string>Editor</string>
-      <key>CFBundleURLSchemes</key>
-      <array>
-        <string>io.supabase.flutter</string>
-      </array>
-    </dict>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 
-  </array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- Google SDK 설정 -->
+	<key>CLIENT_ID</key>
+	<string>277385353976-5807hspd33fcvloonsr814ra0559bsbe.apps.googleusercontent.com</string>
+
+	<key>GIDClientID</key>
+	<string>277385353976-5807hspd33fcvloonsr814ra0559bsbe.apps.googleusercontent.com</string>
 
 </dict>
 </plist>

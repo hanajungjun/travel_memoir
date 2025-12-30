@@ -13,17 +13,17 @@ class PromptService {
         .maybeSingle();
 
     if (res == null) {
-      print('❌ [PromptService] 활성 프롬프트 없음');
+      // print('❌ [PromptService] 활성 프롬프트 없음');
       return null;
     }
 
     final prompt = PromptModel.fromMap(res);
 
     // 🔥 로그 핵심
-    print('✅ [PromptService] 활성 프롬프트 로드됨');
-    print('🆔 id: ${prompt.id}');
-    print('📌 title: ${prompt.title}');
-    print('📝 content:\n${prompt.content}');
+    //print('✅ [PromptService] 활성 프롬프트 로드됨');
+    //print('🆔 id: ${prompt.id}');
+    //print('📌 title: ${prompt.title}');
+    //print('📝 content:\n${prompt.content}');
 
     return prompt;
   }
