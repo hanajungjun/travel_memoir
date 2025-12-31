@@ -52,7 +52,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
       height: 110,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         itemCount: _styles.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (_, i) {
@@ -67,17 +67,33 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // ===== 썸네일 =====
                 Container(
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: selected ? AppColors.primary : AppColors.surface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: selected ? AppColors.primary : Colors.transparent,
+                      width: 2,
+                    ),
+                    color: AppColors.surface,
                   ),
-                  child: const Icon(Icons.brush, color: Colors.white),
+                  clipBehavior: Clip.hardEdge,
+                  child:
+                      style.thumbnailUrl != null &&
+                          style.thumbnailUrl!.isNotEmpty
+                      ? Image.network(style.thumbnailUrl!, fit: BoxFit.cover)
+                      : const Icon(Icons.image, color: Colors.grey),
                 ),
+
                 const SizedBox(height: 6),
+
+                // ===== 제목 =====
                 Text(
                   style.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyMuted.copyWith(
                     color: selected
                         ? AppColors.textPrimary

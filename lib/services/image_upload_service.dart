@@ -69,9 +69,8 @@ class ImageUploadService {
     final String dayId =
         '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')}';
 
-    final String fileName = 'ai_${DateTime.now().millisecondsSinceEpoch}.jpg';
-
-    final String path = 'diary/$travelId/$dayId/$fileName';
+    final String fileName = '${date.toIso8601String().substring(0, 10)}.png';
+    final String path = 'ai/$travelId/$fileName';
 
     debugPrint('==============================');
     debugPrint('🎨 [DIARY IMAGE UPLOAD] START');
@@ -150,8 +149,7 @@ class ImageUploadService {
     required String travelId,
     required Uint8List imageBytes,
   }) async {
-    final fileName = 'cover_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final path = 'travel/$travelId/cover/$fileName';
+    final path = 'ai/$travelId/cover.png';
 
     debugPrint('🖼 [COVER IMAGE UPLOAD] START');
     debugPrint('🖼 path = $path');
@@ -187,8 +185,7 @@ class ImageUploadService {
     required String travelId,
     required Uint8List imageBytes,
   }) async {
-    final fileName = 'map_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final path = 'travel/$travelId/map/$fileName';
+    final path = 'ai/$travelId/map.png';
 
     debugPrint('🗺 [MAP IMAGE UPLOAD] START');
     debugPrint('🗺 path = $path');
