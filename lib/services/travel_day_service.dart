@@ -223,4 +223,28 @@ class TravelDayService {
   static Future<Map<String, dynamic>> getTravelById(String travelId) async {
     return await _supabase.from('travels').select().eq('id', travelId).single();
   }
+
+  // ✅ 사용자사진 업로드
+  static Future<void> updateDiaryPhotos({
+    required String travelId,
+    required DateTime date,
+    required List<String> photoUrls,
+  }) async {
+    // 🔴 1. 값 확인 (가장 중요)
+    print('🔥 updateDiaryPhotos called');
+    print('🔥 travelId = $travelId');
+    print('🔥 date = ${date.toIso8601String().substring(0, 10)}');
+    print('🔥 photoUrls length = ${photoUrls.length}');
+    print('🔥 photoUrls = $photoUrls');
+
+    final res = await _supabase
+        .from('travel_days')
+        .update({'photo_urls': photoUrls})
+        .eq('travel_id', travelId)
+        .eq('date', date.toIso8601String().substring(0, 10))
+        .select();
+
+    // 🔴 2. update 결과 확인
+    print('🔥 update result = $res');
+  }
 }

@@ -19,8 +19,6 @@ class TravelMapPager extends StatefulWidget {
 class _TravelMapPagerState extends State<TravelMapPager> {
   final PageController _controller = PageController();
   int _index = 0;
-
-  // 🔥 지도 강제 리렌더용 key
   int _mapKey = 0;
 
   void _move(int i) {
@@ -33,11 +31,8 @@ class _TravelMapPagerState extends State<TravelMapPager> {
     );
   }
 
-  // 🔥 MapMainPage에서 돌아오면 호출
   void _refreshMap() {
-    setState(() {
-      _mapKey++;
-    });
+    setState(() => _mapKey++);
   }
 
   @override
@@ -53,39 +48,37 @@ class _TravelMapPagerState extends State<TravelMapPager> {
       children: [
         // ===== 탭 =====
         Container(
-          padding: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(24),
+            color: AppColors.tabBackground,
+            borderRadius: BorderRadius.circular(28),
           ),
           child: Row(
             children: [
-              _Tab(label: '한국', selected: _index == 0, onTap: () => _move(0)),
+              _Tab(label: '국내', selected: _index == 0, onTap: () => _move(0)),
               _Tab(label: '해외', selected: _index == 1, onTap: () => _move(1)),
             ],
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
-        // ===== 지도 미리보기 =====
-        SizedBox(
-          height: 220,
+        // ===== 지도 (부모 높이에 맞춰서 꽉 채움) =====
+        Expanded(
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(6),
             child: Stack(
               children: [
                 PageView(
                   controller: _controller,
                   onPageChanged: (i) => setState(() => _index = i),
                   children: [
-                    // 🔥 key 변경 → DomesticMapPage 완전 재생성
                     DomesticMapPage(key: ValueKey('domestic-map-$_mapKey')),
                     const GlobalMapPage(),
                   ],
                 ),
 
-                // 🔥 전체 지도 이동
+                // 전체 지도 이동
                 Positioned.fill(
                   child: Material(
                     color: Colors.transparent,
@@ -100,8 +93,6 @@ class _TravelMapPagerState extends State<TravelMapPager> {
                             ),
                           ),
                         );
-
-                        // 🔥 돌아오면 지도 리프레시
                         _refreshMap();
                       },
                     ),
@@ -117,7 +108,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
 }
 
 // ======================
-// 🔹 탭 버튼
+// 탭 버튼
 // ======================
 class _Tab extends StatelessWidget {
   final String label;
@@ -140,7 +131,7 @@ class _Tab extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Center(
             child: Text(

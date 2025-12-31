@@ -14,7 +14,7 @@ class TravelTypeSelectPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('여행 종류 선택', style: AppTextStyles.appBarTitle),
+        title: const Text('여행 종류 선택', style: AppTextStyles.pageTitle),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),
@@ -127,7 +127,7 @@ class _TravelTypeCard extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: AppTextStyles.title.copyWith(fontSize: 20),
+                    style: AppTextStyles.sectionTitle.copyWith(fontSize: 20),
                   ),
                   const SizedBox(height: 6),
                   Text(subtitle, style: AppTextStyles.bodyMuted),

@@ -65,8 +65,8 @@ class TravelCreateService {
           'country_name': country.displayName(),
           'continent': country.continent,
 
-          'travel_lat': country.lat,
-          'travel_lng': country.lng,
+          'country_lat': country.lat,
+          'country_lng': country.lng,
 
           'start_date': startDate.toIso8601String().substring(0, 10),
           'end_date': endDate.toIso8601String().substring(0, 10),

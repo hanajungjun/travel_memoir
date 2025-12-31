@@ -32,80 +32,68 @@ class _HomePageState extends State<HomePage> {
     debugPrint('==============================');
   }
 
-  void _refresh() {
-    debugPrint('==============================');
-    debugPrint('🧪 [HOME] _refresh called');
-    debugPrint('==============================');
-    setState(() {});
-  }
-
   @override
   Widget build(BuildContext context) {
     debugPrint('🧪 [HOME] build');
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('Travel Memoir'),
-        backgroundColor: AppColors.background,
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 📅 오늘 날짜
-            Text(DateUtilsHelper.todayText(), style: AppTextStyles.bodyMuted),
+      backgroundColor: AppColors.lightBackground,
+      body: Column(
+        children: [
+          // =====================================================
+          // 🔵 상단 풀블리드 헤더 (꽉 참)
+          // =====================================================
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 56, 20, 20),
+            color: AppColors.lightSurface,
+            child: HomeTravelStatusHeader(onGoToTravel: widget.onGoToTravel),
+          ),
 
-            const SizedBox(height: 12),
+          // =====================================================
+          // ⬇️ 아래 스크롤 영역
+          // =====================================================
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 최근 여행 카드
+                  RecentTravelSection(),
 
-            // 🟦 여행 상태 헤더 (여행중 / 여행준비중 + +버튼)
-            HomeTravelStatusHeader(onGoToTravel: widget.onGoToTravel),
+                  const SizedBox(height: 24),
 
-            const SizedBox(height: 12),
+                  // 🗺️ 최근 여행 지도
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: TravelListService.getTravels(),
+                    builder: (context, snapshot) {
+                      final travels = snapshot.data ?? [];
 
-            // 🧳 최신 여행 (카드 3개)
-            RecentTravelSection(),
+                      final String? travelId = travels.isNotEmpty
+                          ? travels.first['id']
+                          : null;
 
-            // 🗺️ 최근 여행 지도
-            FutureBuilder<List<Map<String, dynamic>>>(
-              future: TravelListService.getTravels(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
-                  );
-                }
-
-                final travels = snapshot.data!;
-
-                // 최신 여행 1개
-                travels.sort((a, b) {
-                  final ad = a['created_at']?.toString() ?? '';
-                  final bd = b['created_at']?.toString() ?? '';
-                  return bd.compareTo(ad);
-                });
-
-                final recentTravel = travels.first;
-
-                return Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
+                      return Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.lightSurface,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: SizedBox(
+                          height: 380,
+                          child: TravelMapPager(
+                            travelId: travelId ?? 'preview',
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  child: TravelMapPager(travelId: recentTravel['id']),
-                );
-              },
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

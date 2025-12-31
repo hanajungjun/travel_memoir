@@ -16,9 +16,8 @@ class ImageStylePicker extends StatefulWidget {
 }
 
 class _ImageStylePickerState extends State<ImageStylePicker> {
-  final PageController _controller = PageController(viewportFraction: 0.7);
   List<ImageStyleModel> _styles = [];
-  int _current = 0;
+  int _selectedIndex = 0;
 
   @override
   void initState() {
@@ -30,7 +29,10 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
     final styles = await ImageStyleService.fetchEnabled();
     if (!mounted) return;
 
-    setState(() => _styles = styles);
+    setState(() {
+      _styles = styles;
+      _selectedIndex = 0;
+    });
 
     if (styles.isNotEmpty) {
       widget.onChanged(styles.first);
@@ -41,45 +43,48 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   Widget build(BuildContext context) {
     if (_styles.isEmpty) {
       return const SizedBox(
-        height: 120,
+        height: 80,
         child: Center(child: Text('사용 가능한 스타일 없음')),
       );
     }
 
     return SizedBox(
-      height: 160,
-      child: PageView.builder(
-        controller: _controller,
+      height: 110,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         itemCount: _styles.length,
-        onPageChanged: (i) {
-          setState(() => _current = i);
-          widget.onChanged(_styles[i]);
-        },
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (_, i) {
           final style = _styles[i];
-          final selected = i == _current;
+          final selected = i == _selectedIndex;
 
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: selected
-                  ? AppColors.primary
-                  : AppColors.background.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Center(
-              child: Text(
-                style.title,
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: selected
-                      ? AppColors.background
-                      : AppColors.textPrimary,
+          return GestureDetector(
+            onTap: () {
+              setState(() => _selectedIndex = i);
+              widget.onChanged(style);
+            },
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: selected ? AppColors.primary : AppColors.surface,
+                  ),
+                  child: const Icon(Icons.brush, color: Colors.white),
                 ),
-              ),
+                const SizedBox(height: 6),
+                Text(
+                  style.title,
+                  style: AppTextStyles.bodyMuted.copyWith(
+                    color: selected
+                        ? AppColors.textPrimary
+                        : AppColors.textDisabled,
+                  ),
+                ),
+              ],
             ),
           );
         },

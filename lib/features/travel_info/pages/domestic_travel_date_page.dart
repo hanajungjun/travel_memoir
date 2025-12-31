@@ -111,7 +111,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('국내 여행', style: AppTextStyles.appBarTitle),
+        title: const Text('국내 여행', style: AppTextStyles.pageTitle),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),

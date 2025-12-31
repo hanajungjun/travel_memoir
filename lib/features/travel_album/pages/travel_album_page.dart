@@ -88,7 +88,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: Text(title, style: AppTextStyles.appBarTitle)),
+      appBar: AppBar(title: Text(title, style: AppTextStyles.pageTitle)),
       body: FutureBuilder<List<_AlbumItem>>(
         future: _future,
         builder: (context, snapshot) {
@@ -201,7 +201,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                               alignment: Alignment.center,
                               child: Text(
                                 DateUtilsHelper.formatMonthDay(item.date),
-                                style: AppTextStyles.caption,
+                                style: AppTextStyles.bodyMuted,
                               ),
                             ),
                           ),

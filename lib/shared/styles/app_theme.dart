@@ -14,10 +14,11 @@ class AppTheme {
         secondary: AppColors.accent,
         surface: AppColors.surface,
         onSurface: AppColors.textPrimary,
+        onPrimary: AppColors.onPrimary,
       ),
 
       textTheme: const TextTheme(
-        titleLarge: AppTextStyles.title,
+        titleLarge: AppTextStyles.pageTitle,
         bodyMedium: AppTextStyles.body,
         bodySmall: AppTextStyles.bodyMuted,
         labelLarge: AppTextStyles.button,
@@ -27,14 +28,14 @@ class AppTheme {
         backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: AppTextStyles.appBarTitle,
+        titleTextStyle: AppTextStyles.pageTitle,
         iconTheme: IconThemeData(color: AppColors.textPrimary),
       ),
 
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.textPrimary,
+          foregroundColor: AppColors.onPrimary,
           textStyle: AppTextStyles.button,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -46,7 +47,7 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary),
-          textStyle: AppTextStyles.button,
+          textStyle: AppTextStyles.buttonOutline,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -58,6 +59,8 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
+
+      dividerColor: AppColors.divider,
     );
   }
 }

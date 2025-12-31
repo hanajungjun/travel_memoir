@@ -41,7 +41,11 @@ class _LoginPageState extends State<LoginPage> {
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'auth_uid');
 
-      _goToMain();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AppShell()),
+      );
     });
   }
 
@@ -51,67 +55,40 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _goToMain() {
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const AppShell()),
+  // ================= 로그인 =================
+
+  Future<void> _loginWithKakao() async {
+    final token = await UserApi.instance.loginWithKakaoAccount();
+    await supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.kakao,
+      idToken: token.idToken!,
     );
   }
 
-  // =====================
-  // Login handlers
-  // =====================
-  Future<void> _loginWithKakao() async {
-    try {
-      final token = await UserApi.instance.loginWithKakaoAccount();
-      debugPrint('🧨 KAKAO aud = ${parseJwt(token.idToken!)['aud']}');
-
-      await supabase.auth.signInWithIdToken(
-        provider: OAuthProvider.kakao,
-        idToken: token.idToken!,
-      );
-    } catch (e) {
-      debugPrint('❌ Kakao login error: $e');
-    }
-  }
-
   Future<void> _loginWithGoogle() async {
-    try {
-      final googleUser = await GoogleSignIn(
-        scopes: ['email', 'profile'],
-      ).signIn();
+    final googleUser = await GoogleSignIn().signIn();
+    if (googleUser == null) return;
 
-      if (googleUser == null) return;
-
-      final auth = await googleUser.authentication;
-
-      await supabase.auth.signInWithIdToken(
-        provider: OAuthProvider.google,
-        idToken: auth.idToken!,
-        accessToken: auth.accessToken,
-      );
-    } catch (e) {
-      debugPrint('❌ Google login error: $e');
-    }
+    final auth = await googleUser.authentication;
+    await supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: auth.idToken!,
+      accessToken: auth.accessToken,
+    );
   }
 
   Future<void> _loginWithApple() async {
-    try {
-      final credential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-      );
+    final credential = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+    );
 
-      await supabase.auth.signInWithIdToken(
-        provider: OAuthProvider.apple,
-        idToken: credential.identityToken!,
-      );
-    } catch (e) {
-      debugPrint('❌ Apple login error: $e');
-    }
+    await supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.apple,
+      idToken: credential.identityToken!,
+    );
   }
 
   Future<void> _loginWithEmail() async {
@@ -120,11 +97,9 @@ class _LoginPageState extends State<LoginPage> {
     await showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text('이메일로 로그인', style: AppTextStyles.sectionTitle),
+        title: const Text('이메일로 시작하기'),
         content: TextField(
           controller: controller,
-          style: AppTextStyles.body,
           decoration: const InputDecoration(hintText: 'email@example.com'),
         ),
         actions: [
@@ -135,111 +110,122 @@ class _LoginPageState extends State<LoginPage> {
           ElevatedButton(
             onPressed: () async {
               await supabase.auth.signInWithOtp(email: controller.text.trim());
-              Navigator.pop(context);
+              if (context.mounted) Navigator.pop(context);
             },
-            child: const Text('로그인 링크 보내기'),
+            child: const Text('링크 보내기'),
           ),
         ],
       ),
     );
   }
 
-  // =====================
-  // UI
-  // =====================
+  // ================= UI =================
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const Spacer(),
-
-              Text('Travel Memoir', style: AppTextStyles.title),
-              const SizedBox(height: 12),
-              Text(
-                '여행의 순간을\n하루의 기록으로 남겨보세요.',
-                style: AppTextStyles.bodyMuted,
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 48),
-
-              _loginButton(
-                text: '카카오로 로그인',
-                background: const Color(0xFFFEE500),
-                textColor: Colors.black,
-                onTap: _loginWithKakao,
-              ),
-
-              const SizedBox(height: 12),
-
-              _loginButton(
-                text: 'Google로 로그인',
-                background: AppColors.surface,
-                textColor: AppColors.textPrimary,
-                onTap: _loginWithGoogle,
-              ),
-
-              if (Platform.isIOS) ...[
-                const SizedBox(height: 12),
-                _loginButton(
-                  text: 'Apple로 로그인',
-                  background: Colors.black,
-                  textColor: Colors.white,
-                  onTap: _loginWithApple,
-                ),
-              ],
-
-              const SizedBox(height: 16),
-
-              TextButton(
-                onPressed: _loginWithEmail,
-                child: Text('이메일로 로그인', style: AppTextStyles.bodyMuted),
-              ),
-
-              const Spacer(),
-            ],
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // ===== Background Image =====
+          Positioned.fill(
+            child: Image.asset('assets/images/login_bg.png', fit: BoxFit.cover),
           ),
-        ),
+
+          // ===== Content =====
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 120),
+
+                  // 타이틀
+                  Text('나만의 여행 기록,', style: AppTextStyles.landingTitle),
+                  const SizedBox(height: 8),
+                  Text(
+                    '당신만의 이야기로 채워지는 여행 일기',
+                    style: AppTextStyles.landingSubtitle,
+                  ),
+
+                  const SizedBox(height: 48),
+
+                  _loginButton(text: '카카오로 시작하기', onTap: _loginWithKakao),
+                  const SizedBox(height: 12),
+
+                  _loginButton(text: '구글로 시작하기', onTap: _loginWithGoogle),
+                  const SizedBox(height: 12),
+
+                  if (Platform.isIOS)
+                    _loginButton(text: '애플로 시작하기', onTap: _loginWithApple),
+                  const SizedBox(height: 12),
+
+                  _loginButton(text: '이메일로 시작하기', onTap: _loginWithEmail),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _loginButton({
+  // ================= 공통 버튼 =================
+
+  Widget _loginButton({required String text, required VoidCallback onTap}) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: AppColors.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Text(text, style: AppTextStyles.loginButton),
+      ),
+    );
+  }
+
+  Widget _outlineButton({
+    required Widget icon,
     required String text,
-    required Color background,
-    required Color textColor,
     required VoidCallback onTap,
   }) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: background,
-          foregroundColor: textColor,
+      height: 54,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(color: AppColors.border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
         onPressed: onTap,
-        child: Text(text, style: AppTextStyles.button),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            icon,
+            const SizedBox(width: 10),
+            Text(text, style: AppTextStyles.loginButton),
+          ],
+        ),
       ),
     );
   }
-}
 
-// =====================
-// JWT 파싱
-// =====================
-Map<String, dynamic> parseJwt(String token) {
-  final parts = token.split('.');
-  final payload = parts[1];
-  final normalized = base64.normalize(payload);
-  final decoded = utf8.decode(base64.decode(normalized));
-  return json.decode(decoded);
+  Widget _blob({required Color color, required double size}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(size),
+      ),
+    );
+  }
 }

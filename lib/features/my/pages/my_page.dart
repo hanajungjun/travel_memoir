@@ -54,7 +54,7 @@ class _MyPageState extends State<MyPage> {
         backgroundColor: AppColors.background,
         elevation: 0,
         centerTitle: true,
-        title: Text('마이페이지', style: AppTextStyles.appBarTitle),
+        title: Text('마이페이지', style: AppTextStyles.pageTitle),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -105,13 +105,13 @@ class _MyPageState extends State<MyPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(nickname, style: AppTextStyles.title),
+                        Text(nickname, style: AppTextStyles.pageTitle),
                         if (bio.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(bio, style: AppTextStyles.bodyMuted),
                         ],
                         const SizedBox(height: 4),
-                        Text(email, style: AppTextStyles.caption),
+                        Text(email, style: AppTextStyles.bodyMuted),
                       ],
                     ),
                   ),
@@ -221,9 +221,9 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value, style: AppTextStyles.title),
+        Text(value, style: AppTextStyles.pageTitle),
         const SizedBox(height: 4),
-        Text(title, style: AppTextStyles.caption),
+        Text(title, style: AppTextStyles.bodyMuted),
       ],
     );
   }

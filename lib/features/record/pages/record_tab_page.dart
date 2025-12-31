@@ -125,7 +125,7 @@ class _SummaryHeroCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Spacer(),
-            Text('기억을 다시 꺼내볼까요?', style: AppTextStyles.title),
+            Text('기억을 다시 꺼내볼까요?', style: AppTextStyles.pageTitle),
             const SizedBox(height: 24),
             Text('지금까지의 여행 · 총 $totalCount번', style: AppTextStyles.body),
             const SizedBox(height: 8),

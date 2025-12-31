@@ -130,7 +130,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        title: Text('프로필 수정', style: AppTextStyles.appBarTitle),
+        title: Text('프로필 수정', style: AppTextStyles.pageTitle),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,

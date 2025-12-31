@@ -21,7 +21,7 @@ class IntroPage extends StatelessWidget {
               const Spacer(),
 
               // 🧭 타이틀
-              Text('Travel Memoir', style: AppTextStyles.title),
+              Text('Travel Memoir', style: AppTextStyles.landingTitle),
 
               const SizedBox(height: 12),
 

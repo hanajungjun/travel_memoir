@@ -41,7 +41,9 @@ class _TravelDayPageState extends State<TravelDayPage> {
   final TextEditingController _contentController = TextEditingController();
 
   ImageStyleModel? _selectedStyle;
+
   final List<File> _photos = [];
+  final List<String> _photoUrls = [];
 
   Uint8List? _generatedImage;
   String? _imageUrl;
@@ -61,31 +63,45 @@ class _TravelDayPageState extends State<TravelDayPage> {
     super.dispose();
   }
 
+  // =====================================================
+  // 🔄 기존 일기 + 사진 로드
+  // =====================================================
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
       travelId: widget.travelId,
       date: widget.date,
     );
 
-    if (!mounted) return;
+    if (!mounted || diary == null) return;
 
-    if (diary != null) {
+    // 🔥 텍스트 보호 (입력 중이면 덮어쓰지 않음)
+    if (_contentController.text.isEmpty) {
       _contentController.text = (diary['text'] ?? '').toString();
-      _summaryText = diary['ai_summary'];
+    }
 
-      if (diary['ai_summary'] != null) {
-        _imageUrl = TravelDayService.getAiImageUrl(
-          travelId: widget.travelId,
-          date: widget.date,
-        );
-      }
+    _summaryText = diary['ai_summary'];
+
+    if (diary['ai_summary'] != null) {
+      _imageUrl = TravelDayService.getAiImageUrl(
+        travelId: widget.travelId,
+        date: widget.date,
+      );
+    }
+
+    if (diary['photo_urls'] != null) {
+      _photoUrls
+        ..clear()
+        ..addAll(List<String>.from(diary['photo_urls']));
     }
 
     setState(() {});
   }
 
+  // =====================================================
+  // 📸 사진 선택
+  // =====================================================
   Future<void> _pickPhoto() async {
-    if (_photos.length >= 3) return;
+    if (_photos.length + _photoUrls.length >= 3) return;
 
     final picker = ImagePicker();
     final file = await picker.pickImage(source: ImageSource.gallery);
@@ -95,6 +111,37 @@ class _TravelDayPageState extends State<TravelDayPage> {
     }
   }
 
+  // =====================================================
+  // 🗑 이미 저장된 사진 삭제
+  // =====================================================
+  Future<void> _deleteUploadedPhoto(String url) async {
+    setState(() => _loading = true);
+
+    try {
+      await ImageUploadService.deleteUserImageByUrl(url);
+      _photoUrls.remove(url);
+
+      await TravelDayService.updateDiaryPhotos(
+        travelId: widget.travelId,
+        date: widget.date,
+        photoUrls: _photoUrls,
+      );
+
+      setState(() {});
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _deleteLocalPhoto(File file) {
+    setState(() {
+      _photos.remove(file);
+    });
+  }
+
+  // =====================================================
+  // 🎨 AI 생성
+  // =====================================================
   Future<void> _generateAI() async {
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -106,22 +153,21 @@ class _TravelDayPageState extends State<TravelDayPage> {
     try {
       final gemini = GeminiService();
 
-      final summaryPrompt =
-          '''
+      final summary = await gemini.generateSummary(
+        finalPrompt:
+            '''
 ${PromptCache.textPrompt.content}
 
 장소: ${widget.placeName}
 날짜: ${DateUtilsHelper.formatMonthDay(widget.date)}
 내용: $content
-''';
-
-      final summary = await gemini.generateSummary(
-        finalPrompt: summaryPrompt,
+''',
         photos: _photos,
       );
 
-      final imagePrompt =
-          '''
+      final imageBytes = await gemini.generateImage(
+        finalPrompt:
+            '''
 ${PromptCache.imagePrompt.content}
 
 Style:
@@ -129,9 +175,8 @@ ${_selectedStyle!.prompt}
 
 Summary:
 $summary
-''';
-
-      final imageBytes = await gemini.generateImage(finalPrompt: imagePrompt);
+''',
+      );
 
       if (!mounted) return;
 
@@ -145,6 +190,9 @@ $summary
     }
   }
 
+  // =====================================================
+  // 💾 저장
+  // =====================================================
   Future<void> _saveDiary() async {
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -154,13 +202,18 @@ $summary
     setState(() => _loading = true);
 
     try {
-      if (_generatedImage != null) {
-        await ImageUploadService.uploadDiaryImage(
+      final List<String> uploadedUrls = [];
+
+      for (final file in _photos) {
+        final url = await ImageUploadService.uploadUserImage(
+          file: file,
           travelId: widget.travelId,
-          date: widget.date,
-          imageBytes: _generatedImage!,
+          dayId: DateUtilsHelper.formatYMD(widget.date),
         );
+        uploadedUrls.add(url);
       }
+
+      final finalPhotoUrls = [..._photoUrls, ...uploadedUrls];
 
       final dayNumber = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
@@ -176,27 +229,36 @@ $summary
         aiStyle: _selectedStyle?.id,
       );
 
-      debugPrint('✅ diary upsert done -> pop(true)');
+      await TravelDayService.updateDiaryPhotos(
+        travelId: widget.travelId,
+        date: widget.date,
+        photoUrls: finalPhotoUrls,
+      );
+
+      if (_generatedImage != null) {
+        await ImageUploadService.uploadDiaryImage(
+          travelId: widget.travelId,
+          date: widget.date,
+          imageBytes: _generatedImage!,
+        );
+      }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
-
-      debugPrint('🟢 [DAY] tryCompleteTravel CALL');
-      debugPrint('🟢 [DAY] travelId=${widget.travelId}');
-      debugPrint('🟢 [DAY] start=${widget.startDate} end=${widget.endDate}');
 
       TravelCompleteService.tryCompleteTravel(
         travelId: widget.travelId,
         startDate: widget.startDate,
         endDate: widget.endDate,
       );
-
-      debugPrint('🔥 tryCompleteTravel fired in background');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  // =====================================================
+  // 🧱 UI (원본 유지 + ❌만 추가)
+  // =====================================================
   @override
   Widget build(BuildContext context) {
     final dayNumber = DateUtilsHelper.calculateDayNumber(
@@ -205,18 +267,9 @@ $summary
     );
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        elevation: 0,
-        title: Text(
-          '${widget.placeName} · ${dayNumber}일차',
-          style: AppTextStyles.appBarTitle,
-        ),
-      ),
       body: Column(
         children: [
-          // ===== 🔍 페이지 이름 라벨 =====
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -228,112 +281,208 @@ $summary
             ),
           ),
 
-          // ===== 기존 내용 =====
           Expanded(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () => FocusScope.of(context).unfocus(),
-              child: SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      DateUtilsHelper.formatYMD(widget.date),
-                      style: AppTextStyles.caption,
-                    ),
-                    const SizedBox(height: 16),
-                    Text('오늘의 여행기록', style: AppTextStyles.sectionTitle),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _contentController,
-                      maxLines: 6,
-                      style: AppTextStyles.body,
-                      decoration: InputDecoration(
-                        hintText: '오늘 있었던 일을 적어보세요',
-                        hintStyle: AppTextStyles.bodyMuted,
-                        filled: true,
-                        fillColor: AppColors.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    ImageStylePicker(
-                      onChanged: (style) =>
-                          setState(() => _selectedStyle = style),
-                    ),
-                    const SizedBox(height: 24),
-                    Text('사진 (최대 3장)', style: AppTextStyles.sectionTitle),
-                    const SizedBox(height: 8),
-                    Row(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ..._photos.map(
-                          (file) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                file,
-                                width: 70,
-                                height: 70,
-                                fit: BoxFit.cover,
-                              ),
+                        Text(
+                          'DAY ${dayNumber.toString().padLeft(2, '0')}',
+                          style: AppTextStyles.sectionTitle,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${DateUtilsHelper.formatYMD(widget.date)} · ${widget.placeName}',
+                          style: AppTextStyles.bodyMuted,
+                        ),
+                        const SizedBox(height: 24),
+
+                        TextField(
+                          controller: _contentController,
+                          maxLines: 6,
+                          style: AppTextStyles.body,
+                          decoration: InputDecoration(
+                            hintText: '오늘 하루는 어땠나요?',
+                            hintStyle: AppTextStyles.bodyMuted,
+                            filled: true,
+                            fillColor: AppColors.surface,
+                            border: const OutlineInputBorder(
+                              borderRadius: BorderRadius.zero,
+                              borderSide: BorderSide.none,
                             ),
                           ),
                         ),
-                        if (_photos.length < 3)
-                          GestureDetector(
-                            onTap: _loading ? null : _pickPhoto,
-                            child: Container(
-                              width: 70,
-                              height: 70,
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(12),
+
+                        const SizedBox(height: 24),
+
+                        Row(
+                          children: [
+                            ..._photoUrls.map(
+                              (url) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Stack(
+                                  children: [
+                                    Image.network(
+                                      url,
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
+                                    ),
+                                    Positioned(
+                                      top: 2,
+                                      right: 2,
+                                      child: GestureDetector(
+                                        onTap: () => _deleteUploadedPhoto(url),
+                                        child: Container(
+                                          width: 18,
+                                          height: 18,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(
+                                              0.6,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.close,
+                                            size: 12,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              child: const Icon(Icons.add_a_photo),
                             ),
-                          ),
+                            ..._photos.map(
+                              (file) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Stack(
+                                  children: [
+                                    Image.file(
+                                      file,
+                                      width: 72,
+                                      height: 72,
+                                      fit: BoxFit.cover,
+                                    ),
+
+                                    // ❌ 로컬 사진 삭제
+                                    Positioned(
+                                      top: 2,
+                                      right: 2,
+                                      child: GestureDetector(
+                                        onTap: () => _deleteLocalPhoto(file),
+                                        child: Container(
+                                          width: 18,
+                                          height: 18,
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(
+                                              0.6,
+                                            ),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.close,
+                                            size: 12,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            if (_photos.length + _photoUrls.length < 3)
+                              GestureDetector(
+                                onTap: _pickPhoto,
+                                child: Container(
+                                  width: 72,
+                                  height: 72,
+                                  color: AppColors.surface,
+                                  child: const Icon(Icons.add),
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        Text('그림일기 스타일', style: AppTextStyles.sectionTitle),
+                        const SizedBox(height: 8),
+
+                        ImageStylePicker(
+                          onChanged: (style) =>
+                              setState(() => _selectedStyle = style),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _loading ? null : _generateAI,
-                        child: const Text('🎨 AI 그림일기 생성하기'),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    if (_imageUrl != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.network(_imageUrl!),
-                      )
-                    else if (_generatedImage != null)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.memory(_generatedImage!),
-                      ),
-                    if (_generatedImage != null) ...[
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _loading ? null : _saveDiary,
-                          child: const Text('💾 일기 저장'),
+                  ),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.zero,
                         ),
                       ),
-                    ],
-                  ],
-                ),
+                      onPressed: _loading ? null : _generateAI,
+                      child: const Text(
+                        '그림으로 남기기',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  if (_imageUrl != null)
+                    Image.network(
+                      _imageUrl!,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    )
+                  else if (_generatedImage != null)
+                    Image.memory(
+                      _generatedImage!,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+
+                  if (_generatedImage != null)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                        onPressed: _loading ? null : _saveDiary,
+                        child: const Text(
+                          '일기 저장',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),

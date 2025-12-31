@@ -84,7 +84,7 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('해외 여행', style: AppTextStyles.appBarTitle),
+        title: const Text('해외 여행', style: AppTextStyles.pageTitle),
       ),
       body: Padding(
         padding: const EdgeInsets.all(24),

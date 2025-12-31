@@ -4,26 +4,26 @@ class AppColors {
   // =========================
   // 🎨 Base
   // =========================
-  static const background = Color(0xFF19150B); // 전체 배경 (다크)
-  static const surface = Color(0xFF221D12); // 카드 / 컨테이너 배경
-  static const divider = Color(0xFF2F2A1E); // 구분선
+  static const background = Color(0xFFFFFFFF); // 전체 배경
+  static const surface = Color(0xFFFFFFFF); // 카드 / 컨테이너
+  static const border = Color(0xFFE5E5E5); // 테두리 / 구분선
+  static const divider = Color(0xFFF0F0F0);
 
   // =========================
   // ✍️ Text
   // =========================
-  static const textPrimary = Color(0xFFFFFFFF); // 기본 텍스트
-  static const textSecondary = Color(0xFFB8B4A8); // 보조 텍스트
-  static const textDisabled = Color(0xFF6F6B5E); // 비활성
+  static const textPrimary = Color(0xFF000000); // 메인 텍스트
+  static const textSecondary = Color(0xFF8A8A8A); // 설명 / 보조
+  static const textDisabled = Color(0xFFBDBDBD);
 
   // =========================
-  // 🌈 Accent / Brand
+  // 🌈 Brand / Accent
   // =========================
-  static const primary = Color(0xFF11D1EA); // 메인 포인트 (하늘/여행)
-  static const accent = Color(0xFFEA6AA3); // 감성 포인트 (일기/기억)
+  static const primary = Color(0xFF11D1EA); // 여행 하늘색
+  static const accent = Color(0xFFEA6AA3); // 감성 포인트
 
-  // 👉 on-color (버튼/탭 위 텍스트용)
-  static const onPrimary = Color(0xFF19150B); // primary 위 글자색
-  static const onAccent = Color(0xFFFFFFFF); // accent 위 글자색
+  static const onPrimary = Color(0xFFFFFFFF);
+  static const onAccent = Color(0xFFFFFFFF);
 
   // =========================
   // 🚦 State
@@ -33,8 +33,54 @@ class AppColors {
   static const error = Color(0xFFE53935);
 
   // =========================
-  // 🌫 Overlay / Shadow (UX용)
+  // 🎈 Decorative (Login / Background Shapes)
   // =========================
-  static const overlay = Color(0x66000000); // 이미지 위 오버레이
-  static const shadow = Color(0x55000000); // 카드 그림자
+  static const decoMint = Color(0xFF8EE6C4);
+  static const decoOrange = Color(0xFFF6A45C);
+  static const decoYellow = Color(0xFFFFE99C);
+  static const decoPurple = Color(0xFF9B8CF2);
+
+  // =========================
+  // 🌫 Overlay / Shadow
+  // =========================
+  static const overlay = Color(0x1A000000); // 아주 연한 오버레이
+  static const shadow = Color(0x14000000); // 카드 그림자
+
+  // 🔐 Login Buttons
+  static const kakaoYellow = Color(0xFFFEE500);
+  static const appleBlack = Color(0xFF000000);
+  static const googleBorder = Color(0xFFE0E0E0);
+  // =========================
+  // 🌤 Light UI (피그마 기준)
+  // =========================
+  static const white = Color(0xFFFFFFFF);
+  static const black = Color(0xFF000000);
+
+  // 배경
+  static const lightBackground = Color(0xFFFFFFFF);
+  static const lightSurface = Color(0xFFF6F6F6);
+  static const lightDivider = Color(0xFFE5E5E5);
+
+  // 텍스트 (라이트)
+  static const lightTextPrimary = Color(0xFF111111);
+  static const lightTextSecondary = Color(0xFF777777);
+  static const lightTextDisabled = Color(0xFFBDBDBD);
+
+  // =========================
+  // 🧳 Home 상태 카드
+  // =========================
+  static const travelActiveBlue = Color(0xFF19C6D8); // 여행 중 (피그마 파랑)
+  static const travelInactiveGray = Color(0xFF8E8E8E); // 여행 준비 중
+
+  // 홈 여행 상태
+  static const travelingBlue = Color(0xFF1ECADF); // 피그마 파랑
+  static const travelReadyGray = Color(0xFF8E8E8E); // 피그마 회색
+
+  // =========================
+  // 🗺 Map / Tab
+  // =========================
+  static const tabBackground = Color(0xFFF3F3F3); // 탭 전체 배경
+  static const tabSelected = Color(0xFF19C6E3); // 한국 선택 (피그마 파랑)
+  static const tabText = Color(0xFF8E8E8E); // 미선택 텍스트
+  static const tabSelectedText = Colors.white;
 }

@@ -1,108 +1,153 @@
 import 'package:flutter/material.dart';
 
-import 'package:travel_memoir/services/travel_service.dart';
-import 'package:travel_memoir/services/travel_day_service.dart';
-
-import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
-
+import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/core/utils/date_utils.dart';
 
-class HomeTravelStatusHeader extends StatelessWidget {
-  final VoidCallback onGoToTravel;
+class RecentTravelSection extends StatelessWidget {
+  const RecentTravelSection({super.key});
 
-  const HomeTravelStatusHeader({super.key, required this.onGoToTravel});
+  static const int _maxCards = 3;
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: TravelService.getTodayTravel(),
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: TravelListService.getRecentTravels(),
       builder: (context, snapshot) {
-        final travel = snapshot.data;
+        final travels = snapshot.data ?? [];
+        final showSeeAll = travels.length >= 4;
 
-        final bool isTraveling = travel != null;
-        final String title = isTraveling
-            ? '${_getTravelTitle(travel)} 여행 중'
-            : '여행 준비중';
+        // 실제로 화면에 그릴 카드 목록 (최대 3개)
+        final displayTravels = travels.take(_maxCards).toList();
 
-        final String subtitle = isTraveling
-            ? '${travel!['start_date']} ~ ${travel['end_date']}'
-            : '다음 여행을 준비해보세요';
+        // 부족한 만큼 no_trip 채우기
+        final emptyCount = _maxCards - displayTravels.length;
 
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(24, 28, 20, 24),
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 왼쪽 텍스트 영역
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: AppTextStyles.sectionTitle.copyWith(
-                        color: AppColors.onPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      subtitle,
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.onPrimary.withOpacity(0.9),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // + 버튼
-              GestureDetector(
-                onTap: () async {
-                  // 👉 기존 "오늘의 일기 쓰기" 로직 그대로
-                  if (!isTraveling) {
-                    onGoToTravel();
-                    return;
-                  }
-
-                  final diary = await TravelDayService.getDiaryByDate(
-                    travelId: travel!['id'],
-                    date: DateTime.now(),
-                  );
-
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TravelDiaryListPage(travel: travel),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.onPrimary.withOpacity(0.2),
-                    shape: BoxShape.circle,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ===== 타이틀 + see all =====
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('최근 여행지', style: AppTextStyles.sectionTitle),
+                if (showSeeAll)
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/travel'),
+                    child: Text('see all', style: AppTextStyles.bodyMuted),
                   ),
-                  child: const Icon(Icons.add, color: AppColors.onPrimary),
-                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+
+            // ===== 카드 리스트 =====
+            SizedBox(
+              height: 190,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _maxCards,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  if (index < displayTravels.length) {
+                    return _TravelCard(travel: displayTravels[index]);
+                  }
+                  return const _NoTripCard();
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
   }
+}
 
-  String _getTravelTitle(Map<String, dynamic> travel) {
-    if (travel['travel_type'] == 'domestic') {
-      return travel['city_name'] ?? travel['city'] ?? '국내';
-    }
-    return travel['country_name'] ?? '해외';
+// =====================================================
+// ✅ 여행 카드
+// =====================================================
+class _TravelCard extends StatelessWidget {
+  final Map<String, dynamic> travel;
+
+  const _TravelCard({required this.travel});
+
+  @override
+  Widget build(BuildContext context) {
+    final place =
+        travel['region_name'] ??
+        travel['city_name'] ??
+        travel['city'] ??
+        travel['country_name'] ??
+        '여행';
+
+    final period = DateUtilsHelper.periodText(
+      startDate: travel['start_date'],
+      endDate: travel['end_date'],
+    );
+
+    final imageUrl = travel['map_image_url'] ?? travel['cover_image_url'];
+
+    return SizedBox(
+      width: 120,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: imageUrl != null
+                ? Image.network(
+                    imageUrl,
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  )
+                : Container(
+                    width: 120,
+                    height: 120,
+                    color: AppColors.lightSurface,
+                    child: const Icon(Icons.map_outlined, color: Colors.grey),
+                  ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '$place · $period',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =====================================================
+// 🧳 여행 없음 카드 (no_trip)
+// =====================================================
+class _NoTripCard extends StatelessWidget {
+  const _NoTripCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 120,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: Image.asset(
+              'assets/images/no_trip.png', // 👈 이 경로 맞춰줘
+              width: 120,
+              height: 120,
+              fit: BoxFit.cover,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text('여행 준비 중', style: AppTextStyles.bodyMuted),
+        ],
+      ),
+    );
   }
 }

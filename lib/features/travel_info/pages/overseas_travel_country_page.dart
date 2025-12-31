@@ -54,7 +54,7 @@ class _OverseasTravelCountryPageState extends State<OverseasTravelCountryPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('국가 선택', style: AppTextStyles.appBarTitle),
+        title: const Text('국가 선택', style: AppTextStyles.pageTitle),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -115,7 +115,7 @@ class _OverseasTravelCountryPageState extends State<OverseasTravelCountryPage> {
                         ),
                         subtitle: Text(
                           c.continent,
-                          style: AppTextStyles.caption,
+                          style: AppTextStyles.bodyMuted,
                         ),
 
                         trailing: const Icon(
