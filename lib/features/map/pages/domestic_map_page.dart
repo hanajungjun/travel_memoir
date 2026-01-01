@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:travel_memoir/services/visited_region_service.dart';
 
 class DomesticMapPage extends StatefulWidget {
@@ -37,6 +38,10 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         center: Point(coordinates: Position(127.8, 36.3)),
         zoom: 5.2,
       ),
+      // ✅ PageView 안에서도 지도 제스처 먹게 하는 핵심
+      gestureRecognizers: {
+        Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
+      },
       onMapCreated: (map) => _map = map,
       onStyleLoadedListener: _onStyleLoaded,
     );

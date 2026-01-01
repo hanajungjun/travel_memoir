@@ -91,12 +91,13 @@ class TravelListService {
   }
 
   static Future<List<Map<String, dynamic>>> getRecentTravels({
-    int limit = 3,
+    int limit = 4, //3개이상일때만 see all 보이게
   }) async {
     final res = await Supabase.instance.client
         .from('travels')
         .select()
-        .order('start_date', ascending: false)
+        .eq('is_completed', true) // ✅ 핵심
+        .order('completed_at', ascending: false) // ✅ 완료 최신순
         .limit(limit);
 
     return List<Map<String, dynamic>>.from(res);

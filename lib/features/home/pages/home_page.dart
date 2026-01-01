@@ -24,6 +24,16 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  /// 🔄 홈 리프레시용 키
+  int _refreshKey = 0;
+
+  /// 🔁 홈 다시 그리기
+  void _refreshHome() {
+    setState(() {
+      _refreshKey++;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -34,14 +44,14 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🧪 [HOME] build');
+    debugPrint('🧪 [HOME] build ($_refreshKey)');
 
     return Scaffold(
       backgroundColor: AppColors.lightBackground,
       body: Column(
         children: [
           // =====================================================
-          // 🔵 상단 풀블리드 헤더 (꽉 참)
+          // 🔵 상단 풀블리드 헤더
           // =====================================================
           Container(
             width: double.infinity,
@@ -59,13 +69,21 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 최근 여행 카드
-                  RecentTravelSection(),
+                  // ===============================
+                  // 🧳 최근 여행 카드
+                  // ===============================
+                  RecentTravelSection(
+                    key: ValueKey('recent-$_refreshKey'),
+                    onSeeAll: widget.onGoToTravel,
+                  ),
 
                   const SizedBox(height: 24),
 
+                  // ===============================
                   // 🗺️ 최근 여행 지도
+                  // ===============================
                   FutureBuilder<List<Map<String, dynamic>>>(
+                    key: ValueKey('map-$_refreshKey'),
                     future: TravelListService.getTravels(),
                     builder: (context, snapshot) {
                       final travels = snapshot.data ?? [];

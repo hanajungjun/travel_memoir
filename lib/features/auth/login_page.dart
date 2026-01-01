@@ -35,9 +35,11 @@ class _LoginPageState extends State<LoginPage> {
         'auth_uid': user.id,
         'provider': user.appMetadata['provider'],
         'email': user.email,
-        'nickname':
+
+        // 소셜 이름은 참고용
+        'provider_nickname':
             user.userMetadata?['name'] ?? user.userMetadata?['full_name'],
-        'profile_image': user.userMetadata?['avatar_url'],
+
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'auth_uid');
 
