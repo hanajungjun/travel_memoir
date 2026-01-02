@@ -4,6 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
 import 'package:travel_memoir/features/my/pages/my_travel_summary_page.dart';
+import 'package:travel_memoir/features/my/pages/my_settings_page.dart';
+import 'package:travel_memoir/features/my/pages/my_support_page.dart';
+import 'package:travel_memoir/features/my/pages/my_profile_page.dart';
+
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -117,7 +121,14 @@ class _MyPageState extends State<MyPage> {
                       _MenuTile(
                         title: '사용자 세부 정보',
                         icon: Icons.manage_accounts_outlined,
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MyUserDetailPage(),
+                            ),
+                          );
+                        },
                       ),
                       _MenuTile(
                         title: '내 여행',
@@ -134,12 +145,26 @@ class _MyPageState extends State<MyPage> {
                       _MenuTile(
                         title: '설정',
                         icon: Icons.settings_outlined,
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MySettingsPage(),
+                            ),
+                          );
+                        },
                       ),
                       _MenuTile(
                         title: '지원',
                         icon: Icons.menu_book_outlined,
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MySupportPage(),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
