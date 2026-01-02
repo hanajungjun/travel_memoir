@@ -13,6 +13,8 @@ import 'package:travel_memoir/features/map/pages/global_map_page.dart';
 import 'package:travel_memoir/services/domestic_travel_summary_service.dart';
 import 'package:travel_memoir/services/overseas_travel_summary_service.dart';
 
+import 'package:travel_memoir/core/widgets/skeletons/skeleton_box.dart';
+
 class MyTravelSummaryPage extends StatefulWidget {
   const MyTravelSummaryPage({super.key});
 
@@ -64,7 +66,7 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage>
 }
 
 // =======================================================
-// 🌍 해외 탭 (🔥 여기 인덱스 오류 수정됨)
+// 🌍 해외 탭
 // =======================================================
 class _WorldTab extends StatelessWidget {
   const _WorldTab();
@@ -84,8 +86,17 @@ class _WorldTab extends StatelessWidget {
         OverseasTravelSummaryService.getMostVisitedCountry(userId: userId), // 4
       ]),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const _MyTravelSummarySkeleton();
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              '에러 발생:\n${snapshot.error}',
+              textAlign: TextAlign.center,
+            ),
+          );
         }
 
         final total = snapshot.data![0] as int;
@@ -139,7 +150,7 @@ class _WorldTab extends StatelessWidget {
 }
 
 // =======================================================
-// 🇰🇷 국내 탭 (기존 그대로)
+// 🇰🇷 국내 탭
 // =======================================================
 class _DomesticTab extends StatelessWidget {
   final String userId;
@@ -158,8 +169,8 @@ class _DomesticTab extends StatelessWidget {
         ),
       ]),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const _MyTravelSummarySkeleton();
         }
 
         final visitedCityCount = snapshot.data![0] as int;
@@ -204,7 +215,7 @@ class _DomesticTab extends StatelessWidget {
 }
 
 // =======================================================
-// 🇰🇷 국내 여행 요약 카드 (그대로)
+// 🇰🇷 국내 여행 요약 카드
 // =======================================================
 class _TravelSummaryCard extends StatelessWidget {
   final String userId;
@@ -217,7 +228,11 @@ class _TravelSummaryCard extends StatelessWidget {
       future: _getTravelSummary(userId),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const SkeletonBox(
+            width: double.infinity,
+            height: 140,
+            radius: 20,
+          );
         }
 
         final summary = snapshot.data!;
@@ -273,7 +288,7 @@ class _TravelSummaryCard extends StatelessWidget {
 }
 
 // =======================================================
-// 🧩 도넛 카드 (그대로)
+// 🧩 도넛 카드
 // =======================================================
 class _TotalDonutCard extends StatelessWidget {
   final int visited;
@@ -338,6 +353,29 @@ class _TotalDonutCard extends StatelessWidget {
               Text('$percent%'),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// =======================================================
+// 🦴 스켈레톤
+// =======================================================
+class _MyTravelSummarySkeleton extends StatelessWidget {
+  const _MyTravelSummarySkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: const [
+          SkeletonBox(width: double.infinity, height: 120, radius: 20),
+          SizedBox(height: 20),
+          SkeletonBox(width: double.infinity, height: 350, radius: 20),
+          SizedBox(height: 24),
+          SkeletonBox(width: double.infinity, height: 140, radius: 20),
         ],
       ),
     );
