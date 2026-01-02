@@ -11,6 +11,7 @@ import 'package:travel_memoir/features/travel_info/pages/travel_type_select_page
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/core/widgets/skeletons/travel_info_list_skeleton.dart';
 
 class TravelInfoPage extends StatefulWidget {
   const TravelInfoPage({super.key});
@@ -65,7 +66,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
       ),
       body: Column(
         children: [
-          // 🔥 디버그 ID (절대 삭제 금지)
+          // 🔥 디버그 ID
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -81,16 +82,17 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
             child: FutureBuilder<List<Map<String, dynamic>>>(
               future: _future,
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const TravelInfoListSkeleton();
                 }
 
-                final travels = snapshot.data!;
-                if (travels.isEmpty) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Center(
                     child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
                   );
                 }
+
+                final travels = snapshot.data!;
 
                 return ListView.separated(
                   padding: const EdgeInsets.all(20),
@@ -156,7 +158,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
 }
 
 // =====================================================
-// 🔥 스와이프 삭제 아이템 (Slidable)
+// 🔥 스와이프 삭제 아이템
 // =====================================================
 
 class _SwipeDeleteItem extends StatelessWidget {
@@ -175,7 +177,7 @@ class _SwipeDeleteItem extends StatelessWidget {
     return Slidable(
       key: ValueKey(travel['id']),
       endActionPane: ActionPane(
-        motion: const StretchMotion(), // 👈 살짝 튀어나오는 느낌
+        motion: const StretchMotion(),
         extentRatio: 0.22,
         children: [
           SlidableAction(
@@ -236,14 +238,12 @@ class _TravelListItem extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ===== 왼쪽 (뱃지 + 지역명) =====
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          // ✅ 국내 / 해외 뱃지
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -263,8 +263,6 @@ class _TravelListItem extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 8),
-
-                          // ✅ 지역명
                           Text(
                             title,
                             style: AppTextStyles.sectionTitle.copyWith(
@@ -283,8 +281,6 @@ class _TravelListItem extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // ===== 오른쪽 상단 작성 수 =====
                 RichText(
                   text: TextSpan(
                     style: AppTextStyles.bodyMuted,

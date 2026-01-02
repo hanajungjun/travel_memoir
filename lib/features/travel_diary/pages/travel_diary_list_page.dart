@@ -6,6 +6,7 @@ import 'package:travel_memoir/core/utils/date_utils.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/core/widgets/skeletons/travel_diary_list_skeleton.dart';
 
 class TravelDiaryListPage extends StatefulWidget {
   final Map<String, dynamic> travel;
@@ -67,7 +68,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
         .where((e) => e != null && (e['text'] ?? '').toString().isNotEmpty)
         .length;
 
-    final isFinished = DateTime.now().isAfter(endDate);
     final isDomestic = _travel['travel_type'] == 'domestic';
 
     return Scaffold(
@@ -75,28 +75,22 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       body: Column(
         children: [
           // =====================================================
-          // 🔵 파란 헤더 or 보라 헤더
+          // 🔵 헤더
           // =====================================================
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(20, 56, 20, 20),
-            color: isDomestic
-                ? AppColors
-                      .primary // 국내 = 파랑
-                : AppColors.decoPurple, // 해외 = 보라
-
+            color: isDomestic ? AppColors.primary : AppColors.decoPurple,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    _TypeBadge(
-                      label: _travel['travel_type'] == 'domestic' ? '국내' : '해외',
-                    ),
+                    _TypeBadge(label: isDomestic ? '국내' : '해외'),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _travel['travel_type'] == 'domestic'
+                        isDomestic
                             ? _travel['region_name']
                             : _travel['country_name'],
                         style: AppTextStyles.pageTitle.copyWith(
@@ -104,8 +98,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                         ),
                       ),
                     ),
-
-                    // ===== 작성 수 =====
                     RichText(
                       text: TextSpan(
                         style: AppTextStyles.body.copyWith(color: Colors.white),
@@ -127,31 +119,13 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Text(
-                      '${_travel['start_date']} ~ ${_travel['end_date']}',
-                      style: AppTextStyles.bodyMuted.copyWith(
-                        color: Colors.white.withOpacity(0.85),
-                      ),
-                    ),
-                  ],
+                Text(
+                  '${_travel['start_date']} ~ ${_travel['end_date']}',
+                  style: AppTextStyles.bodyMuted.copyWith(
+                    color: Colors.white.withOpacity(0.85),
+                  ),
                 ),
               ],
-            ),
-          ),
-
-          // =====================================================
-          // 🔥 디버그 페이지 라벨 (절대 삭제 금지)
-          // =====================================================
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            color: Colors.black.withOpacity(0.04),
-            child: const Text(
-              'PAGE: TravelDiaryListPage',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: Colors.grey),
             ),
           ),
 
@@ -160,7 +134,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
           // =====================================================
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const TravelDiaryListSkeleton()
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: totalDays,
@@ -186,8 +160,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                           InkWell(
                             borderRadius: BorderRadius.circular(16),
                             onTap: () async {
-                              final placeName =
-                                  _travel['travel_type'] == 'domestic'
+                              final placeName = isDomestic
                                   ? _travel['region_name']
                                   : _travel['country_name'];
 

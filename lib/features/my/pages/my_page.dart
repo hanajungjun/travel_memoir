@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
+import 'package:travel_memoir/features/my/pages/my_travel_summary_page.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -46,7 +47,6 @@ class _MyPageState extends State<MyPage> {
             }
 
             final profile = snapshot.data!;
-            final nickname = profile['nickname'] ?? '여행자';
             final imageUrl = profile['profile_image_url'];
 
             return SingleChildScrollView(
@@ -75,7 +75,6 @@ class _MyPageState extends State<MyPage> {
                             ),
                           );
 
-                          // 🔥 여기 핵심
                           if (updated == true) {
                             setState(() {
                               _future = _fetchMyProfile();
@@ -103,7 +102,6 @@ class _MyPageState extends State<MyPage> {
                   const SizedBox(height: 24),
 
                   Text('계정 관리', style: AppTextStyles.sectionTitle),
-
                   const SizedBox(height: 16),
 
                   // =========================
@@ -115,14 +113,34 @@ class _MyPageState extends State<MyPage> {
                     crossAxisSpacing: 16,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    children: const [
+                    children: [
                       _MenuTile(
                         title: '사용자 세부 정보',
                         icon: Icons.manage_accounts_outlined,
+                        onTap: () {},
                       ),
-                      _MenuTile(title: '내 여행', icon: Icons.public),
-                      _MenuTile(title: '설정', icon: Icons.settings_outlined),
-                      _MenuTile(title: '지원', icon: Icons.menu_book_outlined),
+                      _MenuTile(
+                        title: '내 여행',
+                        icon: Icons.public,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MyTravelSummaryPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      _MenuTile(
+                        title: '설정',
+                        icon: Icons.settings_outlined,
+                        onTap: () {},
+                      ),
+                      _MenuTile(
+                        title: '지원',
+                        icon: Icons.menu_book_outlined,
+                        onTap: () {},
+                      ),
                     ],
                   ),
 
@@ -170,27 +188,36 @@ class _MyPageState extends State<MyPage> {
 class _MenuTile extends StatelessWidget {
   final String title;
   final IconData icon;
+  final VoidCallback onTap;
 
-  const _MenuTile({required this.title, required this.icon});
+  const _MenuTile({
+    required this.title,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 40, color: AppColors.textPrimary),
-          const Spacer(),
-          Text(
-            title,
-            style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.lightSurface,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 40, color: AppColors.textPrimary),
+            const Spacer(),
+            Text(
+              title,
+              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }

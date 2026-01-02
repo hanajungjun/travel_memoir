@@ -43,7 +43,11 @@ dependencies:
 
   share_plus: ^10.0.0
   mapbox_maps_flutter: ^2.4.0
+  latlong2: ^0.8.1
+ 
   flutter_slidable: ^3.1.0
+  image_cropper: ^5.0.1
+  fl_chart: ^0.66.2
   
 dev_dependencies:
   flutter_test:

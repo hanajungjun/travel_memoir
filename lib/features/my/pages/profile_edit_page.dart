@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
@@ -53,25 +54,39 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   // =========================
-  // 📸 이미지 선택
+  // 📸 이미지 선택 + 원형 크롭
   // =========================
-  Future<void> _pickImage() async {
-    if (_saving) return;
-
+  Future<void> _pickAndCropImage() async {
     final picked = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 80,
+      imageQuality: 90,
     );
 
     if (picked == null) return;
 
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: picked.path,
+      cropStyle: CropStyle.circle,
+      compressQuality: 90,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: '프로필 사진 자르기',
+          hideBottomControls: true,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(title: '프로필 사진 자르기', aspectRatioLockEnabled: true),
+      ],
+    );
+
+    if (cropped == null) return;
+
     setState(() {
-      _pickedImage = File(picked.path);
+      _pickedImage = File(cropped.path);
     });
   }
 
   // =========================
-  // ☁️ Storage 업로드
+  // ☁️ 이미지 업로드
   // =========================
   Future<String> _uploadImage(File file) async {
     final user = supabase.auth.currentUser!;
@@ -81,17 +96,13 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         .from('travel_images')
         .upload(path, file, fileOptions: const FileOptions(upsert: true));
 
-    // 🔥 캐시 깨기용 timestamp
-    return supabase.storage.from('travel_images').getPublicUrl(path) +
-        '?t=${DateTime.now().millisecondsSinceEpoch}';
+    return supabase.storage.from('travel_images').getPublicUrl(path);
   }
 
   // =========================
   // 💾 저장
   // =========================
   Future<void> _save() async {
-    if (_saving) return;
-
     if (nicknameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -122,8 +133,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     if (!mounted) return;
 
     setState(() => _saving = false);
-
-    Navigator.pop(context, true); // ✅ 저장 완료 후에만 복귀
+    Navigator.pop(context, true); // 🔥 MyPage 즉시 갱신용
   }
 
   @override
@@ -134,134 +144,119 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   // =========================
-  // 🖼️ UI
+  // UI
   // =========================
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => !_saving, // 🔥 저장 중 뒤로가기 차단
-      child: Scaffold(
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          title: Text('프로필 수정', style: AppTextStyles.pageTitle),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: TextButton(
-                onPressed: _saving ? null : () async => await _save(),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.primary, // 🔥 글자색 고정
-                ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text(
-                        '저장',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+        elevation: 0,
+        title: Text('프로필 수정', style: AppTextStyles.pageTitle),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text('저장', style: AppTextStyles.button),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  // =========================
+                  // 👤 프로필 이미지
+                  // =========================
+                  GestureDetector(
+                    onTap: _pickAndCropImage,
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 48,
+                          backgroundColor: AppColors.surface,
+                          backgroundImage: _pickedImage != null
+                              ? FileImage(_pickedImage!)
+                              : (_imageUrl != null
+                                        ? NetworkImage(_imageUrl!)
+                                        : null)
+                                    as ImageProvider?,
+                          child: _pickedImage == null && _imageUrl == null
+                              ? Icon(
+                                  Icons.person,
+                                  size: 48,
+                                  color: AppColors.textDisabled,
+                                )
+                              : null,
                         ),
-                      ),
-              ),
-            ),
-          ],
-        ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    // =========================
-                    // 👤 프로필 이미지
-                    // =========================
-                    GestureDetector(
-                      onTap: _pickImage,
-                      child: Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 48,
-                            backgroundColor: AppColors.surface,
-                            backgroundImage: _pickedImage != null
-                                ? FileImage(_pickedImage!)
-                                : (_imageUrl != null
-                                          ? NetworkImage(_imageUrl!)
-                                          : null)
-                                      as ImageProvider?,
-                            child: _pickedImage == null && _imageUrl == null
-                                ? Icon(
-                                    Icons.person,
-                                    size: 48,
-                                    color: AppColors.textDisabled,
-                                  )
-                                : null,
-                          ),
-                          Positioned(
-                            bottom: 0,
-                            right: 0,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.camera_alt,
-                                size: 16,
-                                color: AppColors.background,
-                              ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.camera_alt,
+                              size: 16,
+                              color: AppColors.background,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // =========================
-                    // ✏️ 닉네임
-                    // =========================
-                    TextField(
-                      controller: nicknameController,
-                      maxLength: 10,
-                      decoration: InputDecoration(
-                        labelText: '닉네임',
-                        counterText: '',
-                        filled: true,
-                        fillColor: AppColors.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
                         ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // =========================
+                  // ✏️ 닉네임
+                  // =========================
+                  TextField(
+                    controller: nicknameController,
+                    maxLength: 10,
+                    decoration: InputDecoration(
+                      labelText: '닉네임',
+                      counterText: '',
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
+                  ),
 
-                    const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                    // =========================
-                    // ✍️ 한줄 소개
-                    // =========================
-                    TextField(
-                      controller: bioController,
-                      maxLength: 40,
-                      decoration: InputDecoration(
-                        labelText: '한줄 소개',
-                        counterText: '',
-                        filled: true,
-                        fillColor: AppColors.surface,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                  // =========================
+                  // ✍️ 한줄 소개
+                  // =========================
+                  TextField(
+                    controller: bioController,
+                    maxLength: 40,
+                    decoration: InputDecoration(
+                      labelText: '한줄 소개',
+                      counterText: '',
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-      ),
+            ),
     );
   }
 }

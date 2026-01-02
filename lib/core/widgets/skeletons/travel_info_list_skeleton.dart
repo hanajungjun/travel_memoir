@@ -1,0 +1,50 @@
+import 'package:flutter/material.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/core/widgets/skeletons/skeleton_box.dart';
+
+class TravelInfoListSkeleton extends StatelessWidget {
+  const TravelInfoListSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: 6,
+      separatorBuilder: (_, __) =>
+          Divider(height: 24, color: AppColors.divider),
+      itemBuilder: (_, __) => const _TravelInfoItemSkeleton(),
+    );
+  }
+}
+
+class _TravelInfoItemSkeleton extends StatelessWidget {
+  const _TravelInfoItemSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 왼쪽 영역
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                SkeletonBox(width: 48, height: 18, radius: 9),
+                SizedBox(height: 8),
+                SkeletonBox(width: 140, height: 18, radius: 6),
+                SizedBox(height: 6),
+                SkeletonBox(width: 120, height: 14, radius: 6),
+              ],
+            ),
+          ),
+
+          // 오른쪽 작성수
+          const SkeletonBox(width: 56, height: 14, radius: 6),
+        ],
+      ),
+    );
+  }
+}
