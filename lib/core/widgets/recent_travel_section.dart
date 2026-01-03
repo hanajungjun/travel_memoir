@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
@@ -59,7 +60,6 @@ class RecentTravelSection extends StatelessWidget {
                   ),
                 ),
 
-                // 빈 카드 채우기
                 for (int i = 0; i < emptyCount; i++)
                   const Expanded(
                     child: Padding(
@@ -87,6 +87,8 @@ class _RecentTravelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageUrl = _mapImageUrl(travel);
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -110,8 +112,13 @@ class _RecentTravelCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: AspectRatio(
                 aspectRatio: 1,
-                child: travel['map_image_url'] != null
-                    ? Image.network(travel['map_image_url'], fit: BoxFit.cover)
+                child: imageUrl != null
+                    ? Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            Container(color: AppColors.divider),
+                      )
                     : Container(color: AppColors.divider),
               ),
             ),
@@ -139,13 +146,26 @@ class _RecentTravelCard extends StatelessWidget {
     );
   }
 
+  // 🔥 핵심: map.png 경로 생성
+  String? _mapImageUrl(Map<String, dynamic> travel) {
+    final userId = travel['user_id'];
+    final travelId = travel['id'];
+
+    if (userId == null || travelId == null) return null;
+
+    final path = 'users/$userId/travels/$travelId/map.png';
+
+    return Supabase.instance.client.storage
+        .from('travel_images')
+        .getPublicUrl(path);
+  }
+
   String _periodText(Map<String, dynamic> travel) {
     final start = DateTime.tryParse(travel['start_date'] ?? '');
     final end = DateTime.tryParse(travel['end_date'] ?? '');
 
     if (start == null) return '';
 
-    // 당일치기
     if (end == null || start.isAtSameMomentAs(end)) {
       return '당일치기';
     }

@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:travel_memoir/storage_paths.dart';
 
 class TravelDayService {
   static final SupabaseClient _supabase = Supabase.instance.client;
@@ -13,30 +14,16 @@ class TravelDayService {
     final String? text = day['text'] as String?;
     final String? aiSummary = day['ai_summary'] as String?;
     final String? aiStyle = day['ai_style'] as String?;
-    final String? imageUrl = day['image_url'] as String?;
     final String? dateRaw = day['date'] as String?;
 
     return {
       ...day,
-
-      // ✅ text / ai_summary : null 방지
       'text': text?.trim() ?? '',
       'ai_summary': aiSummary?.trim() ?? '',
-
-      // ✅ ai_style 기본값
       'ai_style': (aiStyle != null && aiStyle.trim().isNotEmpty)
           ? aiStyle
           : 'default',
-
-      // ✅ image_url: 빈 문자열 제거
-      'image_url': (imageUrl != null && imageUrl.trim().isNotEmpty)
-          ? imageUrl
-          : null,
-
-      // ✅ date: null 방지
-      'date': dateRaw ?? DateTime.now().toIso8601String().substring(0, 10),
-
-      // ✅ is_completed 기본값
+      'date': dateRaw ?? _dateOnly(DateTime.now()),
       'is_completed': day['is_completed'] == true,
     };
   }
@@ -85,8 +72,6 @@ class TravelDayService {
           'travel_id': travelId,
           'day_index': dayIndex,
           'date': _dateOnly(date),
-
-          // ✅ write 시점에서도 정규화
           'text': text.trim(),
           'ai_summary': aiSummary?.trim(),
           'ai_style': aiStyle?.trim() ?? 'default',
@@ -98,21 +83,28 @@ class TravelDayService {
   }
 
   // =====================================================
-  // 🤖 AI 이미지 URL
+  // 🤖 AI 이미지 URL (🔥 수정됨: null-safe)
   // =====================================================
-  static String getAiImageUrl({
+  static String? getAiImageUrl({
     required String travelId,
     required DateTime date,
   }) {
-    final fileName = '${_dateOnly(date)}.png';
-    final path = 'ai/$travelId/$fileName';
+    final user = _supabase.auth.currentUser;
+    if (user == null) return null;
+
+    final path = StoragePaths.travelDayImage(
+      user.id,
+      travelId,
+      _dateOnly(date),
+    );
+
     return _supabase.storage.from('travel_images').getPublicUrl(path);
   }
 
   // =====================================================
   // ✅ 별칭
   // =====================================================
-  static String getDiaryImageUrl({
+  static String? getDiaryImageUrl({
     required String travelId,
     required DateTime date,
   }) {
@@ -202,7 +194,9 @@ class TravelDayService {
     return List<Map<String, dynamic>>.from(res);
   }
 
-  // ✅ 앨범에 필요한 날짜 목록 (date + ai_summary + image_url)
+  // =====================================================
+  // 🖼️ 앨범용 날짜 목록
+  // =====================================================
   static Future<List<Map<String, dynamic>>> getAlbumDays({
     required String travelId,
   }) async {
@@ -224,27 +218,22 @@ class TravelDayService {
     return await _supabase.from('travels').select().eq('id', travelId).single();
   }
 
-  // ✅ 사용자사진 업로드
+  // =====================================================
+  // 📸 사용자 사진 URL 저장 (현재 구조 유지)
+  // =====================================================
   static Future<void> updateDiaryPhotos({
     required String travelId,
     required DateTime date,
     required List<String> photoUrls,
   }) async {
-    // 🔴 1. 값 확인 (가장 중요)
-    print('🔥 updateDiaryPhotos called');
-    print('🔥 travelId = $travelId');
-    print('🔥 date = ${date.toIso8601String().substring(0, 10)}');
-    print('🔥 photoUrls length = ${photoUrls.length}');
-    print('🔥 photoUrls = $photoUrls');
+    print('🔥 updateDiaryPhotos');
+    print('travelId=$travelId date=${_dateOnly(date)}');
+    print('photoUrls=$photoUrls');
 
-    final res = await _supabase
+    await _supabase
         .from('travel_days')
         .update({'photo_urls': photoUrls})
         .eq('travel_id', travelId)
-        .eq('date', date.toIso8601String().substring(0, 10))
-        .select();
-
-    // 🔴 2. update 결과 확인
-    print('🔥 update result = $res');
+        .eq('date', _dateOnly(date));
   }
 }

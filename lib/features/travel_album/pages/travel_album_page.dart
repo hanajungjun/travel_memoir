@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
@@ -25,36 +26,46 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 
   Future<List<_AlbumItem>> _loadAlbum() async {
-    try {
-      final travelId = widget.travel['id'] as String;
-      final days = await TravelDayService.getAlbumDays(travelId: travelId);
+    final travelId = widget.travel['id'] as String;
+    final userId = widget.travel['user_id'] as String;
 
-      debugPrint('📸 album days = $days');
+    final days = await TravelDayService.getAlbumDays(travelId: travelId);
 
-      return days.map((d) {
-        final rawDate = d['date'];
-        if (rawDate == null) {
-          throw Exception('date is null: $d');
-        }
+    return days.map((d) {
+      final rawDate = d['date'];
+      if (rawDate == null) {
+        throw Exception('date is null: $d');
+      }
 
-        final date = DateTime.parse(rawDate.toString());
+      final date = DateTime.parse(rawDate.toString());
 
-        final imageUrl = TravelDayService.getAiImageUrl(
-          travelId: travelId,
-          date: date,
-        );
+      final imageUrl = _dayImageUrl(
+        userId: userId,
+        travelId: travelId,
+        date: date,
+      );
 
-        return _AlbumItem(
-          date: date,
-          summary: (d['ai_summary'] ?? '').toString(),
-          imageUrl: imageUrl,
-        );
-      }).toList();
-    } catch (e, s) {
-      debugPrint('❌ Album load error: $e');
-      debugPrint('$s');
-      rethrow;
-    }
+      return _AlbumItem(
+        date: date,
+        summary: (d['ai_summary'] ?? '').toString(),
+        imageUrl: imageUrl,
+      );
+    }).toList();
+  }
+
+  // 🔥 days 이미지 public url 생성
+  String _dayImageUrl({
+    required String userId,
+    required String travelId,
+    required DateTime date,
+  }) {
+    final ymd = DateUtilsHelper.formatYMD(date); // yyyy-MM-dd
+
+    final path = 'users/$userId/travels/$travelId/days/$ymd.png';
+
+    return Supabase.instance.client.storage
+        .from('travel_images')
+        .getPublicUrl(path);
   }
 
   String _travelTitle() {
@@ -92,17 +103,11 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
       body: FutureBuilder<List<_AlbumItem>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('앨범을 불러오지 못했어요', style: AppTextStyles.bodyMuted),
-            );
-          }
-
-          final items = snapshot.data ?? [];
+          final items = snapshot.data!;
           if (items.isEmpty) {
             return Center(
               child: Text('아직 생성된 그림일기가 없어요', style: AppTextStyles.bodyMuted),
@@ -125,9 +130,9 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                       children: [
                         if (dateRange.isNotEmpty)
                           Text(dateRange, style: AppTextStyles.bodyMuted),
-                        const SizedBox(height: 8),
 
-                        if (summary.isNotEmpty)
+                        if (summary.isNotEmpty) ...[
+                          const SizedBox(height: 8),
                           Container(
                             width: double.infinity,
                             padding: const EdgeInsets.all(14),
@@ -138,8 +143,9 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                             ),
                             child: Text(summary, style: AppTextStyles.body),
                           ),
+                        ],
 
-                        if (summary.isNotEmpty) const SizedBox(height: 14),
+                        const SizedBox(height: 14),
 
                         Row(
                           children: [
@@ -185,17 +191,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                           child: Image.network(
                             item.imageUrl,
                             fit: BoxFit.cover,
-                            loadingBuilder: (c, child, p) => p == null
-                                ? child
-                                : const Center(
-                                    child: SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    ),
-                                  ),
                             errorBuilder: (_, __, ___) => Container(
                               color: AppColors.surface,
                               alignment: Alignment.center,
@@ -270,7 +265,7 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
     final item = widget.items[_index];
     final text = [
       '📍 ${widget.title}',
-      '📅 ${DateUtilsHelper.formatYMD(item.date)}',
+      '📅 ${DateTime(item.date.year, item.date.month, item.date.day).toString()}',
       if (item.summary.isNotEmpty) '📝 ${item.summary}',
       '',
       item.imageUrl,
@@ -287,7 +282,7 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          DateUtilsHelper.formatMonthDay(widget.items[_index].date),
+          '${widget.items[_index].date.month}/${widget.items[_index].date.day}',
           style: const TextStyle(color: Colors.white),
         ),
         actions: [

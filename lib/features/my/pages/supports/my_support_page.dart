@@ -106,7 +106,7 @@ class MySupportPage extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                   const SizedBox(height: 8),
-                  Text('스카이스캐너', style: AppTextStyles.sectionTitle),
+                  Text('날씨좋다', style: AppTextStyles.sectionTitle),
                   const SizedBox(height: 4),
                   Text('버전 1.0.0 (100)', style: AppTextStyles.caption),
                 ],

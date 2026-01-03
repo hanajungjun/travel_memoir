@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
@@ -12,10 +13,14 @@ class TravelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCompleted = travel['is_completed'] == true;
-    final coverUrl = travel['cover_image_url'];
+    final coverUrl = _coverImageUrl(travel);
 
     final DecorationImage image = isCompleted && coverUrl != null
-        ? DecorationImage(image: NetworkImage(coverUrl), fit: BoxFit.cover)
+        ? DecorationImage(
+            image: NetworkImage(coverUrl),
+            fit: BoxFit.cover,
+            onError: (_, __) {},
+          )
         : const DecorationImage(
             image: AssetImage('assets/images/travel_placeholder.png'),
             fit: BoxFit.cover,
@@ -48,5 +53,19 @@ class TravelCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  // 🔥 cover.png 경로 생성
+  String? _coverImageUrl(Map<String, dynamic> travel) {
+    final userId = travel['user_id'];
+    final travelId = travel['id'];
+
+    if (userId == null || travelId == null) return null;
+
+    final path = 'users/$userId/travels/$travelId/cover.png';
+
+    return Supabase.instance.client.storage
+        .from('travel_images')
+        .getPublicUrl(path);
   }
 }

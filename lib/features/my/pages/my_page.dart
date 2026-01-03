@@ -3,10 +3,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
-import 'package:travel_memoir/features/my/pages/my_travel_summary_page.dart';
-import 'package:travel_memoir/features/my/pages/my_settings_page.dart';
-import 'package:travel_memoir/features/my/pages/my_support_page.dart';
-import 'package:travel_memoir/features/my/pages/my_profile_page.dart';
+import 'package:travel_memoir/features/my/pages/my_travels/my_travel_summary_page.dart';
+import 'package:travel_memoir/features/my/pages/settings/my_settings_page.dart';
+import 'package:travel_memoir/features/my/pages/supports/my_support_page.dart';
+import 'package:travel_memoir/features/my/pages/user_details/user_details.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';

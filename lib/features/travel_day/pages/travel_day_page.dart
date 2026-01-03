@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -42,14 +43,16 @@ class _TravelDayPageState extends State<TravelDayPage> {
 
   ImageStyleModel? _selectedStyle;
 
-  final List<File> _photos = [];
-  final List<String> _photoUrls = [];
+  final List<File> _localPhotos = [];
+  final List<String> _uploadedPhotoUrls = [];
 
   Uint8List? _generatedImage;
   String? _imageUrl;
   String? _summaryText;
 
   bool _loading = false;
+
+  String get _userId => Supabase.instance.client.auth.currentUser!.id;
 
   @override
   void initState() {
@@ -64,7 +67,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
   }
 
   // =====================================================
-  // 🔄 기존 일기 + 사진 로드
+  // 🔄 기존 일기 로드
   // =====================================================
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
@@ -74,24 +77,22 @@ class _TravelDayPageState extends State<TravelDayPage> {
 
     if (!mounted || diary == null) return;
 
-    // 🔥 텍스트 보호 (입력 중이면 덮어쓰지 않음)
     if (_contentController.text.isEmpty) {
-      _contentController.text = (diary['text'] ?? '').toString();
+      _contentController.text = diary['text'] ?? '';
     }
 
     _summaryText = diary['ai_summary'];
 
-    if (diary['ai_summary'] != null) {
-      _imageUrl = TravelDayService.getAiImageUrl(
-        travelId: widget.travelId,
-        date: widget.date,
-      );
-    }
+    _imageUrl = TravelDayService.getAiImageUrl(
+      travelId: widget.travelId,
+      date: widget.date,
+    );
 
-    if (diary['photo_urls'] != null) {
-      _photoUrls
+    final urls = diary['photo_urls'];
+    if (urls is List) {
+      _uploadedPhotoUrls
         ..clear()
-        ..addAll(List<String>.from(diary['photo_urls']));
+        ..addAll(urls.cast<String>());
     }
 
     setState(() {});
@@ -101,42 +102,38 @@ class _TravelDayPageState extends State<TravelDayPage> {
   // 📸 사진 선택
   // =====================================================
   Future<void> _pickPhoto() async {
-    if (_photos.length + _photoUrls.length >= 3) return;
+    if (_localPhotos.length + _uploadedPhotoUrls.length >= 3) return;
 
     final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await picker.pickImage(source: ImageSource.gallery);
 
-    if (file != null) {
-      setState(() => _photos.add(File(file.path)));
+    if (picked != null) {
+      setState(() => _localPhotos.add(File(picked.path)));
     }
   }
 
   // =====================================================
-  // 🗑 이미 저장된 사진 삭제
+  // 🗑 업로드된 사진 삭제
   // =====================================================
   Future<void> _deleteUploadedPhoto(String url) async {
     setState(() => _loading = true);
 
     try {
       await ImageUploadService.deleteUserImageByUrl(url);
-      _photoUrls.remove(url);
+      _uploadedPhotoUrls.remove(url);
 
       await TravelDayService.updateDiaryPhotos(
         travelId: widget.travelId,
         date: widget.date,
-        photoUrls: _photoUrls,
+        photoUrls: _uploadedPhotoUrls,
       );
-
-      setState(() {});
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   void _deleteLocalPhoto(File file) {
-    setState(() {
-      _photos.remove(file);
-    });
+    setState(() => _localPhotos.remove(file));
   }
 
   // =====================================================
@@ -162,7 +159,7 @@ ${PromptCache.textPrompt.content}
 날짜: ${DateUtilsHelper.formatMonthDay(widget.date)}
 내용: $content
 ''',
-        photos: _photos,
+        photos: _localPhotos,
       );
 
       final imageBytes = await gemini.generateImage(
@@ -202,27 +199,29 @@ $summary
     setState(() => _loading = true);
 
     try {
-      final List<String> uploadedUrls = [];
+      // 📸 사용자 사진 업로드
+      final List<String> newUrls = [];
 
-      for (final file in _photos) {
+      for (final file in _localPhotos) {
         final url = await ImageUploadService.uploadUserImage(
           file: file,
+          userId: _userId,
           travelId: widget.travelId,
-          dayId: DateUtilsHelper.formatYMD(widget.date),
+          date: widget.date,
         );
-        uploadedUrls.add(url);
+        newUrls.add(url);
       }
 
-      final finalPhotoUrls = [..._photoUrls, ...uploadedUrls];
+      final allPhotoUrls = [..._uploadedPhotoUrls, ...newUrls];
 
-      final dayNumber = DateUtilsHelper.calculateDayNumber(
+      final dayIndex = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
       );
 
       await TravelDayService.upsertDiary(
         travelId: widget.travelId,
-        dayIndex: dayNumber,
+        dayIndex: dayIndex,
         date: widget.date,
         text: text,
         aiSummary: _summaryText,
@@ -232,11 +231,13 @@ $summary
       await TravelDayService.updateDiaryPhotos(
         travelId: widget.travelId,
         date: widget.date,
-        photoUrls: finalPhotoUrls,
+        photoUrls: allPhotoUrls,
       );
 
+      // 🎨 AI 이미지 저장
       if (_generatedImage != null) {
         await ImageUploadService.uploadDiaryImage(
+          userId: _userId,
           travelId: widget.travelId,
           date: widget.date,
           imageBytes: _generatedImage!,
@@ -257,7 +258,7 @@ $summary
   }
 
   // =====================================================
-  // 🧱 UI (원본 유지 + ❌만 추가)
+  // 🧱 UI
   // =====================================================
   @override
   Widget build(BuildContext context) {
@@ -268,221 +269,123 @@ $summary
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            color: Colors.black.withOpacity(0.04),
-            child: const Text(
-              'PAGE: TravelDayPage',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 32, 20, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'DAY ${dayNumber.toString().padLeft(2, '0')}',
-                          style: AppTextStyles.sectionTitle,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${DateUtilsHelper.formatYMD(widget.date)} · ${widget.placeName}',
-                          style: AppTextStyles.bodyMuted,
-                        ),
-                        const SizedBox(height: 24),
+                  Text(
+                    'DAY ${dayNumber.toString().padLeft(2, '0')}',
+                    style: AppTextStyles.sectionTitle,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${DateUtilsHelper.formatYMD(widget.date)} · ${widget.placeName}',
+                    style: AppTextStyles.bodyMuted,
+                  ),
+                  const SizedBox(height: 24),
 
-                        TextField(
-                          controller: _contentController,
-                          maxLines: 6,
-                          style: AppTextStyles.body,
-                          decoration: InputDecoration(
-                            hintText: '오늘 하루는 어땠나요?',
-                            hintStyle: AppTextStyles.bodyMuted,
-                            filled: true,
-                            fillColor: AppColors.surface,
-                            border: const OutlineInputBorder(
-                              borderRadius: BorderRadius.zero,
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        Row(
-                          children: [
-                            ..._photoUrls.map(
-                              (url) => Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: Stack(
-                                  children: [
-                                    Image.network(
-                                      url,
-                                      width: 72,
-                                      height: 72,
-                                      fit: BoxFit.cover,
-                                    ),
-                                    Positioned(
-                                      top: 2,
-                                      right: 2,
-                                      child: GestureDetector(
-                                        onTap: () => _deleteUploadedPhoto(url),
-                                        child: Container(
-                                          width: 18,
-                                          height: 18,
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(
-                                              0.6,
-                                            ),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.close,
-                                            size: 12,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            ..._photos.map(
-                              (file) => Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: Stack(
-                                  children: [
-                                    Image.file(
-                                      file,
-                                      width: 72,
-                                      height: 72,
-                                      fit: BoxFit.cover,
-                                    ),
-
-                                    // ❌ 로컬 사진 삭제
-                                    Positioned(
-                                      top: 2,
-                                      right: 2,
-                                      child: GestureDetector(
-                                        onTap: () => _deleteLocalPhoto(file),
-                                        child: Container(
-                                          width: 18,
-                                          height: 18,
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withOpacity(
-                                              0.6,
-                                            ),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.close,
-                                            size: 12,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            if (_photos.length + _photoUrls.length < 3)
-                              GestureDetector(
-                                onTap: _pickPhoto,
-                                child: Container(
-                                  width: 72,
-                                  height: 72,
-                                  color: AppColors.surface,
-                                  child: const Icon(Icons.add),
-                                ),
-                              ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        Text('그림일기 스타일', style: AppTextStyles.sectionTitle),
-                        const SizedBox(height: 8),
-
-                        ImageStylePicker(
-                          onChanged: (style) =>
-                              setState(() => _selectedStyle = style),
-                        ),
-                      ],
+                  TextField(
+                    controller: _contentController,
+                    maxLines: 6,
+                    style: AppTextStyles.body,
+                    decoration: InputDecoration(
+                      hintText: '오늘 하루는 어땠나요?',
+                      filled: true,
+                      fillColor: AppColors.surface,
+                      border: InputBorder.none,
                     ),
                   ),
 
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.zero,
+                  const SizedBox(height: 24),
+
+                  Row(
+                    children: [
+                      ..._uploadedPhotoUrls.map(
+                        (url) => _PhotoThumb(
+                          image: Image.network(url, fit: BoxFit.cover),
+                          onDelete: () => _deleteUploadedPhoto(url),
                         ),
                       ),
-                      onPressed: _loading ? null : _generateAI,
-                      child: const Text(
-                        '그림으로 남기기',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                      ..._localPhotos.map(
+                        (file) => _PhotoThumb(
+                          image: Image.file(file, fit: BoxFit.cover),
+                          onDelete: () => _deleteLocalPhoto(file),
                         ),
                       ),
-                    ),
+                      if (_uploadedPhotoUrls.length + _localPhotos.length < 3)
+                        GestureDetector(
+                          onTap: _pickPhoto,
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            color: AppColors.surface,
+                            child: const Icon(Icons.add),
+                          ),
+                        ),
+                    ],
                   ),
 
-                  if (_imageUrl != null)
-                    Image.network(
-                      _imageUrl!,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    )
-                  else if (_generatedImage != null)
-                    Image.memory(
-                      _generatedImage!,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                  const SizedBox(height: 32),
 
-                  if (_generatedImage != null)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 18),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero,
-                          ),
-                        ),
-                        onPressed: _loading ? null : _saveDiary,
-                        child: const Text(
-                          '일기 저장',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
+                  Text('그림일기 스타일', style: AppTextStyles.sectionTitle),
+                  const SizedBox(height: 8),
+                  ImageStylePicker(
+                    onChanged: (style) =>
+                        setState(() => _selectedStyle = style),
+                  ),
                 ],
+              ),
+            ),
+
+            ElevatedButton(
+              onPressed: _loading ? null : _generateAI,
+              child: const Text('그림으로 남기기'),
+            ),
+
+            if (_imageUrl != null)
+              Image.network(_imageUrl!)
+            else if (_generatedImage != null)
+              Image.memory(_generatedImage!),
+
+            if (_generatedImage != null)
+              ElevatedButton(
+                onPressed: _loading ? null : _saveDiary,
+                child: const Text('일기 저장'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PhotoThumb extends StatelessWidget {
+  final Widget image;
+  final VoidCallback onDelete;
+
+  const _PhotoThumb({required this.image, required this.onDelete});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Stack(
+        children: [
+          SizedBox(width: 72, height: 72, child: image),
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: onDelete,
+              child: const CircleAvatar(
+                radius: 9,
+                backgroundColor: Colors.black54,
+                child: Icon(Icons.close, size: 12, color: Colors.white),
               ),
             ),
           ),

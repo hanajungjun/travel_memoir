@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
+
+import 'package:travel_memoir/features/auth/login_page.dart';
+
+import 'package:travel_memoir/features/my/pages/user_details/my_profile_page.dart';
+import 'package:travel_memoir/features/my/pages/user_details/account_management_page.dart';
+import 'package:travel_memoir/features/my/pages/user_details/pay_management_page.dart';
 
 class MyUserDetailPage extends StatelessWidget {
   const MyUserDetailPage({super.key});
@@ -32,7 +37,11 @@ class MyUserDetailPage extends StatelessWidget {
           _SettingTile(
             title: '로그인 정보',
             onTap: () {
-              // TODO: 로그인 정보 상세
+              // 로그인 정보 페이지로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyProfilePage()),
+              );
             },
           ),
 
@@ -41,7 +50,26 @@ class MyUserDetailPage extends StatelessWidget {
           _SettingTile(
             title: '계정 관리',
             onTap: () {
-              // TODO: 계정 관리 (탈퇴 등)
+              // 계정 관리 페이지로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AccountManagementPage(),
+                ),
+              );
+            },
+          ),
+
+          _Divider(),
+
+          _SettingTile(
+            title: '결제 관리',
+            onTap: () {
+              // 결제 관리 페이지로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PayManagementPage()),
+              );
             },
           ),
 

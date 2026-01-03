@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/features/travel_album/pages/travel_album_page.dart';
@@ -92,8 +93,8 @@ class _RecordTabPageState extends State<RecordTabPage> {
 
     final stillProcessing = completed.any(
       (t) =>
-          (t['cover_image_url'] == null ||
-          (t['ai_cover_summary'] ?? '').toString().isEmpty),
+          _coverImageUrl(t) == null ||
+          (t['ai_cover_summary'] ?? '').toString().isEmpty,
     );
 
     if (!stillProcessing) {
@@ -102,6 +103,20 @@ class _RecordTabPageState extends State<RecordTabPage> {
     }
 
     return completed;
+  }
+
+  // 🔥 cover.png public url 생성
+  String? _coverImageUrl(Map<String, dynamic> travel) {
+    final userId = travel['user_id'];
+    final travelId = travel['id'];
+
+    if (userId == null || travelId == null) return null;
+
+    final path = 'users/$userId/travels/$travelId/cover.png';
+
+    return Supabase.instance.client.storage
+        .from('travel_images')
+        .getPublicUrl(path);
   }
 }
 
@@ -157,10 +172,10 @@ class _TravelRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final coverUrl = travel['cover_image_url'];
+    final coverUrl = _coverImageUrl(travel);
     final summary = (travel['ai_cover_summary'] ?? '').toString().trim();
 
-    final hasCover = coverUrl != null && coverUrl.isNotEmpty;
+    final hasCover = coverUrl != null;
     final hasSummary = summary.isNotEmpty;
 
     return SafeArea(
@@ -182,7 +197,7 @@ class _TravelRecordCard extends StatelessWidget {
                 Positioned.fill(
                   child: hasCover
                       ? Image.network(
-                          coverUrl,
+                          coverUrl!,
                           fit: BoxFit.cover,
                           loadingBuilder: (_, child, progress) {
                             if (progress == null) return child;
@@ -194,7 +209,8 @@ class _TravelRecordCard extends StatelessWidget {
                       : const Center(child: CircularProgressIndicator()),
                 ),
 
-                if (hasCover && !hasSummary) _BottomLabel(text: 'AI 여행 정리중…'),
+                if (hasCover && !hasSummary)
+                  const _BottomLabel(text: 'AI 여행 정리중…'),
 
                 if (hasSummary) _BottomLabel(text: summary, gradient: true),
               ],
@@ -203,6 +219,19 @@ class _TravelRecordCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String? _coverImageUrl(Map<String, dynamic> travel) {
+    final userId = travel['user_id'];
+    final travelId = travel['id'];
+
+    if (userId == null || travelId == null) return null;
+
+    final path = 'users/$userId/travels/$travelId/cover.png';
+
+    return Supabase.instance.client.storage
+        .from('travel_images')
+        .getPublicUrl(path);
   }
 }
 

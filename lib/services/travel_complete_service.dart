@@ -23,6 +23,16 @@ class TravelCompleteService {
     debugPrint('==============================');
 
     // ======================
+    // 0️⃣ 유저 확인
+    // ======================
+    final user = _supabase.auth.currentUser;
+    if (user == null) {
+      debugPrint('⛔ [COMPLETE] no user');
+      return;
+    }
+    final userId = user.id;
+
+    // ======================
     // 1️⃣ 여행 조회
     // ======================
     final travel = await _supabase
@@ -31,10 +41,8 @@ class TravelCompleteService {
         .eq('id', travelId)
         .single();
 
-    debugPrint('🧪 [COMPLETE] travel=$travel');
-
     if (travel['is_completed'] == true) {
-      debugPrint('⛔ [COMPLETE] already completed -> return');
+      debugPrint('⛔ [COMPLETE] already completed');
       return;
     }
 
@@ -46,15 +54,13 @@ class TravelCompleteService {
     );
     final totalDays = endDate.difference(startDate).inDays + 1;
 
-    debugPrint('🧪 [COMPLETE] writtenDays=$writtenDays / totalDays=$totalDays');
-
     if (writtenDays < totalDays) {
-      debugPrint('⛔ [COMPLETE] not enough diaries -> return');
+      debugPrint('⛔ [COMPLETE] not enough diaries');
       return;
     }
 
     // ======================
-    // 3️⃣ 여행 완료 처리
+    // 3️⃣ 여행 완료 처리 (DB)
     // ======================
     await _supabase
         .from('travels')
@@ -67,23 +73,13 @@ class TravelCompleteService {
     debugPrint('✅ [COMPLETE] travel marked completed');
 
     // ======================
-    // 4️⃣ 지도용 지역 upsert
+    // 4️⃣ 국내 지도 region upsert
     // ======================
     if (travel['travel_type'] == 'domestic') {
-      final String? userId = travel['user_id'] as String?;
-      final String? regionId = travel['region_id'] as String?;
+      final String? regionId = travel['region_id'];
 
-      debugPrint(
-        '🧭 [MAP] region mapping start userId=$userId regionId=$regionId',
-      );
-
-      if (userId != null && regionId != null) {
+      if (regionId != null) {
         final code = SggCodeMap.fromRegionId(regionId);
-
-        debugPrint(
-          '🧭 [MAP] mapped type=${code.type} '
-          'sido=${code.sidoCd} sgg=${code.sggCd}',
-        );
 
         await _supabase.from('domestic_travel_regions').upsert({
           'travel_id': travelId,
@@ -94,8 +90,6 @@ class TravelCompleteService {
           'sido_cd': code.sidoCd,
           'sgg_cd': code.sggCd,
         }, onConflict: 'user_id,region_id');
-
-        debugPrint('✅ [MAP] upsert done');
       }
     }
 
@@ -111,12 +105,8 @@ class TravelCompleteService {
             ?.toString() ??
         '여행';
 
-    debugPrint('🧠 [AI] placeName=$placeName');
-
     // ---------- 커버 이미지 ----------
     try {
-      debugPrint('🖼️ [AI] cover image start');
-
       final row = await _supabase
           .from('ai_cover_map_prompts')
           .select('content')
@@ -124,38 +114,27 @@ class TravelCompleteService {
           .eq('is_active', true)
           .maybeSingle();
 
-      debugPrint('🧪 [AI] cover prompt row=$row');
-
       if (row?['content'] != null) {
         final Uint8List bytes = await gemini.generateImage(
           finalPrompt: '${row!['content']}\nPlace: $placeName',
         );
 
-        debugPrint('🧪 [AI] cover bytes length=${bytes.length}');
-
         if (bytes.isNotEmpty) {
-          final url = await ImageUploadService.uploadTravelCoverImage(
+          await ImageUploadService.uploadTravelCover(
+            userId: userId,
             travelId: travelId,
             imageBytes: bytes,
           );
-
-          await _supabase
-              .from('travels')
-              .update({'cover_image_url': url})
-              .eq('id', travelId);
-
-          debugPrint('✅ [AI] cover image uploaded');
+          debugPrint('✅ [AI] cover uploaded');
         }
       }
     } catch (e, s) {
-      debugPrint('❌ [AI] cover image failed: $e');
+      debugPrint('❌ [AI] cover failed: $e');
       debugPrint('$s');
     }
 
     // ---------- 지도 이미지 ----------
     try {
-      debugPrint('🗺️ [AI] map image start');
-
       final row = await _supabase
           .from('ai_cover_map_prompts')
           .select('content')
@@ -163,46 +142,33 @@ class TravelCompleteService {
           .eq('is_active', true)
           .maybeSingle();
 
-      debugPrint('🧪 [AI] map prompt row=$row');
-
       if (row?['content'] != null) {
         final Uint8List bytes = await gemini.generateImage(
           finalPrompt: '${row!['content']}\nPlace: $placeName',
         );
 
-        debugPrint('🧪 [AI] map bytes length=${bytes.length}');
-
         if (bytes.isNotEmpty) {
-          final url = await ImageUploadService.uploadTravelMapImage(
+          await ImageUploadService.uploadTravelMap(
+            userId: userId,
             travelId: travelId,
             imageBytes: bytes,
           );
-
-          await _supabase
-              .from('travels')
-              .update({'map_image_url': url})
-              .eq('id', travelId);
-
-          debugPrint('✅ [AI] map image uploaded');
+          debugPrint('✅ [AI] map uploaded');
         }
       }
     } catch (e, s) {
-      debugPrint('❌ [AI] map image failed: $e');
+      debugPrint('❌ [AI] map failed: $e');
       debugPrint('$s');
     }
 
     // ---------- 하이라이트 ----------
     try {
-      debugPrint('✍️ [AI] highlight start');
-
       final highlight =
           await TravelHighlightService.generateHighlight(
             travelId: travelId,
             placeName: placeName,
           ) ??
           '';
-
-      debugPrint('🧪 [AI] highlight="$highlight"');
 
       if (highlight.isNotEmpty) {
         await _supabase
