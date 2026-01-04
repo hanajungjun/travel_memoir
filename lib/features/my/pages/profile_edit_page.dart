@@ -115,7 +115,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     String? finalImageUrl = _imageUrl;
 
     if (_pickedImage != null) {
-      finalImageUrl = await _uploadImage(_pickedImage!);
+      final uploadedUrl = await _uploadImage(_pickedImage!);
+      finalImageUrl = '$uploadedUrl?t=${DateTime.now().millisecondsSinceEpoch}';
     }
 
     final user = supabase.auth.currentUser!;
@@ -157,13 +158,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary, // 👈 이 줄 추가
+            ),
             child: _saving
                 ? const SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text('저장', style: AppTextStyles.button),
+                : const Text('저장'),
           ),
         ],
       ),

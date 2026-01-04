@@ -8,6 +8,7 @@ import 'package:travel_memoir/services/image_upload_service.dart';
 import 'package:travel_memoir/services/travel_highlight_service.dart';
 
 import 'package:travel_memoir/core/constants/korea/sgg_code_map.dart';
+import 'package:travel_memoir/storage_paths.dart';
 
 class TravelCompleteService {
   static final SupabaseClient _supabase = Supabase.instance.client;
@@ -22,46 +23,28 @@ class TravelCompleteService {
     debugPrint('🔥 travelId=$travelId');
     debugPrint('==============================');
 
-    // ======================
     // 0️⃣ 유저 확인
-    // ======================
     final user = _supabase.auth.currentUser;
-    if (user == null) {
-      debugPrint('⛔ [COMPLETE] no user');
-      return;
-    }
+    if (user == null) return;
     final userId = user.id;
 
-    // ======================
     // 1️⃣ 여행 조회
-    // ======================
     final travel = await _supabase
         .from('travels')
         .select()
         .eq('id', travelId)
         .single();
 
-    if (travel['is_completed'] == true) {
-      debugPrint('⛔ [COMPLETE] already completed');
-      return;
-    }
+    if (travel['is_completed'] == true) return;
 
-    // ======================
     // 2️⃣ 일기 개수 체크
-    // ======================
     final writtenDays = await TravelDayService.getWrittenDayCount(
       travelId: travelId,
     );
     final totalDays = endDate.difference(startDate).inDays + 1;
+    if (writtenDays < totalDays) return;
 
-    if (writtenDays < totalDays) {
-      debugPrint('⛔ [COMPLETE] not enough diaries');
-      return;
-    }
-
-    // ======================
-    // 3️⃣ 여행 완료 처리 (DB)
-    // ======================
+    // 3️⃣ 여행 완료 처리
     await _supabase
         .from('travels')
         .update({
@@ -70,17 +53,11 @@ class TravelCompleteService {
         })
         .eq('id', travelId);
 
-    debugPrint('✅ [COMPLETE] travel marked completed');
-
-    // ======================
-    // 4️⃣ 국내 지도 region upsert
-    // ======================
+    // 4️⃣ 국내 지역 upsert
     if (travel['travel_type'] == 'domestic') {
       final String? regionId = travel['region_id'];
-
       if (regionId != null) {
         final code = SggCodeMap.fromRegionId(regionId);
-
         await _supabase.from('domestic_travel_regions').upsert({
           'travel_id': travelId,
           'user_id': userId,
@@ -93,11 +70,7 @@ class TravelCompleteService {
       }
     }
 
-    // ======================
-    // 5️⃣ AI 처리
-    // ======================
     final gemini = GeminiService();
-
     final String placeName =
         (travel['travel_type'] == 'domestic'
                 ? travel['region_name']
@@ -105,7 +78,7 @@ class TravelCompleteService {
             ?.toString() ??
         '여행';
 
-    // ---------- 커버 이미지 ----------
+    // 5️⃣ cover 이미지
     try {
       final row = await _supabase
           .from('ai_cover_map_prompts')
@@ -115,25 +88,20 @@ class TravelCompleteService {
           .maybeSingle();
 
       if (row?['content'] != null) {
-        final Uint8List bytes = await gemini.generateImage(
+        final bytes = await gemini.generateImage(
           finalPrompt: '${row!['content']}\nPlace: $placeName',
         );
-
         if (bytes.isNotEmpty) {
           await ImageUploadService.uploadTravelCover(
             userId: userId,
             travelId: travelId,
             imageBytes: bytes,
           );
-          debugPrint('✅ [AI] cover uploaded');
         }
       }
-    } catch (e, s) {
-      debugPrint('❌ [AI] cover failed: $e');
-      debugPrint('$s');
-    }
+    } catch (_) {}
 
-    // ---------- 지도 이미지 ----------
+    // 6️⃣ map 이미지
     try {
       final row = await _supabase
           .from('ai_cover_map_prompts')
@@ -143,25 +111,36 @@ class TravelCompleteService {
           .maybeSingle();
 
       if (row?['content'] != null) {
-        final Uint8List bytes = await gemini.generateImage(
+        final bytes = await gemini.generateImage(
           finalPrompt: '${row!['content']}\nPlace: $placeName',
         );
-
         if (bytes.isNotEmpty) {
           await ImageUploadService.uploadTravelMap(
             userId: userId,
             travelId: travelId,
             imageBytes: bytes,
           );
-          debugPrint('✅ [AI] map uploaded');
         }
       }
-    } catch (e, s) {
-      debugPrint('❌ [AI] map failed: $e');
-      debugPrint('$s');
-    }
+    } catch (_) {}
 
-    // ---------- 하이라이트 ----------
+    // 7️⃣ cover/map URL 저장
+    final coverPath = StoragePaths.travelCover(userId, travelId);
+    final mapPath = StoragePaths.travelMap(userId, travelId);
+
+    final coverUrl = _supabase.storage
+        .from('travel_images')
+        .getPublicUrl(coverPath);
+    final mapUrl = _supabase.storage
+        .from('travel_images')
+        .getPublicUrl(mapPath);
+
+    await _supabase
+        .from('travels')
+        .update({'cover_image_url': coverUrl, 'map_image_url': mapUrl})
+        .eq('id', travelId);
+
+    // 8️⃣ 여행 요약
     try {
       final highlight =
           await TravelHighlightService.generateHighlight(
@@ -169,22 +148,71 @@ class TravelCompleteService {
             placeName: placeName,
           ) ??
           '';
-
       if (highlight.isNotEmpty) {
         await _supabase
             .from('travels')
             .update({'ai_cover_summary': highlight})
             .eq('id', travelId);
-
-        debugPrint('✅ [AI] highlight saved');
       }
-    } catch (e, s) {
-      debugPrint('❌ [AI] highlight failed: $e');
-      debugPrint('$s');
-    }
+    } catch (_) {}
 
-    debugPrint('==============================');
+    // 9️⃣ 🔥 day 이미지 생성 (여행 완료 시)
+    try {
+      final days = await _supabase
+          .from('travel_days')
+          .select('date, ai_summary, ai_style')
+          .eq('travel_id', travelId)
+          .order('date');
+
+      for (final d in days) {
+        final dateRaw = d['date'];
+        if (dateRaw == null) continue;
+
+        final summary = (d['ai_summary'] ?? '').toString().trim();
+        if (summary.isEmpty) continue;
+
+        final style = (d['ai_style'] ?? 'default').toString();
+
+        final bytes = await gemini.generateImage(
+          finalPrompt:
+              '''
+여행 그림일기 한 장
+날짜: $dateRaw
+장소: $placeName
+내용: $summary
+스타일: $style
+따뜻한 감성, 그림일기, 정사각형
+''',
+        );
+
+        if (bytes.isEmpty) continue;
+
+        final path = StoragePaths.travelDayImage(
+          userId,
+          travelId,
+          dateRaw.toString(),
+        );
+
+        await _supabase.storage
+            .from('travel_images')
+            .uploadBinary(
+              path,
+              bytes,
+              fileOptions: const FileOptions(upsert: true),
+            );
+
+        final imageUrl = _supabase.storage
+            .from('travel_images')
+            .getPublicUrl(path);
+
+        await _supabase
+            .from('travel_days')
+            .update({'image_url': imageUrl})
+            .eq('travel_id', travelId)
+            .eq('date', dateRaw);
+      }
+    } catch (_) {}
+
     debugPrint('✅ [COMPLETE] tryCompleteTravel END');
-    debugPrint('==============================');
   }
 }

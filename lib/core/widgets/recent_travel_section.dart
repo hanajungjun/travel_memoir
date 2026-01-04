@@ -114,7 +114,7 @@ class _RecentTravelCard extends StatelessWidget {
                 aspectRatio: 1,
                 child: imageUrl != null
                     ? Image.network(
-                        imageUrl,
+                        '$imageUrl?t=${travel['completed_at']}',
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) =>
                             Container(color: AppColors.divider),
@@ -148,16 +148,7 @@ class _RecentTravelCard extends StatelessWidget {
 
   // 🔥 핵심: map.png 경로 생성
   String? _mapImageUrl(Map<String, dynamic> travel) {
-    final userId = travel['user_id'];
-    final travelId = travel['id'];
-
-    if (userId == null || travelId == null) return null;
-
-    final path = 'users/$userId/travels/$travelId/map.png';
-
-    return Supabase.instance.client.storage
-        .from('travel_images')
-        .getPublicUrl(path);
+    return travel['map_image_url'] as String?;
   }
 
   String _periodText(Map<String, dynamic> travel) {
@@ -192,12 +183,39 @@ class _EmptyTravelCard extends StatelessWidget {
         color: AppColors.lightSurface,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: AspectRatio(
-          aspectRatio: 1,
-          child: Container(color: AppColors.divider),
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ===== 이미지 영역 (왼쪽 카드와 동일) =====
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                color: AppColors.divider,
+                child: const Center(
+                  child: Icon(
+                    Icons.add_location_alt,
+                    size: 34,
+                    color: Colors.grey,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // ===== 텍스트 영역 (국내/해외 위치와 동일한 레벨) =====
+          Text(
+            '여행을 추가해보세요',
+            style: AppTextStyles.caption.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+        ],
       ),
     );
   }

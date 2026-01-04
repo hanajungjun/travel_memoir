@@ -202,11 +202,11 @@ class TravelDayService {
   }) async {
     final res = await _supabase
         .from('travel_days')
-        .select('date, ai_summary')
+        .select('date, ai_summary') // 🔥 image_url 절대 넣지 말 것
         .eq('travel_id', travelId)
         .order('date', ascending: true);
 
-    if (res == null || res is! List) return [];
+    if (res is! List) return [];
 
     return res
         .where((e) => e['date'] != null)

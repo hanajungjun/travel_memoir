@@ -67,4 +67,8 @@ class StoragePaths {
 
   static String styleThumbnail(String styleId) =>
       '$systemRoot/style_thumbnails/$styleId.png';
+
+  /// 여행 지도 이미지
+  static String travelMap(String userId, String travelId) =>
+      '${travelRoot(userId, travelId)}/map.png';
 }

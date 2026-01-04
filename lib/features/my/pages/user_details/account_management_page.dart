@@ -139,18 +139,21 @@ class _AccountManagementPageState extends State<AccountManagementPage> {
         // =========================
         // 🔒 탈퇴 중 로딩 오버레이
         // =========================
+        // =========================
+        // 🔒 탈퇴 중 로딩 오버레이
+        // =========================
         if (_deleting)
           Container(
             color: Colors.black.withOpacity(0.4),
-            child: const Center(
+            child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
+                  Icon(Icons.delete_outline, size: 48, color: Colors.white70),
+                  const SizedBox(height: 16),
                   Text(
-                    '계정을 삭제하는 중입니다...',
-                    style: TextStyle(color: Colors.white),
+                    '마지막 정리를 하고 있어요',
+                    style: AppTextStyles.body.copyWith(color: Colors.white),
                   ),
                 ],
               ),

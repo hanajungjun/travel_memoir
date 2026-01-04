@@ -26,46 +26,48 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 
   Future<List<_AlbumItem>> _loadAlbum() async {
-    final travelId = widget.travel['id'] as String;
-    final userId = widget.travel['user_id'] as String;
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+    if (user == null) return [];
 
-    final days = await TravelDayService.getAlbumDays(travelId: travelId);
+    final travelId = widget.travel['id']?.toString();
+    if (travelId == null || travelId.isEmpty) return [];
 
-    return days.map((d) {
-      final rawDate = d['date'];
-      if (rawDate == null) {
-        throw Exception('date is null: $d');
-      }
+    final userId = user.id;
 
-      final date = DateTime.parse(rawDate.toString());
+    // 1️⃣ storage에서 실제 이미지 파일 목록을 가져온다 (🔥 핵심)
+    final files = await client.storage
+        .from('travel_images')
+        .list(path: 'users/$userId/travels/$travelId/days');
 
-      final imageUrl = _dayImageUrl(
-        userId: userId,
-        travelId: travelId,
-        date: date,
-      );
+    if (files.isEmpty) return [];
+
+    // 2️⃣ travel_days에서 요약 정보만 가져온다 (date, ai_summary)
+    final daySummaries = await TravelDayService.getAlbumDays(
+      travelId: travelId,
+    );
+
+    final summaryMap = {
+      for (final d in daySummaries)
+        d['date']?.toString(): (d['ai_summary'] ?? '').toString(),
+    };
+
+    // 3️⃣ storage 파일 기준으로 앨범 구성
+    return files.where((f) => f.name.endsWith('.png')).map((f) {
+      final dateStr = f.name.replaceAll('.png', '');
+      final date =
+          DateTime.tryParse(dateStr) ?? DateTime.fromMillisecondsSinceEpoch(0);
+
+      final imageUrl = client.storage
+          .from('travel_images')
+          .getPublicUrl('users/$userId/travels/$travelId/days/${f.name}');
 
       return _AlbumItem(
         date: date,
-        summary: (d['ai_summary'] ?? '').toString(),
+        summary: summaryMap[dateStr] ?? '',
         imageUrl: imageUrl,
       );
-    }).toList();
-  }
-
-  // 🔥 days 이미지 public url 생성
-  String _dayImageUrl({
-    required String userId,
-    required String travelId,
-    required DateTime date,
-  }) {
-    final ymd = DateUtilsHelper.formatYMD(date); // yyyy-MM-dd
-
-    final path = 'users/$userId/travels/$travelId/days/$ymd.png';
-
-    return Supabase.instance.client.storage
-        .from('travel_images')
-        .getPublicUrl(path);
+    }).toList()..sort((a, b) => a.date.compareTo(b.date));
   }
 
   String _travelTitle() {
@@ -103,110 +105,85 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
       body: FutureBuilder<List<_AlbumItem>>(
         future: _future,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final items = snapshot.data!;
+          final items = snapshot.data ?? [];
           if (items.isEmpty) {
             return Center(
               child: Text('아직 생성된 그림일기가 없어요', style: AppTextStyles.bodyMuted),
             );
           }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              setState(() => _future = _loadAlbum());
-              await _future;
-            },
-            child: CustomScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (dateRange.isNotEmpty)
-                          Text(dateRange, style: AppTextStyles.bodyMuted),
-
-                        if (summary.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: AppColors.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.divider),
-                            ),
-                            child: Text(summary, style: AppTextStyles.body),
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (dateRange.isNotEmpty)
+                        Text(dateRange, style: AppTextStyles.bodyMuted),
+                      if (summary.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        ],
-
-                        const SizedBox(height: 14),
-
-                        Row(
-                          children: [
-                            Text('그림 앨범', style: AppTextStyles.sectionTitle),
-                            const Spacer(),
-                            Text(
-                              '${items.length}장',
-                              style: AppTextStyles.bodyMuted,
-                            ),
-                          ],
+                          child: Text(summary, style: AppTextStyles.body),
                         ),
                       ],
-                    ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Text('그림 앨범', style: AppTextStyles.sectionTitle),
+                          const Spacer(),
+                          Text(
+                            '${items.length}장',
+                            style: AppTextStyles.bodyMuted,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                  sliver: SliverGrid(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                        ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final item = items[index];
-                      return GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => _AlbumViewerPage(
-                                title: title,
-                                items: items,
-                                initialIndex: index,
-                              ),
-                            ),
-                          );
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            item.imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              color: AppColors.surface,
-                              alignment: Alignment.center,
-                              child: Text(
-                                DateUtilsHelper.formatMonthDay(item.date),
-                                style: AppTextStyles.bodyMuted,
-                              ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.all(20),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final item = items[index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => _AlbumViewerPage(
+                              title: title,
+                              items: items,
+                              initialIndex: index,
                             ),
                           ),
-                        ),
-                      );
-                    }, childCount: items.length),
-                  ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(item.imageUrl, fit: BoxFit.cover),
+                      ),
+                    );
+                  }, childCount: items.length),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -226,9 +203,6 @@ class _AlbumItem {
   });
 }
 
-// =====================
-// 전체화면 뷰어 + 공유
-// =====================
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
   final List<_AlbumItem> items;
@@ -263,9 +237,10 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
 
   void _share() {
     final item = widget.items[_index];
+
     final text = [
       '📍 ${widget.title}',
-      '📅 ${DateTime(item.date.year, item.date.month, item.date.day).toString()}',
+      '📅 ${DateUtilsHelper.formatYMD(item.date)}',
       if (item.summary.isNotEmpty) '📝 ${item.summary}',
       '',
       item.imageUrl,
