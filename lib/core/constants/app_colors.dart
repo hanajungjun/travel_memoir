@@ -88,7 +88,18 @@ class AppColors {
   // 📜 Map Vintage (Parchment 스타일 전용)
   // =========================
   static const mapVintageBackground = Color(0xFFF5E6D3); // 양피지 기본 배경색
-  static const mapVisitedFill = Color(0xFFC19A6B); // 방문 지역 (오래된 황토색 인장 느낌)
+  static const mapVisitedFill = Color.fromARGB(
+    255,
+    189,
+    110,
+    14,
+  ); // 방문 지역 (오래된 황토색 인장 느낌)
+  static const mapOverseaVisitedFill = Color.fromARGB(
+    255,
+    188,
+    68,
+    162,
+  ); // 방문 지역 (오래된 황토색 인장 느낌)
   static const mapVisitedBorder = Color(0xFF5D4037); // 방문 지역 테두리 (진한 갈색 잉크)
   static const mapTextInk = Color(0xFF3E2723); // 지도 위 텍스트용 잉크색
 }

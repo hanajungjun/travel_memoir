@@ -127,7 +127,11 @@ class _RecentTravelCard extends StatelessWidget {
 
             // ===== 국내 / 해외 =====
             Text(
-              travel['travel_type'] == 'domestic' ? '국내' : '해외',
+              // 1순위: 대구, 부산 같은 지역 이름 (region_name)
+              // 2순위: 그게 없으면 국가 이름 (country_name)
+              // 3순위: 둘 다 없으면 '여행지'라고 표시
+              (travel['region_name'] ?? travel['country_name'] ?? '여행지')
+                  .toString(),
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.textSecondary,
               ),

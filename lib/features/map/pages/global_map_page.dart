@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -6,15 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/services/overseas_travel_service.dart';
+import 'package:travel_memoir/core/widgets/ai_map_popup.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
 
 class GlobalMapPage extends StatefulWidget {
-  // ✅ 요약 페이지 등에서 고정된 지도를 보여주기 위한 변수 추가
   final bool isReadOnly;
 
-  const GlobalMapPage({
-    super.key,
-    this.isReadOnly = false, // 기본값은 false
-  });
+  const GlobalMapPage({super.key, this.isReadOnly = false});
 
   @override
   State<GlobalMapPage> createState() => _GlobalMapPageState();
@@ -32,17 +29,11 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   @override
   Widget build(BuildContext context) {
     return MapWidget(
+      styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
       cameraOptions: CameraOptions(
         center: Point(coordinates: Position(10.0, 20.0)),
-        // ✅ 읽기 전용일 때는 줌을 더 낮춤 (0.1) 아니면 일반 줌 (0.5)
         zoom: widget.isReadOnly ? 0.1 : 0.5,
-        bearing: 0,
-        pitch: 0,
       ),
-      mapOptions: MapOptions(
-        pixelRatio: MediaQuery.of(context).devicePixelRatio,
-      ),
-      // ✅ 읽기 전용일 때는 제스처를 비활성화할 수도 있습니다 (선택사항)
       gestureRecognizers: widget.isReadOnly
           ? {}
           : {
@@ -54,13 +45,104 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         await map.gestures.updateSettings(
           GesturesSettings(pitchEnabled: false),
         );
-        // 최소 줌 제한을 0으로 둡니다.
         await map.setBounds(CameraBoundsOptions(minZoom: 0.0, maxZoom: 8.0));
       },
       onStyleLoadedListener: _onStyleLoaded,
+      onTapListener: widget.isReadOnly ? null : (context) => _onMapTap(context),
     );
   }
 
+  // =========================================================
+  // 🖱️ 1. 해외 지도 클릭 핸들러
+  // =========================================================
+  Future<void> _onMapTap(MapContentGestureContext context) async {
+    final map = _map;
+    if (map == null) return;
+
+    try {
+      final screenCoordinate = await map.pixelForCoordinate(context.point);
+      final features = await map.queryRenderedFeatures(
+        RenderedQueryGeometry.fromScreenCoordinate(screenCoordinate),
+        RenderedQueryOptions(layerIds: [_visitedCountryLayer]),
+      );
+
+      if (features.isNotEmpty) {
+        final props =
+            features.first?.queriedFeature.feature['properties'] as Map?;
+        if (props != null) {
+          // 📍 GeoJSON 속성명이 ISO_A2_EH인지 확인 필수!
+          final String countryCode =
+              props['ISO_A2_EH'] ?? props['iso_a2'] ?? '';
+          final String countryName = props['NAME'] ?? props['name'] ?? '해외 지역';
+
+          if (countryCode.isNotEmpty) {
+            debugPrint('🌍 해외 클릭 감지: $countryName ($countryCode)');
+            _showOverseasAiPopup(countryCode, countryName);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 해외 클릭 쿼리 에러: $e');
+    }
+  }
+
+  // =========================================================
+  // 🎨 2. AI 이미지 팝업 (해외 데이터 필터링 강화)
+  // =========================================================
+  void _showOverseasAiPopup(String countryCode, String countryName) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final response = await Supabase.instance.client
+          .from('travels')
+          .select('map_image_url, country_name, ai_cover_summary')
+          .eq('user_id', user.id)
+          .eq('country_code', countryCode) // 👈 클릭한 국가 코드와 정확히 매칭
+          .not('map_image_url', 'is', null)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (response == null || response['map_image_url'] == null) {
+        debugPrint('ℹ️ $countryName 지역의 기록이 없습니다.');
+        return;
+      }
+
+      if (!mounted) return;
+
+      showGeneralDialog(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: "Global AI Map",
+        transitionDuration: const Duration(milliseconds: 600),
+        pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+        transitionBuilder: (context, anim1, anim2, child) {
+          final curvedValue = Curves.easeOutBack.transform(anim1.value);
+          return Transform(
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.001)
+              ..rotateX((1 - curvedValue) * 1.5),
+            alignment: Alignment.bottomCenter,
+            child: Opacity(
+              opacity: anim1.value.clamp(0.0, 1.0),
+              child: AiMapPopup(
+                imageUrl: response['map_image_url'],
+                regionName: response['country_name'] ?? countryName,
+                summary: response['ai_cover_summary'] ?? "먼 곳에서 온 기록.",
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ 해외 데이터 조회 에러: $e');
+    }
+  }
+
+  // =========================================================
+  // 🗺️ 3. 스타일 로드 및 렌더링
+  // =========================================================
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
     if (_styleInitialized) return;
     _styleInitialized = true;
@@ -69,13 +151,29 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     if (map == null) return;
     final style = map.style;
 
+    // 2D 평면 고정
     try {
       await style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
     } catch (e) {
-      debugPrint('⚠️ Projection setting failed: $e');
+      debugPrint('⚠️ Projection 에러: $e');
     }
+
+    // 한글화
+    try {
+      final layers = await style.getStyleLayers();
+      for (var layer in layers) {
+        final id = layer?.id;
+        if (id != null && (id.contains('label') || id.contains('place'))) {
+          await style.setStyleLayerProperty(
+            id,
+            'text-field',
+            '["get", "name_ko"]',
+          );
+        }
+      }
+    } catch (_) {}
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -94,26 +192,27 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     );
 
     if (travels.isNotEmpty) {
-      final Set<String> countryCodes = {};
-      for (final t in travels) {
-        final code = t['country_code'];
-        if (code != null) countryCodes.add(code.toString());
-      }
+      final Set<String> countryCodes = travels
+          .map((t) => t['country_code']?.toString())
+          .whereType<String>()
+          .toSet();
 
-      final visitedLayer = FillLayer(
-        id: _visitedCountryLayer,
-        sourceId: _worldSourceId,
+      await style.addLayer(
+        FillLayer(
+          id: _visitedCountryLayer,
+          sourceId: _worldSourceId,
+          filter: [
+            'in',
+            ['get', 'ISO_A2_EH'],
+            ['literal', countryCodes.toList()],
+          ],
+          fillColor: AppColors.mapOverseaVisitedFill.value,
+          fillOpacity: 0.6,
+        ),
       );
-      visitedLayer.filter = [
-        'in',
-        ['get', 'ISO_A2_EH'],
-        ['literal', countryCodes.toList()],
-      ];
-      visitedLayer.fillColor = 0xFF4FC3F7;
-      visitedLayer.fillOpacity = 0.6;
-      await style.addLayer(visitedLayer);
     }
 
+    // 경계선 추가
     final borderLayer = LineLayer(
       id: _borderCountryLayer,
       sourceId: _worldSourceId,
@@ -122,18 +221,19 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     borderLayer.lineWidth = 0.5;
     await style.addLayer(borderLayer);
 
+    // 마커 및 카메라 이동 로직
     final pointManager = await map.annotations.createPointAnnotationManager();
     Map<String, double>? lastLocation;
 
     for (final travel in travels) {
       final countryName = travel['country_name'];
       if (countryName == null) continue;
+
       try {
         final res = await OverseasTravelService.geocode(query: countryName);
         if (res != null && res['found'] == true) {
           final lat = res['lat'] as double;
           final lng = res['lng'] as double;
-
           await pointManager.create(
             PointAnnotationOptions(
               geometry: Point(coordinates: Position(lng, lat)),
@@ -143,12 +243,9 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
           );
           lastLocation = {'lat': lat, 'lng': lng};
         }
-      } catch (e) {
-        debugPrint('❌ [GEOCODE FAIL] $countryName → $e');
-      }
+      } catch (_) {}
     }
 
-    // ✅ 핵심: isReadOnly가 false일 때만 마지막 위치로 이동(애니메이션) 실행
     if (!widget.isReadOnly && lastLocation != null) {
       await map.easeTo(
         CameraOptions(
@@ -159,28 +256,10 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         ),
         MapAnimationOptions(duration: 1500),
       );
-    } /*
-    else {
-      
-      debugPrint('ℹ️ No travels or last location available for centering.');
-
-      CameraOptions(
-        center: Point(coordinates: Position(10.0, 20.0)),
-        zoom: 0,
-        bearing: 0,
-        pitch: 0,
-      );
-      await map.gestures.updateSettings(
-        GesturesSettings(
-          scrollEnabled: true, // 화면 스크롤(이동)만 활성화
-          pitchEnabled: false, // 기울기 비활성화
-          rotateEnabled: false, // 회전 비활성화
-        ),
-      );
     }
-    */
   }
 
+  // _rmLayer, _rmSource 헬퍼 함수 생략 가능 (코드 하단에 위치)
   Future<void> _rmLayer(StyleManager style, String id) async {
     try {
       if (await style.styleLayerExists(id)) await style.removeStyleLayer(id);
