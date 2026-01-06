@@ -83,4 +83,12 @@ class AppColors {
   static const tabSelected = Color(0xFF19C6E3); // 한국 선택 (피그마 파랑)
   static const tabText = Color(0xFF8E8E8E); // 미선택 텍스트
   static const tabSelectedText = Colors.white;
+
+  // =========================
+  // 📜 Map Vintage (Parchment 스타일 전용)
+  // =========================
+  static const mapVintageBackground = Color(0xFFF5E6D3); // 양피지 기본 배경색
+  static const mapVisitedFill = Color(0xFFC19A6B); // 방문 지역 (오래된 황토색 인장 느낌)
+  static const mapVisitedBorder = Color(0xFF5D4037); // 방문 지역 테두리 (진한 갈색 잉크)
+  static const mapTextInk = Color(0xFF3E2723); // 지도 위 텍스트용 잉크색
 }

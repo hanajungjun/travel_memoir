@@ -4,6 +4,9 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
+
+// ✅ 색상 상수를 정의한 파일 임포트
+import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/visited_region_service.dart';
 
 class DomesticMapPage extends StatefulWidget {
@@ -34,11 +37,13 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
   @override
   Widget build(BuildContext context) {
     return MapWidget(
+      // ✅ 직접 선택하신 빈티지 양피지 스타일 URL
+      styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
       cameraOptions: CameraOptions(
         center: Point(coordinates: Position(127.8, 36.3)),
         zoom: 5.2,
       ),
-      // ✅ PageView 안에서도 지도 제스처 먹게 하는 핵심
+      // ✅ PageView 안에서도 지도 제스처가 작동하게 하는 핵심 설정
       gestureRecognizers: {
         Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
       },
@@ -48,19 +53,19 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
   }
 
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
-    // 🔥 중복 방지
+    // 🔥 스타일 로드 중복 처리 방지
     if (_styleInitialized) {
       debugPrint('🛑 [MAP] style already initialized -> skip');
       return;
     }
     _styleInitialized = true;
 
-    debugPrint('🗺️ [MAP] style loaded');
+    debugPrint('🗺️ [MAP] style loaded with vintage theme');
 
     final map = _map;
     if (map == null) return;
 
-    // ✅ 여기서 Supabase user id 사용
+    // ✅ Supabase 인증 정보 확인
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
@@ -82,7 +87,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
 
     final style = map.style;
 
-    // ===== SIDO =====
+    // ===== SIDO (시도 레이어 설정) =====
     if (visitedSidoCodes.isNotEmpty) {
       final sidoGeojson = await rootBundle.loadString(_sidoGeoJson);
 
@@ -103,8 +108,9 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
             ['get', 'SIDO_CD'],
             ['literal', visitedSidoCodes.toList()],
           ],
-          fillColor: 0xFFE53935,
-          fillOpacity: 0.85,
+          // ✅ AppColors의 빈티지 황토색 사용
+          fillColor: AppColors.mapVisitedFill.value,
+          fillOpacity: 0.6, // 양피지 질감이 비치도록 투명도 조정
         ),
       );
 
@@ -112,13 +118,15 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         LineLayer(
           id: _borderSidoLayer,
           sourceId: _sidoSourceId,
-          lineColor: 0xFF333333,
-          lineWidth: 1,
+          // ✅ AppColors의 진한 잉크색 사용
+          lineColor: AppColors.mapVisitedBorder.value,
+          lineWidth: 1.2,
+          lineBlur: 0.5, // 잉크 번짐 효과 추가
         ),
       );
     }
 
-    // ===== SIGUNGU =====
+    // ===== SIGUNGU (시군구 레이어 설정) =====
     if (visitedSigunguCodes.isNotEmpty) {
       final sigGeojson = await rootBundle.loadString(_sigGeoJson);
 
@@ -137,8 +145,9 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
             ['get', 'SGG_CD'],
             ['literal', visitedSigunguCodes.toList()],
           ],
-          fillColor: 0xFFE53935,
-          fillOpacity: 0.85,
+          // ✅ 동일한 빈티지 색상 적용
+          fillColor: AppColors.mapVisitedFill.value,
+          fillOpacity: 0.6,
         ),
       );
 
@@ -146,13 +155,14 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         LineLayer(
           id: _borderSigLayer,
           sourceId: _sigSourceId,
-          lineColor: 0xFF333333,
+          lineColor: AppColors.mapVisitedBorder.value,
           lineWidth: 0.8,
+          lineBlur: 0.3,
         ),
       );
     }
 
-    debugPrint('✅ map render done');
+    debugPrint('✅ map render done with AppColors settings');
   }
 
   Future<void> _rmLayer(StyleManager style, String id) async {

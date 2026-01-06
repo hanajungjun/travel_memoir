@@ -17,8 +17,10 @@ class GeminiService {
     required String finalPrompt,
     required List<File> photos,
   }) async {
+    // final url =
+    //     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$_apiKey';
     final url =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$_apiKey';
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=$_apiKey';
 
     debugPrint('🤖 [GEMINI] summary request');
 
@@ -138,7 +140,8 @@ $finalPrompt
 
     final inlineData = parts[0]['inlineData'];
     if (inlineData == null || inlineData['data'] == null) {
-      throw Exception('❌ Gemini image: no inlineData');
+      debugPrint('🚫 [GEMINI] text-only response → no retry');
+      throw Exception('GEMINI_TEXT_ONLY_RESPONSE');
     }
 
     final base64Str = inlineData['data'];
