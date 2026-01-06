@@ -98,34 +98,61 @@ class OverseasTravelSummaryService {
     return totalDays;
   }
 
-  /// 가장 많이 간 국가
+  /// 가장 많이 간 국가 (다국어 대응 및 코드 기준 집계)
   static Future<String> _getMostVisitedCountry(String userId) async {
+    // 1. 데이터 조회 (국가 코드와 다국어 이름을 모두 가져옵니다)
     final rows = await _supabase
         .from('travels')
-        .select('country_name')
+        .select('country_code, country_name_ko, country_name_en')
         .eq('user_id', userId)
         .eq('travel_type', 'overseas')
         .eq('is_completed', true);
 
-    final Map<String, int> countryCount = {};
-
-    for (final row in rows) {
-      final raw = row['country_name'];
-      final countryName = raw?.toString().trim();
-
-      if (countryName == null || countryName.isEmpty) continue;
-
-      countryCount[countryName] = (countryCount[countryName] ?? 0) + 1;
+    // 데이터가 없으면 바로 반환
+    if (rows.isEmpty) {
+      return '-';
     }
 
-    // 🔥 이 줄이 없으면 언젠가 반드시 터짐
+    final Map<String, int> countryCount = {};
+    final Map<String, Map<String, String>> countryNames = {};
+
+    // 2. 국가 코드(ISO Code)를 기준으로 개수 집계
+    for (final row in rows) {
+      final String? code = row['country_code']?.toString();
+      if (code == null || code.isEmpty) continue;
+
+      // 빈도수 계산
+      countryCount[code] = (countryCount[code] ?? 0) + 1;
+
+      // 나중에 출력할 이름을 위해 코드별로 이름 매핑 보관
+      countryNames[code] = {
+        'ko': row['country_name_ko']?.toString() ?? '',
+        'en': row['country_name_en']?.toString() ?? '',
+      };
+    }
+
     if (countryCount.isEmpty) {
       return '-';
     }
 
-    return countryCount.entries
+    // 3. 가장 많이 나타난 국가 코드 추출
+    final String mostVisitedCode = countryCount.entries
         .reduce((a, b) => a.value >= b.value ? a : b)
         .key;
+
+    // 4. 현재 디바이스 언어 설정 확인 (한국어 여부)
+    final bool isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
+
+    // 5. 언어 설정에 맞는 이름 선택 및 반환
+    // 5. 언어 설정에 맞는 이름 선택 및 반환
+    final names = countryNames[mostVisitedCode];
+    // names가 null일 경우를 대비해 기본값을 지정하고, 확실한 String으로 추출합니다.
+    final String resultName = isKo
+        ? (names?['ko'] ?? '')
+        : (names?['en'] ?? '');
+
+    // 최종 결과가 비어있지 않으면 이름 반환, 없으면 '-' 반환
+    return resultName.isNotEmpty ? resultName : '-';
   }
 
   /// ✈️ 해외 여행 횟수 (외부용)

@@ -56,6 +56,8 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage>
       ),
       body: TabBarView(
         controller: _tabController,
+        // ✅ 이 한 줄을 추가하면 스와이프로 탭이 넘어가지 않습니다!
+        physics: const NeverScrollableScrollPhysics(),
         children: [
           _DomesticTab(userId: _userId),
           const _WorldTab(),
@@ -66,7 +68,7 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage>
 }
 
 // =======================================================
-// 🌍 해외 탭
+// 🌍 해외 탭 (수정됨: 지도 풀 너비 + 줌 고정 조작)
 // =======================================================
 class _WorldTab extends StatelessWidget {
   const _WorldTab();
@@ -77,13 +79,11 @@ class _WorldTab extends StatelessWidget {
 
     return FutureBuilder<List<Object>>(
       future: Future.wait([
-        OverseasTravelSummaryService.getTotalCountryCount(), // 0
-        OverseasTravelSummaryService.getVisitedCountryCount(
-          userId: userId,
-        ), // 1
-        OverseasTravelSummaryService.getTravelCount(userId: userId), // 2
-        OverseasTravelSummaryService.getTotalTravelDays(userId: userId), // 3
-        OverseasTravelSummaryService.getMostVisitedCountry(userId: userId), // 4
+        OverseasTravelSummaryService.getTotalCountryCount(),
+        OverseasTravelSummaryService.getVisitedCountryCount(userId: userId),
+        OverseasTravelSummaryService.getTravelCount(userId: userId),
+        OverseasTravelSummaryService.getTotalTravelDays(userId: userId),
+        OverseasTravelSummaryService.getMostVisitedCountry(userId: userId),
       ]),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -91,12 +91,7 @@ class _WorldTab extends StatelessWidget {
         }
 
         if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              '에러 발생:\n${snapshot.error}',
-              textAlign: TextAlign.center,
-            ),
-          );
+          return Center(child: Text('에러 발생:\n${snapshot.error}'));
         }
 
         final total = snapshot.data![0] as int;
@@ -106,41 +101,54 @@ class _WorldTab extends StatelessWidget {
         final mostVisitedCountry = snapshot.data![4] as String;
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          // ✅ [수정] 지도가 옆으로 붙어야 하므로 전체 패딩을 뺍니다.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _TotalDonutCard(
-                visited: visited,
-                total: total,
-                title: 'In Total',
-                sub: 'Countries',
-                percent: total == 0 ? 0 : (visited / total * 100).round(),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 350,
-                child: GlobalMapPage(isReadOnly: true),
-              ),
-              const SizedBox(height: 24),
-              Container(
+              // 1. 상단 통계 카드 (개별 패딩 적용)
+              Padding(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.lightSurface,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('여행 요약', style: AppTextStyles.sectionTitle),
-                    const SizedBox(height: 12),
-                    Text('여행 횟수: $travelCount회'),
-                    Text('총 여행 일수: $travelDays일'),
-                    Text('가장 많이 간 국가: $mostVisitedCountry'),
-                  ],
+                child: _TotalDonutCard(
+                  visited: visited,
+                  total: total,
+                  title: 'In Total',
+                  sub: 'Countries',
+                  percent: total == 0 ? 0 : (visited / total * 100).round(),
                 ),
               ),
+
+              // 2. 🌍 글로벌 지도 (화면 끝까지 넓힘 + 줌 고정 + 가로 이동)
+              // ✅ 높이를 300으로 조정하여 줌 0.0 상태에서 남극/북극 시야를 확보합니다.
+              SizedBox(
+                width: MediaQuery.of(context).size.width,
+                height: 300,
+                child: const GlobalMapPage(isReadOnly: true), // 🔥 요약 모드로 활성화
+              ),
+
+              const SizedBox(height: 24),
+
+              // 3. 하단 여행 요약 카드 (개별 패딩 적용)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.lightSurface,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('여행 요약', style: AppTextStyles.sectionTitle),
+                      const SizedBox(height: 12),
+                      Text('여행 횟수: $travelCount회'),
+                      Text('총 여행 일수: $travelDays일'),
+                      Text('가장 많이 간 국가: $mostVisitedCountry'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         );
@@ -150,11 +158,10 @@ class _WorldTab extends StatelessWidget {
 }
 
 // =======================================================
-// 🇰🇷 국내 탭
+// 🇰🇷 국내 탭 (수정됨: 해외 탭과 레이아웃 통일)
 // =======================================================
 class _DomesticTab extends StatelessWidget {
   final String userId;
-
   const _DomesticTab({required this.userId});
 
   @override
@@ -174,8 +181,6 @@ class _DomesticTab extends StatelessWidget {
         }
 
         final visitedCityCount = snapshot.data![0] as int;
-        final areaCounts = snapshot.data![1] as Map<String, int>;
-
         final totalCityCount = koreaRegionMaster
             .where(
               (r) =>
@@ -186,26 +191,29 @@ class _DomesticTab extends StatelessWidget {
             .length;
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _TotalDonutCard(
-                visited: visitedCityCount,
-                total: totalCityCount,
-                sub: '방문한 도시',
-                percent: (visitedCityCount / totalCityCount * 100).round(),
-              ),
-              const SizedBox(height: 20),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: SizedBox(
-                  height: 350,
-                  child: AbsorbPointer(child: DomesticMapPage()),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: _TotalDonutCard(
+                  visited: visitedCityCount,
+                  total: totalCityCount,
+                  sub: '방문한 도시',
+                  percent: (visitedCityCount / totalCityCount * 100).round(),
                 ),
               ),
+              // 국내 지도도 풀 너비로 변경
+              SizedBox(
+                width: double.infinity,
+                height: 350,
+                child: AbsorbPointer(child: DomesticMapPage()),
+              ),
               const SizedBox(height: 24),
-              _TravelSummaryCard(userId: userId),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _TravelSummaryCard(userId: userId),
+              ),
+              const SizedBox(height: 40),
             ],
           ),
         );
@@ -219,7 +227,6 @@ class _DomesticTab extends StatelessWidget {
 // =======================================================
 class _TravelSummaryCard extends StatelessWidget {
   final String userId;
-
   const _TravelSummaryCard({required this.userId});
 
   @override
@@ -236,7 +243,6 @@ class _TravelSummaryCard extends StatelessWidget {
         }
 
         final summary = snapshot.data!;
-
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
@@ -264,14 +270,12 @@ class _TravelSummaryCard extends StatelessWidget {
       isDomestic: true,
       isCompleted: true,
     );
-
     final totalTravelDays =
         await DomesticTravelSummaryService.getTotalTravelDays(
           userId: userId,
           isDomestic: true,
           isCompleted: true,
         );
-
     final mostVisitedRegion =
         await DomesticTravelSummaryService.getMostVisitedRegion(
           userId: userId,
@@ -288,7 +292,7 @@ class _TravelSummaryCard extends StatelessWidget {
 }
 
 // =======================================================
-// 🧩 도넛 카드
+// 🧩 공통 도넛 카드 위젯
 // =======================================================
 class _TotalDonutCard extends StatelessWidget {
   final int visited;
@@ -344,13 +348,20 @@ class _TotalDonutCard extends StatelessWidget {
           Stack(
             alignment: Alignment.center,
             children: [
-              CircularProgressIndicator(
-                value: total == 0 ? 0 : visited / total,
-                strokeWidth: 8,
-                backgroundColor: Colors.grey.shade300,
-                color: AppColors.primary,
+              SizedBox(
+                width: 60,
+                height: 60,
+                child: CircularProgressIndicator(
+                  value: total == 0 ? 0 : visited / total,
+                  strokeWidth: 8,
+                  backgroundColor: Colors.grey.shade300,
+                  color: AppColors.primary,
+                ),
               ),
-              Text('$percent%'),
+              Text(
+                '$percent%',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
             ],
           ),
         ],
@@ -360,7 +371,7 @@ class _TotalDonutCard extends StatelessWidget {
 }
 
 // =======================================================
-// 🦴 스켈레톤
+// 🦴 스켈레톤 위젯
 // =======================================================
 class _MyTravelSummarySkeleton extends StatelessWidget {
   const _MyTravelSummarySkeleton();

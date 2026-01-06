@@ -30,6 +30,9 @@ class _OverseasTravelCountryPageState extends State<OverseasTravelCountryPage> {
 
     if (!mounted) return;
 
+    // ✅ [추가] 가나다/ABC 순으로 정렬
+    list.sort((a, b) => a.displayName().compareTo(b.displayName()));
+
     setState(() {
       _countries = list;
       _filtered = list;
@@ -38,14 +41,14 @@ class _OverseasTravelCountryPageState extends State<OverseasTravelCountryPage> {
   }
 
   void _search(String q) {
+    final query = q.trim().toLowerCase();
     setState(() {
-      _filtered = _countries
-          .where(
-            (c) =>
-                c.displayName().toLowerCase().contains(q.toLowerCase()) ||
-                c.code.toLowerCase().contains(q.toLowerCase()),
-          )
-          .toList();
+      _filtered = _countries.where((c) {
+        // ✅ [개선] 한국어 이름, 영어 이름, 국가 코드를 모두 검색 대상에 포함
+        return c.nameKo.contains(query) ||
+            c.nameEn.toLowerCase().contains(query) ||
+            c.code.toLowerCase().contains(query);
+      }).toList();
     });
   }
 
@@ -103,19 +106,29 @@ class _OverseasTravelCountryPageState extends State<OverseasTravelCountryPage> {
                                   width: 36,
                                   height: 24,
                                   fit: BoxFit.cover,
+                                  // 💡 이미지가 로딩되지 않을 때를 대비한 처리
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const SizedBox(
+                                        width: 36,
+                                        child: Icon(Icons.flag),
+                                      ),
                                 ),
                               )
                             : const SizedBox(width: 36),
 
                         title: Text(
-                          c.displayName(),
+                          // ✅ displayName() 대신 직접 한국어 이름을 우선적으로 보여주고 싶다면:
+                          c.nameKo,
+                          // 만약 "한국어(영어)" 형태를 원하신다면: '${c.nameKo} (${c.nameEn})'
                           style: AppTextStyles.body.copyWith(
                             color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         subtitle: Text(
-                          c.continent,
-                          style: AppTextStyles.bodyMuted,
+                          // ✅ 영문 이름을 부제목으로 넣으면 더 가독성이 좋아집니다.
+                          '${c.nameEn} · ${c.continent}',
+                          style: AppTextStyles.bodyMuted.copyWith(fontSize: 12),
                         ),
 
                         trailing: const Icon(

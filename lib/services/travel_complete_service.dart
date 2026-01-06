@@ -71,10 +71,16 @@ class TravelCompleteService {
     }
 
     final gemini = GeminiService();
+    // 🌐 한국어 설정 여부 확인
+    final bool isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
+
     final String placeName =
         (travel['travel_type'] == 'domestic'
                 ? travel['region_name']
-                : travel['country_name'])
+                // ✅ 해외여행일 때 시스템 언어에 따라 분기 처리
+                : (isKo
+                      ? travel['country_name_ko']
+                      : travel['country_name_en']))
             ?.toString() ??
         '여행';
 

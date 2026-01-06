@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
-
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -20,7 +17,6 @@ class RecentTravelSection extends StatelessWidget {
       future: TravelListService.getRecentTravels(),
       builder: (context, snapshot) {
         final travels = snapshot.data ?? [];
-
         final displayTravels = travels.take(_maxCards).toList();
         final emptyCount = _maxCards - displayTravels.length;
         final showSeeAll = travels.length > _maxCards;
@@ -28,25 +24,25 @@ class RecentTravelSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ===== 타이틀 =====
+            // ===== 타이틀 & See All =====
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('최근 여행', style: AppTextStyles.sectionTitle),
+                Text('최근 여행지', style: AppTextStyles.sectionTitle),
                 if (showSeeAll)
                   GestureDetector(
                     onTap: onSeeAll,
                     child: Text(
-                      'See all',
+                      'see all',
                       style: AppTextStyles.body.copyWith(
-                        color: AppColors.primary,
+                        color: Colors.grey, // 스크린샷 느낌의 연한 색상
                       ),
                     ),
                   ),
               ],
             ),
-
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
             // ===== 카드 3칸 =====
             Row(
@@ -59,7 +55,6 @@ class RecentTravelSection extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 for (int i = 0; i < emptyCount; i++)
                   const Expanded(
                     child: Padding(
@@ -77,17 +72,15 @@ class RecentTravelSection extends StatelessWidget {
 }
 
 // ===================================================================
-// 카드
+// 최근 여행 카드
 // ===================================================================
-
 class _RecentTravelCard extends StatelessWidget {
   final Map<String, dynamic> travel;
-
   const _RecentTravelCard({required this.travel});
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = _mapImageUrl(travel);
+    final imageUrl = travel['map_image_url'] as String?;
 
     return GestureDetector(
       onTap: () {
@@ -98,129 +91,92 @@ class _RecentTravelCard extends StatelessWidget {
           ),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ===== 지도 이미지 =====
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: imageUrl != null
-                    ? Image.network(
-                        '$imageUrl?t=${travel['completed_at']}',
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            Container(color: AppColors.divider),
-                      )
-                    : Container(color: AppColors.divider),
+      child: Column(
+        children: [
+          // ===== 이미지 영역 (모서리 곡률 조절) =====
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20), // 스크린샷처럼 둥글게
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: imageUrl != null
+                  ? Image.network(
+                      '$imageUrl?t=${travel['completed_at']}',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Container(color: AppColors.divider),
+                    )
+                  : Container(color: AppColors.divider),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ===== 지역명 & 여행 일수 (한 줄 표시 및 가운데 정렬) =====
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                // ✅ 언어 설정을 체크해서 한국어면 ko, 아니면 en 컬럼을 보여줍니다.
+                '${travel['region_name'] ?? (View.of(context).platformDispatcher.locale.languageCode == 'ko' ? travel['country_name_ko'] : travel['country_name_en']) ?? '여행지'}',
+                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
               ),
-            ),
-
-            const SizedBox(height: 10),
-
-            // ===== 국내 / 해외 =====
-            Text(
-              // 1순위: 대구, 부산 같은 지역 이름 (region_name)
-              // 2순위: 그게 없으면 국가 이름 (country_name)
-              // 3순위: 둘 다 없으면 '여행지'라고 표시
-              (travel['region_name'] ?? travel['country_name'] ?? '여행지')
-                  .toString(),
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
+              const SizedBox(width: 4),
+              Text(
+                _periodText(travel),
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
-            ),
-
-            const SizedBox(height: 4),
-
-            // ===== 기간 텍스트 =====
-            Text(
-              _periodText(travel),
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
-  }
-
-  // 🔥 핵심: map.png 경로 생성
-  String? _mapImageUrl(Map<String, dynamic> travel) {
-    return travel['map_image_url'] as String?;
   }
 
   String _periodText(Map<String, dynamic> travel) {
     final start = DateTime.tryParse(travel['start_date'] ?? '');
     final end = DateTime.tryParse(travel['end_date'] ?? '');
-
     if (start == null) return '';
-
-    if (end == null || start.isAtSameMomentAs(end)) {
-      return '당일치기';
-    }
+    if (end == null || start.isAtSameMomentAs(end)) return '당일치기';
 
     final days = end.difference(start).inDays + 1;
     final nights = days - 1;
-
     return '${nights}박 ${days}일';
   }
 }
 
 // ===================================================================
-// 빈 카드
+// 빈 카드 (디자인 통일)
 // ===================================================================
-
 class _EmptyTravelCard extends StatelessWidget {
   const _EmptyTravelCard();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.lightSurface,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ===== 이미지 영역 (왼쪽 카드와 동일) =====
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                color: AppColors.divider,
-                child: const Center(
-                  child: Icon(
-                    Icons.add_location_alt,
-                    size: 34,
-                    color: Colors.grey,
-                  ),
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Container(
+              color: AppColors.lightSurface,
+              child: const Center(
+                child: Icon(
+                  Icons.add_location_alt,
+                  size: 30,
+                  color: Colors.grey,
                 ),
               ),
             ),
           ),
-
-          const SizedBox(height: 10),
-
-          // ===== 텍스트 영역 (국내/해외 위치와 동일한 레벨) =====
-          Text(
-            '여행을 추가해보세요',
-            style: AppTextStyles.caption.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-
-          const SizedBox(height: 4),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '여행 추가',
+          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+        ),
+      ],
     );
   }
 }

@@ -63,14 +63,17 @@ class _HeaderContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = travel; // ✅ 로컬로 잡아두면 null 처리 깔끔
+    final t = travel;
     final isTraveling = t != null;
     final isDomestic = t?['travel_type'] == 'domestic';
 
+    final bool isKo =
+        View.of(context).platformDispatcher.locale.languageCode == 'ko';
+
     final title = isTraveling
         ? (isDomestic
-              ? '${(t?['region_name'] ?? t?['city_name'] ?? '국내')} 여행중'
-              : '${(t?['country_name'] ?? '해외')} 여행중')
+              ? '${(t['region_name'] ?? t['city_name'] ?? '국내')} 여행중' // 👈 t?['...'] 에서 ? 제거
+              : '${((isKo ? t['country_name_ko'] : t['country_name_en']) ?? '해외')} 여행중') // 👈 t?['...'] 에서 ? 제거
         : '여행 준비중';
 
     final subtitle = isTraveling

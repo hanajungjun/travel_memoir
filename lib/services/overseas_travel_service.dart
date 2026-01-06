@@ -12,7 +12,8 @@ class OverseasTravelService {
 
     final rows = await _supabase
         .from('travels')
-        .select('id, country_name, country_code')
+        // ✅ country_name 대신 다국어 컬럼 2개를 모두 가져옵니다.
+        .select('id, country_name_ko, country_name_en, country_code')
         .eq('user_id', userId)
         .eq('travel_type', 'overseas');
 

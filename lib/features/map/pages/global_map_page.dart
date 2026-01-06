@@ -29,7 +29,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   @override
   Widget build(BuildContext context) {
     return MapWidget(
-      styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
+      // styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
       cameraOptions: CameraOptions(
         center: Point(coordinates: Position(10.0, 20.0)),
         zoom: widget.isReadOnly ? 0.1 : 0.5,
@@ -70,7 +70,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         final props =
             features.first?.queriedFeature.feature['properties'] as Map?;
         if (props != null) {
-          // 📍 GeoJSON 속성명이 ISO_A2_EH인지 확인 필수!
+          // GeoJSON 속성명 확인 (ISO_A2_EH)
           final String countryCode =
               props['ISO_A2_EH'] ?? props['iso_a2'] ?? '';
           final String countryName = props['NAME'] ?? props['name'] ?? '해외 지역';
@@ -87,7 +87,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   }
 
   // =========================================================
-  // 🎨 2. AI 이미지 팝업 (해외 데이터 필터링 강화)
+  // 🎨 2. AI 이미지 팝업 (완료된 여행 데이터만 조회)
   // =========================================================
   void _showOverseasAiPopup(String countryCode, String countryName) async {
     final user = Supabase.instance.client.auth.currentUser;
@@ -96,20 +96,27 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     try {
       final response = await Supabase.instance.client
           .from('travels')
-          .select('map_image_url, country_name, ai_cover_summary')
+          .select(
+            'map_image_url, country_name_ko, country_name_en, ai_cover_summary',
+          )
           .eq('user_id', user.id)
-          .eq('country_code', countryCode) // 👈 클릭한 국가 코드와 정확히 매칭
+          .eq('country_code', countryCode)
+          .eq('is_completed', true) // ✅ 완료된 여행만 필터링
           .not('map_image_url', 'is', null)
-          .order('created_at', ascending: false)
+          .order('completed_at', ascending: false) // 최신 완료순
           .limit(1)
           .maybeSingle();
 
       if (response == null || response['map_image_url'] == null) {
-        debugPrint('ℹ️ $countryName 지역의 기록이 없습니다.');
+        debugPrint('ℹ️ $countryName 지역의 완료된 기록이 없습니다.');
         return;
       }
 
       if (!mounted) return;
+
+      // 🌐 시스템 언어 확인
+      final bool isKo =
+          View.of(context).platformDispatcher.locale.languageCode == 'ko';
 
       showGeneralDialog(
         context: context,
@@ -119,6 +126,14 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
         transitionBuilder: (context, anim1, anim2, child) {
           final curvedValue = Curves.easeOutBack.transform(anim1.value);
+
+          // 다국어 이름 결정
+          final displayRegion =
+              (isKo
+                  ? response['country_name_ko']
+                  : response['country_name_en']) ??
+              countryName;
+
           return Transform(
             transform: Matrix4.identity()
               ..setEntry(3, 2, 0.001)
@@ -128,7 +143,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
               opacity: anim1.value.clamp(0.0, 1.0),
               child: AiMapPopup(
                 imageUrl: response['map_image_url'],
-                regionName: response['country_name'] ?? countryName,
+                regionName: displayRegion,
                 summary: response['ai_cover_summary'] ?? "먼 곳에서 온 기록.",
               ),
             ),
@@ -151,7 +166,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     if (map == null) return;
     final style = map.style;
 
-    // 2D 평면 고정
+    // 2D 평면 고정 (Mercator)
     try {
       await style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
@@ -160,7 +175,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       debugPrint('⚠️ Projection 에러: $e');
     }
 
-    // 한글화
+    // 기본 레이어 한글화
     try {
       final layers = await style.getStyleLayers();
       for (var layer in layers) {
@@ -178,19 +193,31 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    final travels = await OverseasTravelService.getOverseasTravels(
-      userId: user.id,
+    // ✅ [수정] 완료된 해외 여행 데이터만 직접 가져오기
+    final response = await Supabase.instance.client
+        .from('travels')
+        .select('country_code, country_name_ko, country_name_en')
+        .eq('user_id', user.id)
+        .eq('travel_type', 'overseas')
+        .eq('is_completed', true); // 🔥 등록만 한 여행은 제외
+
+    final List<Map<String, dynamic>> travels = List<Map<String, dynamic>>.from(
+      response,
     );
+
     final worldGeoJson = await rootBundle.loadString(_worldGeoJson);
 
+    // 기존 자원 정리
     await _rmLayer(style, _visitedCountryLayer);
     await _rmLayer(style, _borderCountryLayer);
     await _rmSource(style, _worldSourceId);
 
+    // GeoJSON 소스 추가
     await style.addSource(
       GeoJsonSource(id: _worldSourceId, data: worldGeoJson),
     );
 
+    // 방문한 국가(완료된 여행지) 색칠
     if (travels.isNotEmpty) {
       final Set<String> countryCodes = travels
           .map((t) => t['country_code']?.toString())
@@ -203,7 +230,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
           sourceId: _worldSourceId,
           filter: [
             'in',
-            ['get', 'ISO_A2_EH'],
+            ['get', 'ISO_A2_EH'], // GeoJSON의 국가코드 필드와 매칭
             ['literal', countryCodes.toList()],
           ],
           fillColor: AppColors.mapOverseaVisitedFill.value,
@@ -212,7 +239,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       );
     }
 
-    // 경계선 추가
+    // 국경선 추가
     final borderLayer = LineLayer(
       id: _borderCountryLayer,
       sourceId: _worldSourceId,
@@ -221,12 +248,14 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     borderLayer.lineWidth = 0.5;
     await style.addLayer(borderLayer);
 
-    // 마커 및 카메라 이동 로직
+    // 마커 생성 로직 (Geocoding 활용)
     final pointManager = await map.annotations.createPointAnnotationManager();
     Map<String, double>? lastLocation;
 
     for (final travel in travels) {
-      final countryName = travel['country_name'];
+      // 한국어 이름을 우선으로 좌표 찾기
+      final countryName =
+          travel['country_name_ko'] ?? travel['country_name_en'];
       if (countryName == null) continue;
 
       try {
@@ -246,6 +275,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       } catch (_) {}
     }
 
+    // 마지막 방문지로 카메라 이동
     if (!widget.isReadOnly && lastLocation != null) {
       await map.easeTo(
         CameraOptions(
@@ -259,7 +289,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     }
   }
 
-  // _rmLayer, _rmSource 헬퍼 함수 생략 가능 (코드 하단에 위치)
+  // --- 레이어/소스 제거 헬퍼 함수 ---
   Future<void> _rmLayer(StyleManager style, String id) async {
     try {
       if (await style.styleLayerExists(id)) await style.removeStyleLayer(id);

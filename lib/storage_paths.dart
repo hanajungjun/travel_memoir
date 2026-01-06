@@ -42,8 +42,8 @@ class StoragePaths {
   static String travelDayImage(
     String userId,
     String travelId,
-    String date, // yyyy-MM-dd
-  ) => '${travelDaysRoot(userId, travelId)}/$date.png';
+    String diaryId, // 날짜 대신 고유 ID(UUID)를 받습니다.
+  ) => '${travelDaysRoot(userId, travelId)}/$diaryId.png';
 
   /// 사용자가 직접 업로드한 사진
   static String travelUserPhoto(

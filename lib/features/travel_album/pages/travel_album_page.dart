@@ -72,12 +72,22 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
   String _travelTitle() {
     final isDomestic = widget.travel['travel_type'] == 'domestic';
+
+    // 🌐 시스템 언어 확인
+    final bool isKo =
+        View.of(context).platformDispatcher.locale.languageCode == 'ko';
+
     final place = isDomestic
         ? (widget.travel['city_name'] ?? widget.travel['city'])
-        : widget.travel['country_name'];
+        // ✅ 해외여행일 때 언어 설정에 따라 ko/en 컬럼 선택
+        : (isKo
+              ? widget.travel['country_name_ko']
+              : widget.travel['country_name_en']);
+
     final title = (widget.travel['title'] ?? '').toString();
 
-    return title.isNotEmpty ? title : '${place ?? ''} 여행';
+    // 제목이 있으면 제목을, 없으면 '장소명 여행' 표시
+    return title.isNotEmpty ? title : '${place ?? '해외'} 여행';
   }
 
   String _dateRangeText() {

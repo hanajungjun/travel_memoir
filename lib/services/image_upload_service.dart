@@ -38,32 +38,39 @@ class ImageUploadService {
   }
 
   // =====================================================
-  // 🎨 AI 그림일기 업로드 (travels/{id}/days/yyyy-MM-dd.png)
+  // 🤖 AI 생성 이미지 업로드 (🔥 date 대신 diaryId 사용)
   // =====================================================
-  static Future<String> uploadDiaryImage({
+  static Future<void> uploadDiaryImage({
     required String userId,
     required String travelId,
-    required DateTime date,
+    required String diaryId,
     required Uint8List imageBytes,
   }) async {
-    final path = StoragePaths.travelDayImage(
-      userId,
-      travelId,
-      date.toIso8601String().substring(0, 10), // yyyy-MM-dd
-    );
+    final supabase = Supabase.instance.client;
+    final path = StoragePaths.travelDayImage(userId, travelId, diaryId);
 
-    await _supabase.storage
-        .from('travel_images')
-        .uploadBinary(
-          path,
-          imageBytes,
-          fileOptions: const FileOptions(
-            contentType: 'image/png',
-            upsert: true, // 🔥 같은 날짜면 덮어쓰기 (정답)
-          ),
-        );
+    // 🔥 저장 로그 추가
+    print('-----------------------------------------');
+    print('📤 [STORAGE UPLOAD] 시작');
+    print('📍 저장 경로(Path): $path');
+    print('📦 파일 크기: ${imageBytes.length} bytes');
 
-    return _supabase.storage.from('travel_images').getPublicUrl(path);
+    try {
+      await supabase.storage
+          .from('travel_images')
+          .uploadBinary(
+            path,
+            imageBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/png',
+              upsert: true,
+            ),
+          );
+      print('✅ [STORAGE UPLOAD] 성공!');
+    } catch (e) {
+      print('❌ [STORAGE UPLOAD] 실패: $e');
+    }
+    print('-----------------------------------------');
   }
 
   // =====================================================

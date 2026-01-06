@@ -58,109 +58,98 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // 🎨 전체 배경색을 약간 회색으로 설정 (카드가 돋보이게)
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: const Color(0xFFF8F9FA),
         elevation: 0,
-        toolbarHeight: 44,
+        centerTitle: true,
+        title: Text('여행 기록', style: AppTextStyles.sectionTitle),
       ),
-      body: Column(
-        children: [
-          // 🔥 디버그 ID
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            color: Colors.black.withOpacity(0.04),
-            child: const Text(
-              'PAGE: TravelInfoPage',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ),
-
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const TravelInfoListSkeleton();
-                }
-
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Center(
-                    child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
-                  );
-                }
-
-                final travels = snapshot.data!;
-
-                return ListView.separated(
-                  padding: const EdgeInsets.all(20),
-                  itemCount: travels.length,
-                  separatorBuilder: (_, __) =>
-                      Divider(height: 24, color: AppColors.divider),
-                  itemBuilder: (context, index) {
-                    final travel = travels[index];
-
-                    return _SwipeDeleteItem(
-                      travel: travel,
-                      onDelete: () async {
-                        await TravelCreateService.deleteTravel(travel['id']);
-                        if (!mounted) return;
-                        _refresh();
-
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('여행이 삭제되었습니다')),
-                        );
-                      },
-                      onTap: () async {
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TravelDiaryListPage(travel: travel),
-                          ),
-                        );
-                        _refresh();
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.travelingBlue,
-        onPressed: () async {
-          final created = await Navigator.push<Map<String, dynamic>>(
-            context,
-            MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
-          );
-
-          if (!mounted) return;
-
-          if (created != null) {
-            _refresh();
-            await Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TravelDiaryListPage(travel: created),
-              ),
-            );
-            _refresh();
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const TravelInfoListSkeleton();
           }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(
+              child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
+            );
+          }
+
+          final travels = snapshot.data!;
+
+          return ListView.separated(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            itemCount: travels.length,
+            // ✂️ 구분선 대신 간격을 두어 카드 느낌을 살림
+            separatorBuilder: (_, __) => const SizedBox(height: 16),
+            itemBuilder: (context, index) {
+              final travel = travels[index];
+
+              return _SwipeDeleteItem(
+                travel: travel,
+                onDelete: () async {
+                  await TravelCreateService.deleteTravel(travel['id']);
+                  if (!mounted) return;
+                  _refresh();
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('여행이 삭제되었습니다')));
+                },
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TravelDiaryListPage(travel: travel),
+                    ),
+                  );
+                  _refresh();
+                },
+              );
+            },
+          );
         },
-        child: const Icon(Icons.add, color: Colors.black),
+      ),
+      floatingActionButton: SizedBox(
+        width: 60,
+        height: 60,
+        child: FloatingActionButton(
+          elevation: 8, // 그림자를 조금 더 깊게
+          backgroundColor: AppColors.travelingBlue,
+          // 🎨 카드와 어울리는 둥근 사각형 모양으로 변경
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(50),
+          ),
+          onPressed: () async {
+            final created = await Navigator.push<Map<String, dynamic>>(
+              context,
+              MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
+            );
+            if (!mounted) return;
+            if (created != null) {
+              _refresh();
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TravelDiaryListPage(travel: created),
+                ),
+              );
+              _refresh();
+            }
+          },
+          child: const Icon(Icons.add, color: Colors.white, size: 32),
+        ),
       ),
     );
   }
 }
 
 // =====================================================
-// 🔥 스와이프 삭제 아이템
+// 🔥 스와이프 삭제 아이템 (Slidable)
 // =====================================================
-
 class _SwipeDeleteItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onDelete;
@@ -185,7 +174,7 @@ class _SwipeDeleteItem extends StatelessWidget {
             backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
             icon: Icons.delete,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(20), // 카드 곡률과 맞춤
           ),
         ],
       ),
@@ -195,9 +184,8 @@ class _SwipeDeleteItem extends StatelessWidget {
 }
 
 // =====================================================
-// 🧳 여행 카드 UI
+// 🧳 리뉴얼된 여행 카드 UI
 // =====================================================
-
 class _TravelListItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onTap;
@@ -208,97 +196,139 @@ class _TravelListItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDomestic = travel['travel_type'] == 'domestic';
 
+    // 🏷️ 제목 (스크린샷처럼 영문명 포함 가능)
+    // 🌐 한국어 설정 여부 확인
+    final bool isKo =
+        View.of(context).platformDispatcher.locale.languageCode == 'ko';
+
+    // ✅ 다국어 컬럼 반영
     final String title =
         travel['region_name'] ??
-        travel['city_name'] ??
-        travel['country_name'] ??
+        (isKo ? travel['country_name_ko'] : travel['country_name_en']) ??
         '';
+    final String engTitle =
+        travel['region_eng'] ?? travel['country_code'] ?? '';
 
-    final start = DateTime.parse(travel['start_date']);
-    final end = DateTime.parse(travel['end_date']);
-    final totalDays = end.difference(start).inDays + 1;
+    final start = travel['start_date']?.toString().replaceAll('-', '.') ?? '';
+    final end = travel['end_date']?.toString().replaceAll('-', '.') ?? '';
+
+    final startDate = DateTime.tryParse(travel['start_date'] ?? '');
+    final endDate = DateTime.tryParse(travel['end_date'] ?? '');
+    final int totalDays = (startDate != null && endDate != null)
+        ? endDate.difference(startDate).inDays + 1
+        : 0;
 
     return FutureBuilder<int>(
       future: TravelDayService.getWrittenDayCount(travelId: travel['id']),
       builder: (context, snapshot) {
         final written = snapshot.data ?? 0;
-        final completed = written == totalDays;
+        final completed = written == totalDays && totalDays > 0;
 
+        // 🎨 상태별 색상 (스크린샷 느낌)
         final badgeColor = completed
-            ? AppColors.textSecondary
+            ? const Color(0xFF9E9E9E)
             : isDomestic
-            ? AppColors.primary
-            : AppColors.decoPurple;
+            ? const Color(0xFF4A90E2)
+            : const Color(0xFF9B51E0);
 
-        return InkWell(
+        return GestureDetector(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: badgeColor.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              isDomestic ? '국내' : '해외',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: badgeColor,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            title,
-                            style: AppTextStyles.sectionTitle.copyWith(
-                              color: completed
-                                  ? AppColors.textSecondary
-                                  : AppColors.textPrimary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${travel['start_date']} ~ ${travel['end_date']}',
-                        style: AppTextStyles.bodyMuted,
-                      ),
-                    ],
-                  ),
-                ),
-                RichText(
-                  text: TextSpan(
-                    style: AppTextStyles.bodyMuted,
-                    children: [
-                      TextSpan(
-                        text: '$written',
-                        style: completed
-                            ? AppTextStyles.bodyMuted
-                            : AppTextStyles.body.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                      ),
-                      const TextSpan(text: ' / '),
-                      TextSpan(text: '$totalDays 작성'),
-                    ],
-                  ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              // ☁️ 부드러운 카드 그림자
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            // 💊 국/내외 뱃지
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: badgeColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isDomestic ? '국내' : '해외',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: badgeColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            // 📍 지역명
+                            Expanded(
+                              child: Text(
+                                engTitle.isNotEmpty
+                                    ? '$title, $engTitle'
+                                    : title,
+                                style: AppTextStyles.sectionTitle.copyWith(
+                                  fontSize: 18,
+                                  color: completed
+                                      ? Colors.grey
+                                      : Colors.black87,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        // 📅 여행 기간
+                        Text(
+                          '$start ~ $end',
+                          style: AppTextStyles.bodyMuted.copyWith(fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 📊 작성 진행률
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 13,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: '$written',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: completed ? Colors.grey : Colors.black,
+                              ),
+                            ),
+                            TextSpan(text: ' / $totalDays 작성'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );

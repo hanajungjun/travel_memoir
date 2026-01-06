@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/storage_paths.dart';
 
@@ -83,32 +84,29 @@ class TravelDayService {
   }
 
   // =====================================================
-  // 🤖 AI 이미지 URL (🔥 수정됨: null-safe)
+  // 🤖 AI 이미지 URL (🔥 ID 기반으로 수정됨)
   // =====================================================
   static String? getAiImageUrl({
     required String travelId,
-    required DateTime date,
+    required String diaryId, // ✅ 고유 ID(UUID)를 받습니다.
   }) {
     final user = _supabase.auth.currentUser;
     if (user == null) return null;
 
-    final path = StoragePaths.travelDayImage(
-      user.id,
-      travelId,
-      _dateOnly(date),
-    );
+    // StoragePaths에도 diaryId를 넘겨주도록 수정되어 있어야 합니다!
+    final path = StoragePaths.travelDayImage(user.id, travelId, diaryId);
 
     return _supabase.storage.from('travel_images').getPublicUrl(path);
   }
 
   // =====================================================
-  // ✅ 별칭
+  // ✅ 별칭 (중복 제거 및 ID 기반 통합)
   // =====================================================
   static String? getDiaryImageUrl({
     required String travelId,
-    required DateTime date,
+    required String diaryId, // ✅ String diaryId로 통일
   }) {
-    return getAiImageUrl(travelId: travelId, date: date);
+    return getAiImageUrl(travelId: travelId, diaryId: diaryId);
   }
 
   // =====================================================
@@ -121,14 +119,12 @@ class TravelDayService {
     final user = _supabase.auth.currentUser;
     if (user == null) return false;
 
-    // 1) 해당 날짜 일기 완료 처리
     await _supabase
         .from('travel_days')
         .update({'is_completed': true})
         .eq('travel_id', travelId)
         .eq('date', _dateOnly(date));
 
-    // 2) 여행 정보 조회
     final travel = await _supabase
         .from('travels')
         .select('start_date, end_date, is_completed')
@@ -141,7 +137,6 @@ class TravelDayService {
     final endDate = DateTime.parse(travel['end_date']);
     final expectedDays = endDate.difference(startDate).inDays + 1;
 
-    // 3) 완료된 일기 수
     final completedDays = await _supabase
         .from('travel_days')
         .select('id')
@@ -150,7 +145,6 @@ class TravelDayService {
 
     if (completedDays.length != expectedDays) return false;
 
-    // 4) 여행 완료 처리
     await _supabase
         .from('travels')
         .update({
@@ -202,7 +196,7 @@ class TravelDayService {
   }) async {
     final res = await _supabase
         .from('travel_days')
-        .select('date, ai_summary') // 🔥 image_url 절대 넣지 말 것
+        .select('date, ai_summary')
         .eq('travel_id', travelId)
         .order('date', ascending: true);
 
@@ -219,21 +213,55 @@ class TravelDayService {
   }
 
   // =====================================================
-  // 📸 사용자 사진 URL 저장 (현재 구조 유지)
+  // 📸 사용자 사진 URL 저장
   // =====================================================
   static Future<void> updateDiaryPhotos({
     required String travelId,
     required DateTime date,
     required List<String> photoUrls,
   }) async {
-    print('🔥 updateDiaryPhotos');
-    print('travelId=$travelId date=${_dateOnly(date)}');
-    print('photoUrls=$photoUrls');
-
     await _supabase
         .from('travel_days')
         .update({'photo_urls': photoUrls})
         .eq('travel_id', travelId)
         .eq('date', _dateOnly(date));
+  }
+
+  static Future<void> clearDiaryRecord({
+    required String travelId,
+    required String date,
+    List<dynamic>? photoUrls, // 사용자가 올린 사진들
+  }) async {
+    final supabase = Supabase.instance.client;
+
+    // 1️⃣ 사용자가 직접 올린 사진들(photo_urls) Storage에서 삭제
+    if (photoUrls != null && photoUrls.isNotEmpty) {
+      for (var url in photoUrls) {
+        try {
+          final uri = Uri.parse(url.toString());
+          // 'travel_images' 버킷 이후의 실제 파일 경로만 추출
+          final path = uri.pathSegments
+              .skip(uri.pathSegments.indexOf('travel_images') + 1)
+              .join('/');
+          await supabase.storage.from('travel_images').remove([path]);
+          debugPrint('✅ 사용자 사진 삭제 완료: $path');
+        } catch (e) {
+          debugPrint('⚠️ 사진 삭제 실패: $e');
+        }
+      }
+    }
+
+    // 2️⃣ DB 데이터 초기화 (Row는 유지, 필드만 비움)
+    await supabase
+        .from('travel_days')
+        .update({
+          'text': '', // 일기 내용 비우기
+          'ai_summary': null, // AI 요약 비우기
+          'ai_style': null, // AI 이미지 정보 비우기 (사용자 요청 반영)
+          'photo_urls': [], // 사용자 사진 리스트 비우기
+          'is_completed': false, // ✅ [추가] 일기를 지웠으므로 완료 상태를 false로 변경
+        })
+        .eq('travel_id', travelId)
+        .eq('date', date);
   }
 }
