@@ -13,11 +13,13 @@ import 'package:travel_memoir/services/prompt_cache.dart';
 
 import 'package:travel_memoir/models/image_style_model.dart';
 import 'package:travel_memoir/core/widgets/image_style_picker.dart';
+import 'package:travel_memoir/core/widgets/ad_request_dialog.dart';
 
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
+// TODO: [설명] 일기 작성
 class TravelDayPage extends StatefulWidget {
   final String travelId;
   final String placeName;
@@ -152,6 +154,71 @@ class _TravelDayPageState extends State<TravelDayPage> {
     }
   }
 
+  // 1. [추가] 광고 팝업을 띄우고 생성을 시작하는 메인 함수
+  Future<void> _handleGenerateWithAd() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+
+    final content = _contentController.text.trim();
+    if (content.isEmpty || _selectedStyle == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('일기와 스타일을 선택해주세요!')));
+      return;
+    }
+
+    // 광고 확인 팝업 (우리가 만든 위젯) 호출
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AdRequestDialog(
+        onAccept: () async {
+          setState(() => _loading = true); // 로딩 시작
+
+          try {
+            // [핵심] 광고 대기(15초)와 AI 호출을 동시에 시작!
+            final results = await Future.wait([
+              Future.delayed(const Duration(seconds: 15)), // 15초 광고 시간 벌기
+              _runAiGeneration(), // 백그라운드에서 AI 실행
+            ]);
+
+            if (!mounted) return;
+
+            // 결과 반영 (results[1]에 AI가 만든 데이터가 들어있음)
+            final aiData = results[1] as Map<String, dynamic>;
+            setState(() {
+              _summaryText = aiData['summary'];
+              _generatedImage = aiData['image'];
+              _imageUrl = null;
+            });
+          } catch (e) {
+            print("에러 발생: $e");
+          } finally {
+            if (mounted) setState(() => _loading = false); // 로딩 끝
+          }
+        },
+      ),
+    );
+  }
+
+  // 2. [추가] 실제 AI API 호출만 담당 (백그라운드용)
+  Future<Map<String, dynamic>> _runAiGeneration() async {
+    final gemini = GeminiService();
+    final content = _contentController.text.trim();
+
+    final summary = await gemini.generateSummary(
+      finalPrompt:
+          '${PromptCache.textPrompt.content}\n장소: ${widget.placeName}\n내용: $content',
+      photos: _localPhotos,
+    );
+
+    final imageBytes = await gemini.generateImage(
+      finalPrompt:
+          '${PromptCache.imagePrompt.content}\nStyle:\n${_selectedStyle!.prompt}\nSummary:\n$summary',
+    );
+
+    return {'summary': summary, 'image': imageBytes};
+  }
+
   Future<void> _saveDiary() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final text = _contentController.text.trim();
@@ -270,8 +337,36 @@ class _TravelDayPageState extends State<TravelDayPage> {
           _buildBottomSaveButton(),
           if (_loading)
             Container(
-              color: Colors.black26,
-              child: const Center(child: CircularProgressIndicator()),
+              color: Colors.black.withOpacity(
+                0.7,
+              ), // 배경을 조금 더 어둡게 해서 글자가 잘 보이게 함
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "광고 시청 후 일기가 자동 생성됩니다",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "잠시만 기다려 주세요...",
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
         ],
       ),
@@ -374,7 +469,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
           ),
           const SizedBox(height: 20),
           GestureDetector(
-            onTap: _loading ? null : _generateAI,
+            onTap: _loading ? null : _handleGenerateWithAd,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 18),
