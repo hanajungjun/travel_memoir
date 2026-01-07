@@ -1,26 +1,43 @@
 {
   "project_info": {
-    "project_number": "836874353114",
-    "project_id": "myapp1-7ac4d",
-    "storage_bucket": "myapp1-7ac4d.firebasestorage.app"
+    "project_number": "277385353976",
+    "project_id": "travelmemoir-ee340",
+    "storage_bucket": "travelmemoir-ee340.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:836874353114:android:003435d412a68ad561a8e3",
+        "mobilesdk_app_id": "1:277385353976:android:3ed1d136ef41c04b27790d",
         "android_client_info": {
-          "package_name": "com.hanajungjun.myapp1"
+          "package_name": "com.hanajungjun.travelmemoir"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "277385353976-gdgaku26g93q3dms9rfn448vhln4l2g3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyBNzrKpZ58txgbDreQ5EShsLw_2ewH5eno"
+          "current_key": "AIzaSyBa8JYa3_X8oWuv4fYWTRqowOhxCsn6dV4"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "277385353976-gdgaku26g93q3dms9rfn448vhln4l2g3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "277385353976-5807hspd33fcvloonsr814ra0559bsbe.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.hanajungjun.travelmemoir"
+              }
+            }
+          ]
         }
       }
     }
