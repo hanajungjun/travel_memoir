@@ -29,6 +29,11 @@
 
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
+	
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3890698783881393~2796083445</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>사용자에게 최적화된 광고를 제공하기 위해 기기 정보를 사용합니다.</string>
 
 	<!-- 🔑 URL SCHEMES (중요) -->
 	<key>CFBundleURLTypes</key>

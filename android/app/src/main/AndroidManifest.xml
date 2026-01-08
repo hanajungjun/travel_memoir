@@ -45,7 +45,10 @@
         <meta-data
             android:name="com.mapbox.maps.token"
             android:value="pk.eyJ1IjoiaGFuYWp1bmdqdW4iLCJhIjoiY21qaTZ0amNwMDF2MzNnb3l6Mjhwd2doNyJ9.kvF6H1ock64cYC3voff9tQ"/>
-            
+         
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3890698783881393~5039103407"/>    
     </application>
 
     <queries>

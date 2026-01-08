@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -19,7 +21,6 @@ import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
-// TODO: [설명] 일기 작성
 class TravelDayPage extends StatefulWidget {
   final String travelId;
   final String placeName;
@@ -48,8 +49,14 @@ class _TravelDayPageState extends State<TravelDayPage> {
   Uint8List? _generatedImage;
   String? _imageUrl;
   String? _summaryText;
-  String? _diaryId; // 🔥 일기의 고유 ID를 저장할 변수 추가
+  String? _diaryId;
+
+  // ✅ 로딩 상태 및 메시지 관리
   bool _loading = false;
+  String _loadingMessage = "";
+
+  RewardedAd? _rewardedAd;
+  bool _isAdLoaded = false;
 
   String get _userId => Supabase.instance.client.auth.currentUser!.id;
 
@@ -57,12 +64,37 @@ class _TravelDayPageState extends State<TravelDayPage> {
   void initState() {
     super.initState();
     _loadDiary();
+    _loadRewardedAd();
   }
 
   @override
   void dispose() {
     _contentController.dispose();
+    _rewardedAd?.dispose();
     super.dispose();
+  }
+
+  void _loadRewardedAd() {
+    final String adId = Platform.isAndroid
+        ? 'ca-app-pub-3890698783881393/3553280276'
+        : 'ca-app-pub-3890698783881393/4814391052';
+    RewardedAd.load(
+      adUnitId: adId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          setState(() {
+            _rewardedAd = ad;
+            _isAdLoaded = true;
+          });
+          print("✅ 보상형 광고 로드 성공");
+        },
+        onAdFailedToLoad: (LoadAdError error) {
+          setState(() => _isAdLoaded = false);
+          print('❌ 광고 로드 실패: $error');
+        },
+      ),
+    );
   }
 
   Future<void> _loadDiary() async {
@@ -71,32 +103,17 @@ class _TravelDayPageState extends State<TravelDayPage> {
       date: widget.date,
     );
 
-    if (!mounted || diary == null) {
-      print('⚠️ [LOAD DIARY] 해당 날짜에 일기 데이터가 없습니다.');
-      return;
-    }
+    if (!mounted || diary == null) return;
 
     setState(() {
       _diaryId = diary['id'];
-
-      // 🔥 불러오기 로그 추가
-      print('-----------------------------------------');
-      print('📥 [LOAD DIARY] 데이터 가져옴');
-      print('🆔 가져온 일기 ID: $_diaryId');
-
       _imageUrl = TravelDayService.getAiImageUrl(
         travelId: widget.travelId,
         diaryId: _diaryId!,
       );
-      // 🔥 [핵심 수정]
-      // 앱이 "이건 처음 보는 주소네?"라고 생각하게 뒤에 랜덤한 숫자를 붙입니다.
       if (_imageUrl != null) {
         _imageUrl = '$_imageUrl?t=${DateTime.now().millisecondsSinceEpoch}';
       }
-      print('🔗 생성된 이미지 URL: $_imageUrl');
-      print('-----------------------------------------');
-
-      // ... 기존 로직 ...
     });
   }
 
@@ -108,7 +125,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
   }
 
   Future<void> _deleteUploadedPhoto(String url) async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadingMessage = "사진을 삭제하고 있습니다...";
+    });
     try {
       await ImageUploadService.deleteUserImageByUrl(url);
       _uploadedPhotoUrls.remove(url);
@@ -122,39 +142,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     }
   }
 
-  Future<void> _generateAI() async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    final content = _contentController.text.trim();
-    if (content.isEmpty || _selectedStyle == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('일기와 스타일을 선택해주세요!')));
-      return;
-    }
-    setState(() => _loading = true);
-    try {
-      final gemini = GeminiService();
-      final summary = await gemini.generateSummary(
-        finalPrompt:
-            '${PromptCache.textPrompt.content}\n장소: ${widget.placeName}\n내용: $content',
-        photos: _localPhotos,
-      );
-      final imageBytes = await gemini.generateImage(
-        finalPrompt:
-            '${PromptCache.imagePrompt.content}\nStyle:\n${_selectedStyle!.prompt}\nSummary:\n$summary',
-      );
-      if (!mounted) return;
-      setState(() {
-        _summaryText = summary;
-        _generatedImage = imageBytes;
-        _imageUrl = null;
-      });
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  // 1. [추가] 광고 팝업을 띄우고 생성을 시작하는 메인 함수
   Future<void> _handleGenerateWithAd() async {
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -166,41 +153,66 @@ class _TravelDayPageState extends State<TravelDayPage> {
       return;
     }
 
-    // 광고 확인 팝업 (우리가 만든 위젯) 호출
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AdRequestDialog(
         onAccept: () async {
-          setState(() => _loading = true); // 로딩 시작
+          setState(() {
+            _loading = true;
+            _loadingMessage = "광고 시청 후 일기가 자동 생성됩니다"; // ✅ 생성용 메시지
+          });
 
           try {
-            // [핵심] 광고 대기(15초)와 AI 호출을 동시에 시작!
-            final results = await Future.wait([
-              Future.delayed(const Duration(seconds: 15)), // 15초 광고 시간 벌기
-              _runAiGeneration(), // 백그라운드에서 AI 실행
-            ]);
+            if (_isAdLoaded && _rewardedAd != null) {
+              final Completer<void> adCompleter = Completer<void>();
 
-            if (!mounted) return;
+              _rewardedAd!.fullScreenContentCallback =
+                  FullScreenContentCallback(
+                    onAdDismissedFullScreenContent: (ad) {
+                      ad.dispose();
+                      adCompleter.complete();
+                      _loadRewardedAd();
+                    },
+                    onAdFailedToShowFullScreenContent: (ad, error) {
+                      ad.dispose();
+                      adCompleter.complete();
+                      _loadRewardedAd();
+                    },
+                  );
 
-            // 결과 반영 (results[1]에 AI가 만든 데이터가 들어있음)
-            final aiData = results[1] as Map<String, dynamic>;
-            setState(() {
-              _summaryText = aiData['summary'];
-              _generatedImage = aiData['image'];
-              _imageUrl = null;
-            });
+              _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
+
+              final results = await Future.wait([
+                adCompleter.future,
+                _runAiGeneration(),
+              ]);
+              _updateAiResult(results[1] as Map<String, dynamic>);
+            } else {
+              print("⚠️ 광고 미준비: 바로 AI 생성을 시작합니다.");
+              final aiData = await _runAiGeneration();
+              _updateAiResult(aiData);
+              _loadRewardedAd();
+            }
           } catch (e) {
             print("에러 발생: $e");
           } finally {
-            if (mounted) setState(() => _loading = false); // 로딩 끝
+            if (mounted) setState(() => _loading = false);
           }
         },
       ),
     );
   }
 
-  // 2. [추가] 실제 AI API 호출만 담당 (백그라운드용)
+  void _updateAiResult(Map<String, dynamic> aiData) {
+    if (!mounted) return;
+    setState(() {
+      _summaryText = aiData['summary'];
+      _generatedImage = aiData['image'];
+      _imageUrl = null;
+    });
+  }
+
   Future<Map<String, dynamic>> _runAiGeneration() async {
     final gemini = GeminiService();
     final content = _contentController.text.trim();
@@ -223,7 +235,12 @@ class _TravelDayPageState extends State<TravelDayPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     final text = _contentController.text.trim();
     if (text.isEmpty) return;
-    setState(() => _loading = true);
+
+    setState(() {
+      _loading = true;
+      _loadingMessage = "소중한 추억을 저장하고 있습니다..."; // ✅ 저장용 메시지
+    });
+
     try {
       final List<String> newUrls = [];
       for (final file in _localPhotos) {
@@ -241,7 +258,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
         currentDate: widget.date,
       );
 
-      // 1. 일기 데이터 저장 (upsert)
       final savedDiary = await TravelDayService.upsertDiary(
         travelId: widget.travelId,
         dayIndex: dayIndex,
@@ -251,21 +267,19 @@ class _TravelDayPageState extends State<TravelDayPage> {
         aiStyle: _selectedStyle?.id,
       );
 
-      final currentDiaryId = savedDiary['id']; // 저장된/기존의 UUID
+      final currentDiaryId = savedDiary['id'];
 
-      // 2. 사진 리스트 업데이트
       await TravelDayService.updateDiaryPhotos(
         travelId: widget.travelId,
         date: widget.date,
         photoUrls: allPhotoUrls,
       );
 
-      // 3. 🔥 AI 이미지 저장 (날짜 대신 currentDiaryId 사용!)
       if (_generatedImage != null) {
         await ImageUploadService.uploadDiaryImage(
           userId: _userId,
           travelId: widget.travelId,
-          diaryId: currentDiaryId, // 날짜 대신 ID를 파일명으로!
+          diaryId: currentDiaryId,
           imageBytes: _generatedImage!,
         );
       }
@@ -281,9 +295,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
       if (mounted) setState(() => _loading = false);
     }
   }
-
-  // ... (이하 빌드 함수 및 UI 위젯 로직은 사장님 코드와 동일하며,
-  // _imageUrl 렌더링 시 타임스탬프를 추가하여 캐시를 방지하는 부분만 살짝 보강했습니다)
 
   @override
   Widget build(BuildContext context) {
@@ -335,11 +346,11 @@ class _TravelDayPageState extends State<TravelDayPage> {
             ),
           ),
           _buildBottomSaveButton(),
+
+          // ✅ 상황별 로딩 인디케이터
           if (_loading)
             Container(
-              color: Colors.black.withOpacity(
-                0.7,
-              ), // 배경을 조금 더 어둡게 해서 글자가 잘 보이게 함
+              color: Colors.black.withOpacity(0.7),
               child: Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -348,21 +359,18 @@ class _TravelDayPageState extends State<TravelDayPage> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                     const SizedBox(height: 20),
-                    const Text(
-                      "광고 시청 후 일기가 자동 생성됩니다",
-                      style: TextStyle(
+                    Text(
+                      _loadingMessage, // ⬅️ 상황에 맞춰 변하는 메시지!
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Text(
+                    const Text(
                       "잠시만 기다려 주세요...",
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                   ],
                 ),
@@ -544,7 +552,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
           children: [
             if (_imageUrl != null)
               Image.network(
-                // 🔥 캐시 방지를 위해 타임스탬프 추가
                 '$_imageUrl&t=${DateTime.now().millisecondsSinceEpoch}',
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
