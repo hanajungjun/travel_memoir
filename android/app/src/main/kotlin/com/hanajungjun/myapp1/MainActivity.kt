@@ -1,4 +1,4 @@
-package com.hanajungjun.myapp1
+package com.hanajungjun.travelmemoir
 
 import io.flutter.embedding.android.FlutterActivity
 

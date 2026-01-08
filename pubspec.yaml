@@ -30,7 +30,6 @@ dependencies:
   # 이미지/파일 처리
   cached_network_image: ^3.3.1
   path_provider: ^2.1.2
-  image_gallery_saver_plus: ^3.0.5
   permission_handler: ^11.0.1
 
   # HTTP 통신
@@ -49,10 +48,11 @@ dependencies:
   latlong2: ^0.8.1
  
   flutter_slidable: ^3.1.0
-  image_cropper: ^5.0.1
+  #image_cropper: ^5.0.1
   fl_chart: ^0.66.2
   scrollable_clean_calendar: ^1.5.0
   intl: ^0.20.2
+  gal: ^2.3.2
   #google_mobile_ads: ^7.0.0  # 최신 버전 확인 필요
 
 dev_dependencies:

@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.hanajungjun.myapp1">
-    
+    package="com.hanajungjun.travelmemoir">
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="여행일기"
         android:name="${applicationName}"
@@ -26,13 +26,26 @@
             </intent-filter>
         </activity>
 
+        <activity 
+            android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="kakao4b75a69d8671a746aa40d99a74841efa" />
+            </intent-filter>
+        </activity>
+
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
        
         <meta-data
-        android:name="com.mapbox.maps.token"
-        android:value="pk.eyJ1IjoiaGFuYWp1bmdqdW4iLCJhIjoiY21qaTZ0amNwMDF2MzNnb3l6Mjhwd2doNyJ9.kvF6H1ock64cYC3voff9tQ"/>
+            android:name="com.mapbox.maps.token"
+            android:value="pk.eyJ1IjoiaGFuYWp1bmdqdW4iLCJhIjoiY21qaTZ0amNwMDF2MzNnb3l6Mjhwd2doNyJ9.kvF6H1ock64cYC3voff9tQ"/>
+            
     </application>
 
     <queries>
@@ -40,5 +53,6 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <package android:name="com.kakao.talk" />
     </queries>
 </manifest>
