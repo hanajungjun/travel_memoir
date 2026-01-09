@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
- platform :ios, '15.6'
+platform :ios, '15.6'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -31,13 +31,21 @@ target 'Runner' do
   use_frameworks!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  
   target 'RunnerTests' do
     inherit! :search_paths
   end
 end
 
+# 🔥 여기서부터가 중요합니다. 딱 하나의 post_install 블록만 사용합니다.
 post_install do |installer|
   installer.pods_project.targets.each do |target|
+    # 1. 플러터 기본 빌드 설정 적용
     flutter_additional_ios_build_settings(target)
+    
+    # 2. Mapbox 심볼(dSYM) 에러를 방지하기 위해 빌드 설정을 DWARF로 강제 고정
+    target.build_configurations.each do |config|
+      config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
+    end
   end
 end

@@ -4,6 +4,7 @@ import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
+//TODO 최근 여행지 위젯
 class RecentTravelSection extends StatelessWidget {
   final VoidCallback onSeeAll;
 

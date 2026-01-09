@@ -34,6 +34,7 @@ class SggCodeMap {
     'KR_GG_PAJU': (type: 'city', sidoCd: '41', sggCd: '41480'),
     'KR_GG_GWANGMYEONG': (type: 'city', sidoCd: '41', sggCd: '41210'),
     'KR_GG_GUNPO': (type: 'city', sidoCd: '41', sggCd: '41410'),
+    'KR_GG_GWANGJU': (type: 'city', sidoCd: '41', sggCd: '41610'),
     'KR_GG_GURI': (type: 'city', sidoCd: '41', sggCd: '41310'),
     'KR_GG_NAMYANGJU': (type: 'city', sidoCd: '41', sggCd: '41360'),
     'KR_GG_DONGDUCHEON': (type: 'city', sidoCd: '41', sggCd: '41250'),

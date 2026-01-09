@@ -253,50 +253,116 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
   }
 
   void _showAiMapPopup(String code, String name) async {
+    // 1. 이름 정제 ('광주시' -> '광주')
+    final searchName = name.replaceAll(RegExp(r'(시|군|구)$'), '').trim();
+
+    // 2. [핵심] 코드를 바탕으로 province 컬럼에 들어갈 정확한 이름 매칭
+    String provinceName = "";
+    if (code.startsWith('41'))
+      provinceName = "경기도";
+    else if (code.startsWith('29'))
+      provinceName = "광주광역시";
+    else if (code.startsWith('48'))
+      provinceName = "경상남도";
+    else if (code.startsWith('47'))
+      provinceName = "경상북도";
+    else if (code.startsWith('46'))
+      provinceName = "전라남도";
+    else if (code.startsWith('45'))
+      provinceName = "전라북도"; // 혹은 전북특별자치도
+    else if (code.startsWith('44'))
+      provinceName = "충청남도";
+    else if (code.startsWith('43'))
+      provinceName = "충청북도";
+    else if (code.startsWith('51'))
+      provinceName = "강원특별자치도";
+    else if (code.startsWith('50'))
+      provinceName = "제주특별자치도";
+    else if (code.startsWith('11'))
+      provinceName = "서울특별시";
+    else if (code.startsWith('26'))
+      provinceName = "부산광역시";
+    else if (code.startsWith('27'))
+      provinceName = "대구광역시";
+    else if (code.startsWith('28'))
+      provinceName = "인천광역시";
+    else if (code.startsWith('30'))
+      provinceName = "대전광역시";
+    else if (code.startsWith('31'))
+      provinceName = "울산광역시";
+    else if (code.startsWith('36'))
+      provinceName = "세종특별자치시";
+
+    debugPrint(
+      '📍 클릭: $name(코드:$code) -> 검색: region($searchName) + province($provinceName)',
+    );
+
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
     try {
-      final response = await Supabase.instance.client
+      // 3. Supabase 쿼리: region_name과 province를 각각 조건으로 겁니다.
+      var query = Supabase.instance.client
           .from('travels')
-          .select('map_image_url, region_name, ai_cover_summary')
+          .select('map_image_url, region_name, ai_cover_summary, province')
           .eq('user_id', user.id)
           .eq('travel_type', 'domestic')
-          .ilike('region_name', '%$name%')
-          .not('map_image_url', 'is', null)
+          .eq('region_name', searchName) // "광주" 정확히 일치
+          .not('map_image_url', 'is', null);
+
+      // province 정보가 있으면 조건에 추가 (경기도 광주 vs 광주광역시 완벽 구분)
+      if (provinceName.isNotEmpty) {
+        query = query.eq('province', provinceName);
+      }
+
+      final response = await query
           .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
 
-      if (response == null || response['map_image_url'] == null) return;
+      if (response == null) {
+        debugPrint('❌ DB에서 해당 기록($provinceName $searchName)을 찾을 수 없음');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$provinceName $name 지역의 기록이 없습니다.')),
+          );
+        }
+        return;
+      }
+
+      debugPrint('✅ 이미지 찾음: ${response['map_image_url']}');
+
       if (!mounted) return;
 
+      // 4. 팝업 실행
       showGeneralDialog(
         context: context,
         barrierDismissible: true,
         barrierLabel: "AI Map",
-        transitionDuration: const Duration(milliseconds: 600),
-        pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+        barrierColor: Colors.black54,
+        transitionDuration: const Duration(milliseconds: 400),
+        pageBuilder: (context, anim1, anim2) {
+          return Center(
+            child: AiMapPopup(
+              imageUrl: response['map_image_url'],
+              regionName: "${response['province']} ${response['region_name']}",
+              summary: response['ai_cover_summary'] ?? "기록된 추억이 없습니다.",
+            ),
+          );
+        },
         transitionBuilder: (context, anim1, anim2, child) {
           final curvedValue = Curves.easeOutBack.transform(anim1.value);
           return Transform(
             transform: Matrix4.identity()
               ..setEntry(3, 2, 0.001)
               ..rotateX((1 - curvedValue) * 1.5),
-            alignment: Alignment.bottomCenter,
-            child: Opacity(
-              opacity: anim1.value.clamp(0.0, 1.0),
-              child: AiMapPopup(
-                imageUrl: response['map_image_url'],
-                regionName: name,
-                summary: response['ai_cover_summary'] ?? "기록된 추억이 없습니다.",
-              ),
-            ),
+            alignment: Alignment.center,
+            child: Opacity(opacity: anim1.value.clamp(0.0, 1.0), child: child),
           );
         },
       );
     } catch (e) {
-      debugPrint('❌ 조회 에러: $e');
+      debugPrint('❌ 지도 클릭 처리 중 에러: $e');
     }
   }
 

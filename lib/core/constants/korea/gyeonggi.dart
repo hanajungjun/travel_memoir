@@ -153,6 +153,16 @@ const List<KoreaRegion> gyeonggiRegions = [
     mapRegionType: MapRegionType.city,
   ),
   KoreaRegion(
+    id: "KR_GG_GWANGJU",
+    name: "광주",
+    province: "경기도",
+    type: KoreaRegionType.city,
+    lat: 37.4294,
+    lng: 127.2551,
+    mapRegionId: "KR_GG_GWANGJU",
+    mapRegionType: MapRegionType.city,
+  ),
+  KoreaRegion(
     id: "KR_GG_GURI",
     name: "구리",
     province: "경기도",

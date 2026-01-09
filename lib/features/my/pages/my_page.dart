@@ -24,18 +24,45 @@ class _MyPageState extends State<MyPage> {
   @override
   void initState() {
     super.initState();
-    _future = _fetchMyProfile();
+    _future = _fetchMyProfileWithStats();
   }
 
-  Future<Map<String, dynamic>> _fetchMyProfile() async {
+  // 📡 프로필 정보와 여행 횟수를 한 번에 가져오기
+  Future<Map<String, dynamic>> _fetchMyProfileWithStats() async {
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser!;
 
-    return await supabase
+    // 1. 유저 프로필 정보 가져오기
+    final profile = await supabase
         .from('users')
         .select()
         .eq('auth_uid', user.id)
         .single();
+
+    // 2. 완료된 여행 데이터 리스트 가져오기 (count 파라미터 대신 길이를 활용)
+    final List<dynamic> travels = await supabase
+        .from('travels')
+        .select('id') // id만 가져오는 게 메모리에 훨씬 이득입니다!
+        .eq('user_id', user.id)
+        .eq('is_completed', true);
+
+    // 가져온 리스트의 길이가 곧 여행 횟수입니다.
+    final travelCount = travels.length;
+
+    return {'profile': profile, 'travelCount': travelCount};
+  }
+
+  // 🎖️ 여행 횟수에 따른 칭호 부여 로직
+  Map<String, dynamic> _getBadge(int count) {
+    if (count >= 16) {
+      return {'title': '지구 정복자 🌍', 'color': Colors.deepPurple};
+    } else if (count >= 6) {
+      return {'title': '프로 방랑객 🎒', 'color': Colors.blueAccent};
+    } else if (count >= 1) {
+      return {'title': '새내기 여행자 🌱', 'color': Colors.green};
+    } else {
+      return {'title': '모험 준비 중 🚀', 'color': Colors.grey};
+    }
   }
 
   @override
@@ -50,8 +77,13 @@ class _MyPageState extends State<MyPage> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final profile = snapshot.data!;
+            final data = snapshot.data!;
+            final profile = data['profile'];
+            final travelCount = data['travelCount'] as int;
+            final badge = _getBadge(travelCount);
+
             final imageUrl = profile['profile_image_url'];
+            final nickname = profile['nickname'] ?? '여행자';
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
@@ -59,15 +91,56 @@ class _MyPageState extends State<MyPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // =========================
-                  // 👤 상단 프로필
+                  // 👤 상단 프로필 (닉네임 + 칭호)
                   // =========================
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
-                        child: Text(
-                          '프로필',
-                          style: AppTextStyles.pageTitle.copyWith(fontSize: 28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  nickname,
+                                  style: AppTextStyles.pageTitle.copyWith(
+                                    fontSize: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // 칭호 뱃지
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: badge['color'].withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: badge['color'].withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    badge['title'],
+                                    style: TextStyle(
+                                      color: badge['color'],
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              profile['email'] ?? '',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       GestureDetector(
@@ -81,7 +154,7 @@ class _MyPageState extends State<MyPage> {
 
                           if (updated == true) {
                             setState(() {
-                              _future = _fetchMyProfile();
+                              _future = _fetchMyProfileWithStats();
                             });
                           }
                         },
@@ -103,13 +176,13 @@ class _MyPageState extends State<MyPage> {
                     ],
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
                   Text('계정 관리', style: AppTextStyles.sectionTitle),
                   const SizedBox(height: 16),
 
                   // =========================
-                  // 🧩 2x2 타일 메뉴
+                  // 🧩 2x2 타일 메뉴 (그대로)
                   // =========================
                   GridView.count(
                     crossAxisCount: 2,
@@ -207,9 +280,7 @@ class _MyPageState extends State<MyPage> {
   }
 }
 
-// =========================
-// 🔹 타일 위젯
-// =========================
+// 🔹 타일 위젯 (그대로)
 class _MenuTile extends StatelessWidget {
   final String title;
   final IconData icon;
