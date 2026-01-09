@@ -230,36 +230,77 @@ class TravelDayService {
   static Future<void> clearDiaryRecord({
     required String travelId,
     required String date,
-    List<dynamic>? photoUrls, // 사용자가 올린 사진들
+    List<dynamic>? photoUrls,
   }) async {
     final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
 
-    // 1️⃣ 사용자가 직접 올린 사진들(photo_urls) Storage에서 삭제
+    // 삭제할 경로들을 담을 리스트
+    List<String> pathsToDelete = [];
+
+    // --- 1️⃣ AI 생성 일기 이미지 경로 추가 ---
+    try {
+      final diary = await supabase
+          .from('travel_days')
+          .select('id')
+          .eq('travel_id', travelId)
+          .eq('date', date)
+          .maybeSingle();
+
+      if (diary != null) {
+        final diaryId = diary['id'];
+        pathsToDelete.add(
+          StoragePaths.travelDayImage(user.id, travelId, diaryId),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ 일기 정보 조회 실패: $e');
+    }
+
+    // --- 2️⃣ 여행 대표 이미지 경로 추가 (Cover, Map) ---
+    // 수정/삭제 시 무조건 지워야 하는 대표 이미지들
+    pathsToDelete.add(StoragePaths.travelCover(user.id, travelId));
+    pathsToDelete.add(StoragePaths.travelMap(user.id, travelId));
+    pathsToDelete.add(StoragePaths.travelTimeline(user.id, travelId));
+
+    // --- 3️⃣ 사용자 업로드 사진 경로 추가 ---
     if (photoUrls != null && photoUrls.isNotEmpty) {
       for (var url in photoUrls) {
         try {
           final uri = Uri.parse(url.toString());
-          // 'travel_images' 버킷 이후의 실제 파일 경로만 추출
           final path = uri.pathSegments
               .skip(uri.pathSegments.indexOf('travel_images') + 1)
               .join('/');
-          await supabase.storage.from('travel_images').remove([path]);
-          debugPrint('✅ 사용자 사진 삭제 완료: $path');
+          pathsToDelete.add(path);
         } catch (e) {
-          debugPrint('⚠️ 사진 삭제 실패: $e');
+          debugPrint('⚠️ 사진 경로 파싱 실패: $e');
         }
       }
     }
 
-    // 2️⃣ DB 데이터 초기화 (Row는 유지, 필드만 비움)
+    // --- 4️⃣ 일괄 삭제 실행 (중요) ---
+    if (pathsToDelete.isNotEmpty) {
+      try {
+        // 중복 경로 제거 후 한꺼번에 삭제 요청
+        final uniquePaths = pathsToDelete.toSet().toList();
+        await supabase.storage.from('travel_images').remove(uniquePaths);
+        debugPrint('🗑️ 관련 스토리지 파일 일괄 삭제 완료 (${uniquePaths.length}개)');
+      } catch (e) {
+        // 파일이 없는 경우 400이나 404가 뜰 수 있으나 무시해도 됨
+        debugPrint('ℹ️ 일부 파일 삭제 건너뜀 또는 에러: $e');
+      }
+    }
+
+    // --- 5️⃣ DB 데이터 초기화 (기존과 동일) ---
     await supabase
         .from('travel_days')
         .update({
-          'text': '', // 일기 내용 비우기
-          'ai_summary': null, // AI 요약 비우기
-          'ai_style': null, // AI 이미지 정보 비우기 (사용자 요청 반영)
-          'photo_urls': [], // 사용자 사진 리스트 비우기
-          'is_completed': false, // ✅ [추가] 일기를 지웠으므로 완료 상태를 false로 변경
+          'text': '',
+          'ai_summary': null,
+          'ai_style': null,
+          'photo_urls': [],
+          'is_completed': false,
         })
         .eq('travel_id', travelId)
         .eq('date', date);

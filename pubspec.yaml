@@ -59,7 +59,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.2
   image_picker: ^1.1.2
-  
+  flutter_native_splash: ^2.4.3
+
 dependency_overrides:
   flutter_math_fork: ^0.6.0
   win32: ^5.0.0
@@ -76,3 +77,12 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icons/app_icon.png"
+  
+flutter_native_splash:
+  color: "#FFFFFF" # 배경색 (흰색이 무난합니다)
+  image: assets/images/splash.png # 👈 로딩 화면에 띄울 이미지 경로
+  ios: true
+  android_12:
+    image: assets/images/splash.png
+    color: "#FFFFFF"
+    icon_background_color: "#FFFFFF"  

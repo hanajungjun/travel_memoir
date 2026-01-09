@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// ✅ RouteObserver 임포트 확인 (프로젝트 경로에 맞게 자동 수정될 수 있음)
+import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/features/travel_album/pages/travel_album_page.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
@@ -16,7 +18,8 @@ class RecordTabPage extends StatefulWidget {
   State<RecordTabPage> createState() => _RecordTabPageState();
 }
 
-class _RecordTabPageState extends State<RecordTabPage> {
+// ✅ RouteAware를 믹스인하여 화면 복귀를 감지합니다.
+class _RecordTabPageState extends State<RecordTabPage> with RouteAware {
   final PageController _controller = PageController();
   late Future<List<Map<String, dynamic>>> _future;
   Timer? _pollingTimer;
@@ -25,25 +28,41 @@ class _RecordTabPageState extends State<RecordTabPage> {
   void initState() {
     super.initState();
     _reload();
-
-    _pollingTimer = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) => _reload(),
-    );
   }
 
+  // 🔄 데이터를 새로 불러오는 함수
   void _reload() {
+    if (!mounted) return;
     setState(() {
       _future = _getCompletedTravels();
     });
   }
 
+  // ================= Route 감시 설정 =================
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
   @override
   void dispose() {
+    routeObserver.unsubscribe(this);
     _pollingTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
+
+  // 🔥 핵심: 다른 탭(홈, 여행기록 등)에 갔다가 다시 이 탭을 누르면 자동 실행!
+  @override
+  void didPopNext() {
+    debugPrint("🎬 기록 탭 복귀: 리스트 즉시 새로고침");
+    _reload();
+  }
+  // =================================================
 
   @override
   Widget build(BuildContext context) {
@@ -90,16 +109,27 @@ class _RecordTabPageState extends State<RecordTabPage> {
 
     completed.sort((a, b) => b['end_date'].compareTo(a['end_date']));
 
-    // 🔧 FIX: DB cover_image_url 기준으로 processing 판단
+    // 🔧 AI 처리 중인 항목(이미지나 요약이 없는 경우)이 있는지 확인
     final stillProcessing = completed.any(
       (t) =>
           (t['cover_image_url'] == null) ||
           (t['ai_cover_summary'] ?? '').toString().isEmpty,
     );
 
-    if (!stillProcessing) {
-      _pollingTimer?.cancel();
-      HapticFeedback.lightImpact();
+    // AI 처리 중일 때만 3초마다 타이머를 가동하고, 다 완료되면 타이머를 파괴합니다.
+    if (stillProcessing) {
+      if (_pollingTimer == null || !_pollingTimer!.isActive) {
+        _pollingTimer = Timer.periodic(
+          const Duration(seconds: 3),
+          (_) => _reload(),
+        );
+      }
+    } else {
+      if (_pollingTimer != null) {
+        _pollingTimer?.cancel();
+        _pollingTimer = null;
+        HapticFeedback.lightImpact(); // 완료 알림 진동
+      }
     }
 
     return completed;
@@ -117,7 +147,8 @@ class _SummaryHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final end = DateTime.parse(lastTravel['end_date']);
+    final endDateStr = lastTravel['end_date']?.toString() ?? '';
+    final end = DateTime.tryParse(endDateStr) ?? DateTime.now();
 
     return SafeArea(
       child: Padding(
@@ -139,7 +170,13 @@ class _SummaryHeroCard extends StatelessWidget {
               style: AppTextStyles.bodyMuted,
             ),
             const Spacer(),
-            const Center(child: Icon(Icons.keyboard_arrow_up, size: 28)),
+            const Center(
+              child: Icon(
+                Icons.keyboard_arrow_up,
+                size: 28,
+                color: Colors.grey,
+              ),
+            ),
           ],
         ),
       ),
@@ -158,7 +195,6 @@ class _TravelRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 🔧 FIX: DB에 저장된 URL 그대로 사용
     final coverUrl = travel['cover_image_url'] as String?;
     final summary = (travel['ai_cover_summary'] ?? '').toString().trim();
 
@@ -184,7 +220,6 @@ class _TravelRecordCard extends StatelessWidget {
                 Positioned.fill(
                   child: hasCover
                       ? Image.network(
-                          // 🔧 FIX: 캐시 버스팅
                           '$coverUrl?t=${travel['completed_at']}',
                           fit: BoxFit.cover,
                           loadingBuilder: (_, child, progress) {
@@ -198,10 +233,8 @@ class _TravelRecordCard extends StatelessWidget {
                         )
                       : Container(color: AppColors.divider),
                 ),
-
                 if (hasCover && !hasSummary)
                   const _BottomLabel(text: 'AI 여행 정리중…'),
-
                 if (hasSummary) _BottomLabel(text: summary, gradient: true),
               ],
             ),
@@ -228,13 +261,13 @@ class _BottomLabel extends StatelessWidget {
       right: 0,
       bottom: 0,
       child: Container(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(18),
         decoration: gradient
             ? const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black54],
+                  colors: [Colors.transparent, Colors.black87],
                 ),
               )
             : const BoxDecoration(color: Colors.black45),
@@ -242,7 +275,7 @@ class _BottomLabel extends StatelessWidget {
           text,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.body.copyWith(color: Colors.white),
+          style: AppTextStyles.body.copyWith(color: Colors.white, fontSize: 15),
         ),
       ),
     );

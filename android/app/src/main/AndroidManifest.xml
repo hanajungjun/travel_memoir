@@ -4,7 +4,8 @@
     <application
         android:label="여행일기"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:largeHeap="true">
         
         <activity
             android:name=".MainActivity"

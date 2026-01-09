@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+// ✅ 만약 routeObserver가 다른 파일에 있다면 해당 경로로 수정해주세요!
+import 'package:travel_memoir/app/route_observer.dart';
+
 import 'package:travel_memoir/services/travel_service.dart';
 import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
@@ -26,8 +29,41 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+// ✅ RouteAware를 추가하여 화면 복귀를 감시합니다.
+class _HomePageState extends State<HomePage> with RouteAware {
   int _refreshKey = 0;
+
+  // 🔄 화면을 새로고침하는 함수
+  void _triggerRefresh() {
+    if (!mounted) return;
+    setState(() {
+      _refreshKey++;
+    });
+  }
+
+  // ================= Route 감시 설정 =================
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // 🔥 다른 페이지(삭제 페이지 등)에 갔다가 다시 홈으로 돌아오면 자동 실행!
+  @override
+  void didPopNext() {
+    debugPrint("🏠 홈 화면 복귀: 데이터 새로고침 실행");
+    _triggerRefresh();
+  }
+  // =================================================
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +83,7 @@ class _HomePageState extends State<HomePage> {
                 children: [
                   // 🧳 Recent Travel
                   FutureBuilder(
+                    // ✅ _refreshKey가 바뀔 때마다 FutureBuilder가 다시 실행됩니다.
                     key: ValueKey('recent-$_refreshKey'),
                     future: TravelListService.getRecentTravels(),
                     builder: (context, snapshot) {
@@ -111,7 +148,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ================= helpers =================
-
   static Future<Map<String, dynamic>?> _getTodayDiaryStatus() async {
     final travel = await TravelService.getTodayTravel();
     if (travel == null) return null;

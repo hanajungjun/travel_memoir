@@ -51,12 +51,14 @@ class _TravelDayPageState extends State<TravelDayPage> {
   String? _summaryText;
   String? _diaryId;
 
-  // ✅ 로딩 상태 및 메시지 관리
   bool _loading = false;
   String _loadingMessage = "";
 
+  // 📢 광고 관련 변수
   RewardedAd? _rewardedAd;
+  InterstitialAd? _interstitialAd; // ✅ 전면 광고 추가
   bool _isAdLoaded = false;
+  bool _isInterstitialLoaded = false;
 
   String get _userId => Supabase.instance.client.auth.currentUser!.id;
 
@@ -65,15 +67,18 @@ class _TravelDayPageState extends State<TravelDayPage> {
     super.initState();
     _loadDiary();
     _loadRewardedAd();
+    _loadInterstitialAd(); // ✅ 전면 광고 미리 로드
   }
 
   @override
   void dispose() {
     _contentController.dispose();
     _rewardedAd?.dispose();
+    _interstitialAd?.dispose(); // ✅ 전면 광고 해제
     super.dispose();
   }
 
+  // 📺 보상형 광고 로드 (기존)
   void _loadRewardedAd() {
     final String adId = Platform.isAndroid
         ? 'ca-app-pub-3890698783881393/3553280276'
@@ -87,32 +92,51 @@ class _TravelDayPageState extends State<TravelDayPage> {
             _rewardedAd = ad;
             _isAdLoaded = true;
           });
-          print("✅ 보상형 광고 로드 성공");
         },
-        onAdFailedToLoad: (LoadAdError error) {
-          setState(() => _isAdLoaded = false);
-          print('❌ 광고 로드 실패: $error');
-        },
+        onAdFailedToLoad: (error) => setState(() => _isAdLoaded = false),
       ),
     );
   }
+
+  // 📺 전면 광고 로드 (신규)
+  void _loadInterstitialAd() {
+    final String adId = Platform.isAndroid
+        ? 'ca-app-pub-3890698783881393/1136502741'
+        : 'ca-app-pub-3890698783881393/9417088998';
+    InterstitialAd.load(
+      adUnitId: adId,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          setState(() {
+            _interstitialAd = ad;
+            _isInterstitialLoaded = true;
+          });
+        },
+        onAdFailedToLoad: (error) =>
+            setState(() => _isInterstitialLoaded = false),
+      ),
+    );
+  }
+
+  // ... [기존 _loadDiary, _pickPhoto, _deleteUploadedPhoto, _handleGenerateWithAd 등 동일] ...
 
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
       travelId: widget.travelId,
       date: widget.date,
     );
-
     if (!mounted || diary == null) return;
-
     setState(() {
       _diaryId = diary['id'];
-      _imageUrl = TravelDayService.getAiImageUrl(
-        travelId: widget.travelId,
-        diaryId: _diaryId!,
-      );
-      if (_imageUrl != null) {
-        _imageUrl = '$_imageUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+      if (diary['ai_summary'] != null &&
+          diary['ai_summary'].toString().isNotEmpty) {
+        _imageUrl = TravelDayService.getAiImageUrl(
+          travelId: widget.travelId,
+          diaryId: _diaryId!,
+        );
+      } else {
+        _imageUrl = null;
       }
     });
   }
@@ -144,7 +168,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
 
   Future<void> _handleGenerateWithAd() async {
     FocusManager.instance.primaryFocus?.unfocus();
-
     final content = _contentController.text.trim();
     if (content.isEmpty || _selectedStyle == null) {
       ScaffoldMessenger.of(
@@ -152,7 +175,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
       ).showSnackBar(const SnackBar(content: Text('일기와 스타일을 선택해주세요!')));
       return;
     }
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -160,13 +182,11 @@ class _TravelDayPageState extends State<TravelDayPage> {
         onAccept: () async {
           setState(() {
             _loading = true;
-            _loadingMessage = "광고 시청 후 일기가 자동 생성됩니다"; // ✅ 생성용 메시지
+            _loadingMessage = "광고 시청 후 일기가 자동 생성됩니다";
           });
-
           try {
             if (_isAdLoaded && _rewardedAd != null) {
               final Completer<void> adCompleter = Completer<void>();
-
               _rewardedAd!.fullScreenContentCallback =
                   FullScreenContentCallback(
                     onAdDismissedFullScreenContent: (ad) {
@@ -180,16 +200,13 @@ class _TravelDayPageState extends State<TravelDayPage> {
                       _loadRewardedAd();
                     },
                   );
-
               _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
-
               final results = await Future.wait([
                 adCompleter.future,
                 _runAiGeneration(),
               ]);
               _updateAiResult(results[1] as Map<String, dynamic>);
             } else {
-              print("⚠️ 광고 미준비: 바로 AI 생성을 시작합니다.");
               final aiData = await _runAiGeneration();
               _updateAiResult(aiData);
               _loadRewardedAd();
@@ -216,21 +233,19 @@ class _TravelDayPageState extends State<TravelDayPage> {
   Future<Map<String, dynamic>> _runAiGeneration() async {
     final gemini = GeminiService();
     final content = _contentController.text.trim();
-
     final summary = await gemini.generateSummary(
       finalPrompt:
           '${PromptCache.textPrompt.content}\n장소: ${widget.placeName}\n내용: $content',
       photos: _localPhotos,
     );
-
     final imageBytes = await gemini.generateImage(
       finalPrompt:
           '${PromptCache.imagePrompt.content}\nStyle:\n${_selectedStyle!.prompt}\nSummary:\n$summary',
     );
-
     return {'summary': summary, 'image': imageBytes};
   }
 
+  // 🔥 [핵심 수정] 저장 로직
   Future<void> _saveDiary() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final text = _contentController.text.trim();
@@ -238,7 +253,50 @@ class _TravelDayPageState extends State<TravelDayPage> {
 
     setState(() {
       _loading = true;
-      _loadingMessage = "소중한 추억을 저장하고 있습니다..."; // ✅ 저장용 메시지
+      _loadingMessage = "데이터를 확인하고 있습니다...";
+    });
+
+    try {
+      // 1️⃣ 이번 저장이 '여행 완료' 조건인지 확인
+      final int writtenDays = await TravelDayService.getWrittenDayCount(
+        travelId: widget.travelId,
+      );
+      final int totalDays =
+          widget.endDate.difference(widget.startDate).inDays + 1;
+
+      // 새로 작성하는 일기(_diaryId == null)인데, 이번에 저장하면 개수가 다 채워지는가?
+      final bool isCompletingNow =
+          (_diaryId == null) && (writtenDays + 1 == totalDays);
+
+      if (isCompletingNow && _isInterstitialLoaded && _interstitialAd != null) {
+        // 🎯 전면 광고 표시 후 저장 프로세스 진행
+        _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+          onAdDismissedFullScreenContent: (ad) {
+            ad.dispose();
+            _executeSave(true);
+          },
+          onAdFailedToShowFullScreenContent: (ad, error) {
+            ad.dispose();
+            _executeSave(true);
+          },
+        );
+        _interstitialAd!.show();
+      } else {
+        // 🏃 일반 저장 (광고 없음)
+        _executeSave(isCompletingNow);
+      }
+    } catch (e) {
+      setState(() => _loading = false);
+    }
+  }
+
+  // 실제 DB 저장 및 업로드 시퀀스
+  Future<void> _executeSave(bool isCompleting) async {
+    setState(() {
+      _loading = true;
+      _loadingMessage = isCompleting
+          ? "AI가 여행 전체를 정산하고 있습니다..."
+          : "소중한 추억을 저장하고 있습니다...";
     });
 
     try {
@@ -262,12 +320,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
         travelId: widget.travelId,
         dayIndex: dayIndex,
         date: widget.date,
-        text: text,
+        text: _contentController.text.trim(),
         aiSummary: _summaryText,
         aiStyle: _selectedStyle?.id,
       );
-
-      final currentDiaryId = savedDiary['id'];
 
       await TravelDayService.updateDiaryPhotos(
         travelId: widget.travelId,
@@ -279,13 +335,15 @@ class _TravelDayPageState extends State<TravelDayPage> {
         await ImageUploadService.uploadDiaryImage(
           userId: _userId,
           travelId: widget.travelId,
-          diaryId: currentDiaryId,
+          diaryId: savedDiary['id'],
           imageBytes: _generatedImage!,
         );
       }
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
+
+      // 마지막 처리
       TravelCompleteService.tryCompleteTravel(
         travelId: widget.travelId,
         startDate: widget.startDate,
@@ -346,8 +404,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
             ),
           ),
           _buildBottomSaveButton(),
-
-          // ✅ 상황별 로딩 인디케이터
           if (_loading)
             Container(
               color: Colors.black.withOpacity(0.7),
@@ -360,7 +416,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      _loadingMessage, // ⬅️ 상황에 맞춰 변하는 메시지!
+                      _loadingMessage,
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -381,19 +437,17 @@ class _TravelDayPageState extends State<TravelDayPage> {
     );
   }
 
-  BoxDecoration _cardDeco() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(25),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 15,
-          offset: const Offset(0, 5),
-        ),
-      ],
-    );
-  }
+  BoxDecoration _cardDeco() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(25),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.05),
+        blurRadius: 15,
+        offset: const Offset(0, 5),
+      ),
+    ],
+  );
 
   Widget _buildFigmaContentCard() {
     return Container(
@@ -545,6 +599,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
       return const SizedBox.shrink();
     return Container(
       width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
       decoration: _cardDeco(),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(25),
@@ -552,25 +607,42 @@ class _TravelDayPageState extends State<TravelDayPage> {
           children: [
             if (_imageUrl != null)
               Image.network(
-                '$_imageUrl&t=${DateTime.now().millisecondsSinceEpoch}',
+                _imageUrl!.contains('?')
+                    ? '$_imageUrl&v=${DateTime.now().millisecondsSinceEpoch}'
+                    : '$_imageUrl?v=${DateTime.now().millisecondsSinceEpoch}',
                 fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 200,
+                    width: double.infinity,
+                    color: const Color(0xFFF1F3F5),
+                    child: const Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     height: 200,
                     width: double.infinity,
                     color: const Color(0xFFF1F3F5),
-                    child: const Column(
+                    child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.image_not_supported_outlined,
-                          color: Colors.grey,
+                          Icons.auto_awesome_outlined,
+                          color: Colors.blue[200],
                           size: 40,
                         ),
-                        SizedBox(height: 10),
-                        Text(
-                          '아직 생성된 그림이 없어요!',
-                          style: TextStyle(color: Colors.grey),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'AI 그림을 불러오고 있습니다...',
+                          style: TextStyle(color: Colors.black45, fontSize: 14),
+                        ),
+                        const Text(
+                          '(업로드 완료 후 잠시만 기다려주세요)',
+                          style: TextStyle(color: Colors.black26, fontSize: 12),
                         ),
                       ],
                     ),
