@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:easy_localization/easy_localization.dart'; // 추가
+import 'package:easy_localization/easy_localization.dart';
+
 import 'package:travel_memoir/services/overseas_travel_service.dart';
 import 'package:travel_memoir/core/widgets/ai_map_popup.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
@@ -70,6 +71,8 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         if (props != null) {
           final String countryCode =
               props['ISO_A2_EH'] ?? props['iso_a2'] ?? '';
+
+          // ✅ 클릭 시 표시되는 나라이름도 Locale에 맞게 선택 (GeoJSON 속성에 따라 조절 필요)
           final String countryName =
               props['NAME'] ?? props['name'] ?? 'overseas_region'.tr();
 
@@ -123,6 +126,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         transitionBuilder: (context, anim1, anim2, child) {
           final curvedValue = Curves.easeOutBack.transform(anim1.value);
 
+          // ✅ 현재 앱 언어에 따라 한국어/영어 국가명 선택
           final displayRegion =
               (context.locale.languageCode == 'ko'
                   ? response['country_name_ko']
@@ -169,18 +173,26 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     }
 
     try {
+      // ✅ [핵심] 현재 언어 설정에 따라 Mapbox 텍스트 필드 변경
+      final String lang = context.locale.languageCode;
+      final String textFieldName = (lang == 'ko') ? 'name_ko' : 'name_en';
+
       final layers = await style.getStyleLayers();
       for (var layer in layers) {
         final id = layer?.id;
         if (id != null && (id.contains('label') || id.contains('place'))) {
-          await style.setStyleLayerProperty(
-            id,
-            'text-field',
-            '["get", "name_ko"]',
-          );
+          try {
+            await style.setStyleLayerProperty(
+              id,
+              'text-field',
+              '["get", "$textFieldName"]', // ✅ "name_ko" 고정에서 변수로 변경
+            );
+          } catch (_) {}
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('⚠️ 레이어 언어 설정 에러: $e');
+    }
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -239,8 +251,13 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     Map<String, double>? lastLocation;
 
     for (final travel in travels) {
+      // ✅ 지오코딩 쿼리도 언어에 따라 유연하게 선택 가능
       final countryName =
-          travel['country_name_ko'] ?? travel['country_name_en'];
+          (context.locale.languageCode == 'ko'
+              ? travel['country_name_ko']
+              : travel['country_name_en']) ??
+          travel['country_name_ko'];
+
       if (countryName == null) continue;
 
       try {

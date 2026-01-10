@@ -106,6 +106,11 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
       await style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
+
+      // ✅ 현재 언어 설정에 따라 Mapbox 필드 결정 (ko -> name_ko, en -> name_en)
+      final String lang = context.locale.languageCode;
+      final String textFieldName = (lang == 'ko') ? 'name_ko' : 'name_en';
+
       final layers = await style.getStyleLayers();
       for (var layer in layers) {
         final id = layer?.id;
@@ -114,10 +119,11 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
                 id.contains('place') ||
                 id.contains('settlement'))) {
           try {
+            // ✅ 하드코딩된 "name_ko" 대신 변수 적용
             await style.setStyleLayerProperty(
               id,
               'text-field',
-              '["get", "name_ko"]',
+              '["get", "$textFieldName"]',
             );
           } catch (_) {}
         }

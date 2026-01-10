@@ -19,7 +19,7 @@ class _AppShellState extends State<AppShell> {
     setState(() => _currentIndex = index);
   }
 
-  // ✅ _buildMenuItem 함수는 그대로 유지
+  // 커스텀 메뉴 아이템 빌더
   BottomNavigationBarItem _buildMenuItem({
     required IconData icon,
     required String label,
@@ -51,7 +51,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 중요: _pages 리스트를 build 내부로 옮겨야 언어 변경 시 자식 페이지들도 새로고침됩니다.
+    // ✅ 1. 페이지 리스트를 build 내부로 옮겨서 언어 변경 시 즉시 반영되도록 함
     final List<Widget> pages = [
       HomePage(onGoToTravel: () => _onTabSelected(1)),
       const TravelInfoPage(),
@@ -60,9 +60,10 @@ class _AppShellState extends State<AppShell> {
     ];
 
     return Scaffold(
-      // ✅ IndexedStack에 새로 생성된 pages 전달
       body: IndexedStack(index: _currentIndex, children: pages),
       bottomNavigationBar: BottomNavigationBar(
+        // ✅ 2. [핵심] ValueKey 추가 - 언어(locale)가 바뀔 때마다 탭바를 새로 그림
+        key: ValueKey(context.locale.toString()),
         currentIndex: _currentIndex,
         onTap: _onTabSelected,
         type: BottomNavigationBarType.fixed,
