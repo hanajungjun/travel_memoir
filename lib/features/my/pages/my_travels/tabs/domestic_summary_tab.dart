@@ -31,10 +31,20 @@ class DomesticSummaryTab extends StatelessWidget {
         ),
       ]),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting)
+        // 1. 로딩 중일 때
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const MyTravelSummarySkeleton();
+        }
 
-        final visitedCityCount = snapshot.data![0] as int;
+        // 2. 에러가 났거나 데이터가 아예 없을 때 안전장치
+        if (snapshot.hasError || !snapshot.hasData) {
+          return const Center(child: Text("데이터를 불러오는 중 오류가 발생했습니다."));
+        }
+
+        // 💡 [핵심 수정] 데이터를 안전하게 꺼내고 null 처리하기
+        final data = snapshot.data!;
+
+        final visitedCityCount = (data[0] as int?) ?? 0;
         final totalCityCount = koreaRegionMaster
             .where(
               (r) =>
@@ -43,9 +53,12 @@ class DomesticSummaryTab extends StatelessWidget {
                   r.mapRegionType == MapRegionType.special,
             )
             .length;
-        final travelCount = snapshot.data![1] as int;
-        final travelDays = snapshot.data![2] as int;
-        final mostVisited = snapshot.data![3] as String;
+
+        final travelCount = (data[1] as int?) ?? 0;
+        final travelDays = (data[2] as int?) ?? 0;
+
+        // 데이터가 없으면 '-' 로 표시해서 에러 방지
+        final mostVisited = (data[3] as String?) ?? '-';
 
         return SingleChildScrollView(
           child: Column(
@@ -61,9 +74,10 @@ class DomesticSummaryTab extends StatelessWidget {
                       : (visitedCityCount / totalCityCount * 100).round(),
                 ),
               ),
-              SizedBox(
+              const SizedBox(
                 width: double.infinity,
                 height: 350,
+                // 지도가 없을 때도 터지지 않게 AbsorbPointer 유지
                 child: AbsorbPointer(child: DomesticMapPage()),
               ),
               const SizedBox(height: 24),

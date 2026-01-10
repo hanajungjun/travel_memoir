@@ -162,7 +162,8 @@ class TravelCompleteService {
       }
     } catch (_) {}
 
-    // 9️⃣ 🔥 day 이미지 생성 (여행 완료 시)
+    // 9️⃣ 🔥 day 이미지 생성 (여행 완료 시) - 중복 생성을 막기 위해 주석 처리함
+    /*
     try {
       final days = await _supabase
           .from('travel_days')
@@ -218,6 +219,7 @@ class TravelCompleteService {
             .eq('date', dateRaw);
       }
     } catch (_) {}
+    */
 
     debugPrint('✅ [COMPLETE] tryCompleteTravel END');
   }

@@ -56,7 +56,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
 
   // 📢 광고 관련 변수
   RewardedAd? _rewardedAd;
-  InterstitialAd? _interstitialAd; // ✅ 전면 광고 추가
+  InterstitialAd? _interstitialAd;
   bool _isAdLoaded = false;
   bool _isInterstitialLoaded = false;
 
@@ -67,18 +67,18 @@ class _TravelDayPageState extends State<TravelDayPage> {
     super.initState();
     _loadDiary();
     _loadRewardedAd();
-    _loadInterstitialAd(); // ✅ 전면 광고 미리 로드
+    _loadInterstitialAd();
   }
 
   @override
   void dispose() {
     _contentController.dispose();
     _rewardedAd?.dispose();
-    _interstitialAd?.dispose(); // ✅ 전면 광고 해제
+    _interstitialAd?.dispose();
     super.dispose();
   }
 
-  // 📺 보상형 광고 로드 (기존)
+  // 📺 광고 로드 로직 (기존 유지)
   void _loadRewardedAd() {
     final String adId = Platform.isAndroid
         ? 'ca-app-pub-3890698783881393/3553280276'
@@ -98,7 +98,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     );
   }
 
-  // 📺 전면 광고 로드 (신규)
   void _loadInterstitialAd() {
     final String adId = Platform.isAndroid
         ? 'ca-app-pub-3890698783881393/1136502741'
@@ -108,19 +107,23 @@ class _TravelDayPageState extends State<TravelDayPage> {
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
+          debugPrint("✅ 전면 광고 로드 성공");
           setState(() {
             _interstitialAd = ad;
             _isInterstitialLoaded = true;
           });
         },
-        onAdFailedToLoad: (error) =>
-            setState(() => _isInterstitialLoaded = false),
+        onAdFailedToLoad: (error) {
+          debugPrint("❌ 전면 광고 로드 실패: ${error.message}");
+          setState(() => _isInterstitialLoaded = false);
+        },
       ),
     );
   }
 
-  // ... [기존 _loadDiary, _pickPhoto, _deleteUploadedPhoto, _handleGenerateWithAd 등 동일] ...
-
+  // ---------------------------------------------------------
+  // 📝 데이터 로드 및 삭제 로직 (기존 유지)
+  // ---------------------------------------------------------
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
       travelId: widget.travelId,
@@ -129,14 +132,13 @@ class _TravelDayPageState extends State<TravelDayPage> {
     if (!mounted || diary == null) return;
     setState(() {
       _diaryId = diary['id'];
+      _contentController.text = diary['content'] ?? '';
       if (diary['ai_summary'] != null &&
           diary['ai_summary'].toString().isNotEmpty) {
         _imageUrl = TravelDayService.getAiImageUrl(
           travelId: widget.travelId,
           diaryId: _diaryId!,
         );
-      } else {
-        _imageUrl = null;
       }
     });
   }
@@ -151,11 +153,11 @@ class _TravelDayPageState extends State<TravelDayPage> {
   Future<void> _deleteUploadedPhoto(String url) async {
     setState(() {
       _loading = true;
-      _loadingMessage = "사진을 삭제하고 있습니다...";
+      _loadingMessage = "사진 삭제 중...";
     });
     try {
       await ImageUploadService.deleteUserImageByUrl(url);
-      _uploadedPhotoUrls.remove(url);
+      setState(() => _uploadedPhotoUrls.remove(url));
       await TravelDayService.updateDiaryPhotos(
         travelId: widget.travelId,
         date: widget.date,
@@ -201,18 +203,12 @@ class _TravelDayPageState extends State<TravelDayPage> {
                     },
                   );
               _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
-              final results = await Future.wait([
-                adCompleter.future,
-                _runAiGeneration(),
-              ]);
-              _updateAiResult(results[1] as Map<String, dynamic>);
-            } else {
-              final aiData = await _runAiGeneration();
-              _updateAiResult(aiData);
-              _loadRewardedAd();
+              await adCompleter.future;
             }
+            final aiData = await _runAiGeneration();
+            _updateAiResult(aiData);
           } catch (e) {
-            print("에러 발생: $e");
+            debugPrint("에러 발생: $e");
           } finally {
             if (mounted) setState(() => _loading = false);
           }
@@ -245,115 +241,133 @@ class _TravelDayPageState extends State<TravelDayPage> {
     return {'summary': summary, 'image': imageBytes};
   }
 
-  // 🔥 [핵심 수정] 저장 로직
+  // ---------------------------------------------------------
+  // 🔥 [핵심] 투트랙 저장 로직 (Parallel Processing)
+  // ---------------------------------------------------------
   Future<void> _saveDiary() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final text = _contentController.text.trim();
     if (text.isEmpty) return;
 
-    setState(() {
-      _loading = true;
-      _loadingMessage = "데이터를 확인하고 있습니다...";
-    });
+    final int totalDays =
+        widget.endDate.difference(widget.startDate).inDays + 1;
+    final int currentDayNumber = DateUtilsHelper.calculateDayNumber(
+      startDate: widget.startDate,
+      currentDate: widget.date,
+    );
 
-    try {
-      // 1️⃣ 이번 저장이 '여행 완료' 조건인지 확인
-      final int writtenDays = await TravelDayService.getWrittenDayCount(
-        travelId: widget.travelId,
-      );
-      final int totalDays =
-          widget.endDate.difference(widget.startDate).inDays + 1;
+    // 마지막 날 일기인지 여부
+    final bool isLastDay = currentDayNumber >= totalDays;
 
-      // 새로 작성하는 일기(_diaryId == null)인데, 이번에 저장하면 개수가 다 채워지는가?
-      final bool isCompletingNow =
-          (_diaryId == null) && (writtenDays + 1 == totalDays);
-
-      if (isCompletingNow && _isInterstitialLoaded && _interstitialAd != null) {
-        // 🎯 전면 광고 표시 후 저장 프로세스 진행
-        _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-          onAdDismissedFullScreenContent: (ad) {
-            ad.dispose();
-            _executeSave(true);
-          },
-          onAdFailedToShowFullScreenContent: (ad, error) {
-            ad.dispose();
-            _executeSave(true);
-          },
-        );
-        _interstitialAd!.show();
-      } else {
-        // 🏃 일반 저장 (광고 없음)
-        _executeSave(isCompletingNow);
-      }
-    } catch (e) {
-      setState(() => _loading = false);
-    }
+    _executeSave(isLastDay);
   }
 
-  // 실제 DB 저장 및 업로드 시퀀스
   Future<void> _executeSave(bool isCompleting) async {
+    if (!mounted) return;
+
     setState(() {
       _loading = true;
       _loadingMessage = isCompleting
-          ? "AI가 여행 전체를 정산하고 있습니다..."
-          : "소중한 추억을 저장하고 있습니다...";
+          ? "AI가 여행 전체를 정산 중입니다..."
+          : "추억을 저장하고 있습니다...";
     });
 
     try {
-      final List<String> newUrls = [];
-      for (final file in _localPhotos) {
-        final url = await ImageUploadService.uploadUserImage(
-          file: file,
-          userId: _userId,
+      // 🎯 투트랙(병렬) 처리를 위한 리스트
+      final List<Future> tasks = [];
+      Completer<void>? adCompleter;
+
+      // 1️⃣ 광고 시청 태스크 (전면 광고가 로드되어 있고 완료 시점인 경우)
+      if (isCompleting && _isInterstitialLoaded && _interstitialAd != null) {
+        adCompleter = Completer<void>();
+        _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+          onAdDismissedFullScreenContent: (ad) {
+            ad.dispose();
+            _loadInterstitialAd(); // 미리 다음 광고 로드
+            if (!adCompleter!.isCompleted) adCompleter.complete();
+          },
+          onAdFailedToShowFullScreenContent: (ad, error) {
+            ad.dispose();
+            _loadInterstitialAd();
+            if (!adCompleter!.isCompleted) adCompleter.complete();
+          },
+        );
+
+        // 광고 실행 (비동기로 실행됨)
+        _interstitialAd!.show();
+        tasks.add(adCompleter.future);
+      }
+
+      // 2️⃣ AI 및 DB 저장 태스크 (광고가 나오는 동안 뒤에서 열일함)
+      final saveTask = Future(() async {
+        // 사진 업로드
+        final List<String> newUrls = [];
+        for (final file in _localPhotos) {
+          final url = await ImageUploadService.uploadUserImage(
+            file: file,
+            userId: _userId,
+            travelId: widget.travelId,
+            date: widget.date,
+          );
+          newUrls.add(url);
+        }
+        final allPhotoUrls = [..._uploadedPhotoUrls, ...newUrls];
+        final dayIndex = DateUtilsHelper.calculateDayNumber(
+          startDate: widget.startDate,
+          currentDate: widget.date,
+        );
+
+        // DB Upsert
+        final savedDiary = await TravelDayService.upsertDiary(
+          travelId: widget.travelId,
+          dayIndex: dayIndex,
+          date: widget.date,
+          text: _contentController.text.trim(),
+          aiSummary: _summaryText,
+          aiStyle: _selectedStyle?.id,
+        );
+
+        await TravelDayService.updateDiaryPhotos(
           travelId: widget.travelId,
           date: widget.date,
+          photoUrls: allPhotoUrls,
         );
-        newUrls.add(url);
-      }
-      final allPhotoUrls = [..._uploadedPhotoUrls, ...newUrls];
-      final dayIndex = DateUtilsHelper.calculateDayNumber(
-        startDate: widget.startDate,
-        currentDate: widget.date,
-      );
 
-      final savedDiary = await TravelDayService.upsertDiary(
-        travelId: widget.travelId,
-        dayIndex: dayIndex,
-        date: widget.date,
-        text: _contentController.text.trim(),
-        aiSummary: _summaryText,
-        aiStyle: _selectedStyle?.id,
-      );
+        if (_generatedImage != null) {
+          await ImageUploadService.uploadDiaryImage(
+            userId: _userId,
+            travelId: widget.travelId,
+            diaryId: savedDiary['id'],
+            imageBytes: _generatedImage!,
+          );
+        }
 
-      await TravelDayService.updateDiaryPhotos(
-        travelId: widget.travelId,
-        date: widget.date,
-        photoUrls: allPhotoUrls,
-      );
-
-      if (_generatedImage != null) {
-        await ImageUploadService.uploadDiaryImage(
-          userId: _userId,
+        // 여행 완료 정산 (이미지 생성 등)
+        await TravelCompleteService.tryCompleteTravel(
           travelId: widget.travelId,
-          diaryId: savedDiary['id'],
-          imageBytes: _generatedImage!,
+          startDate: widget.startDate,
+          endDate: widget.endDate,
         );
-      }
+        debugPrint("✅ 백그라운드 AI 작업 완료");
+      });
+
+      tasks.add(saveTask);
+
+      // 🏁 광고 끝날 때까지 & AI 작업 끝날 때까지 대기
+      await Future.wait(tasks);
 
       if (!mounted) return;
-      Navigator.of(context).pop(true);
-
-      // 마지막 처리
-      TravelCompleteService.tryCompleteTravel(
-        travelId: widget.travelId,
-        startDate: widget.startDate,
-        endDate: widget.endDate,
-      );
+      Navigator.of(context).pop(true); // 광고 닫자마자 바로 홈으로!
+    } catch (e) {
+      debugPrint("❌ 저장 중 에러: $e");
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  // ---------------------------------------------------------
+  // 🎨 UI 빌더 (기존 유지)
+  // ---------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final dayNumber = DateUtilsHelper.calculateDayNumber(
@@ -622,32 +636,12 @@ class _TravelDayPageState extends State<TravelDayPage> {
                     ),
                   );
                 },
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    height: 200,
-                    width: double.infinity,
-                    color: const Color(0xFFF1F3F5),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.auto_awesome_outlined,
-                          color: Colors.blue[200],
-                          size: 40,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'AI 그림을 불러오고 있습니다...',
-                          style: TextStyle(color: Colors.black45, fontSize: 14),
-                        ),
-                        const Text(
-                          '(업로드 완료 후 잠시만 기다려주세요)',
-                          style: TextStyle(color: Colors.black26, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                errorBuilder: (context, error, stackTrace) => Container(
+                  height: 200,
+                  width: double.infinity,
+                  color: const Color(0xFFF1F3F5),
+                  child: const Center(child: Text('이미지를 불러오는 중입니다...')),
+                ),
               )
             else if (_generatedImage != null)
               Image.memory(_generatedImage!, fit: BoxFit.cover),

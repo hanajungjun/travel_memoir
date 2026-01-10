@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -8,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/app/app_shell.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
+// ✅ 기존 AppTextStyles 명칭에 맞춰 수정되었습니다.
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 class LoginPage extends StatefulWidget {
@@ -68,33 +68,23 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _loginWithGoogle() async {
     try {
-      print("🚀 구글 로그인 시도 시작..."); // 이 로그가 먼저 나와야 합니다.
-
+      debugPrint("🚀 구글 로그인 시도 시작...");
       final GoogleSignIn googleSignIn = GoogleSignIn(
         serverClientId:
             '440422476892-84jpfhl9udrlsnp7kpvpea5qn9bku6hr.apps.googleusercontent.com',
       );
 
-      // 💡 이 줄에서 멈추는지 확인해야 합니다.
       final googleUser = await googleSignIn.signIn();
-
-      print("🔍 googleUser 결과: $googleUser");
-
       if (googleUser != null) {
-        print("✅ 구글 로그인 객체 획득 성공: ${googleUser.email}");
         final auth = await googleUser.authentication;
-
         await supabase.auth.signInWithIdToken(
           provider: OAuthProvider.google,
           idToken: auth.idToken!,
           accessToken: auth.accessToken,
         );
-      } else {
-        print("❌ 사용자가 로그인창을 닫았습니다. (googleUser is null)");
       }
     } catch (e) {
-      // 💡 중요: 에러가 나면 여기서 모든 상세 내용을 찍어줍니다.
-      print('🚨 구글 로그인 최종 에러 발생: $e');
+      debugPrint('🚨 구글 로그인 최종 에러 발생: $e');
     }
   }
 
@@ -144,22 +134,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
-    );
-  }
-
-  Future<void> _loginAsAdminTest() async {
-    const adminUid = '11111111-1111-1111-1111-111111111111';
-    await supabase.from('users').upsert({
-      'auth_uid': adminUid,
-      'provider': 'admin',
-      'email': 'admin@travelmemoir.com',
-      'role': 'admin',
-      'updated_at': DateTime.now().toIso8601String(),
-    }, onConflict: 'auth_uid');
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const AppShell()),
     );
   }
 
@@ -222,16 +196,6 @@ class _LoginPageState extends State<LoginPage> {
                     onTap: _loginWithEmail,
                   ),
 
-                  if (kDebugMode) ...[
-                    const SizedBox(height: 24),
-                    TextButton(
-                      onPressed: _loginAsAdminTest,
-                      child: const Text(
-                        '관리자 테스트 로그인',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 48),
                 ],
               ),
