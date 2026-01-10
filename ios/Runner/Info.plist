@@ -59,22 +59,11 @@
                 <string>com.googleusercontent.apps.277385353976-5807hspd33fcvloonsr814ra0559bsbe</string>
             </array>
         </dict>
-        <dict>
-            <key>CFBundleTypeRole</key>
-            <string>Editor</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>kakao[여기에내카카오네이티브앱키입력]</string>
-            </array>
-        </dict>
     </array>
 
     <key>LSApplicationQueriesSchemes</key>
     <array>
         <string>https</string>
-        <string>kakaokompassauth</string>
-        <string>kakaolink</string>
-        <string>kakaotalk</string>
     </array>
 
     <key>NSAppTransportSecurity</key>
@@ -100,5 +89,7 @@
 
     <key>GIDClientID</key>
     <string>277385353976-5807hspd33fcvloonsr814ra0559bsbe.apps.googleusercontent.com</string>
+    <key>UIStatusBarHidden</key>
+    <false/>
 </dict>
 </plist>
