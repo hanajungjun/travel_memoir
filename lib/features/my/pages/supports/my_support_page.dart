@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -14,7 +15,7 @@ class MySupportPage extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('지원'),
+        title: Text('support'.tr()), // ✅ 번역 적용
         centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.white,
@@ -29,11 +30,11 @@ class MySupportPage extends StatelessWidget {
             // =========================
             // 답변과 피드백
             // =========================
-            _SectionTitle('답변과 피드백'),
+            _SectionTitle('help_and_feedback'.tr()), // ✅ 번역 적용
             _Divider(),
 
             _SupportTile(
-              title: '도움말 찾기',
+              title: 'get_help'.tr(), // ✅ 번역 적용
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
                 // TODO: FAQ 링크
@@ -42,7 +43,7 @@ class MySupportPage extends StatelessWidget {
             _Divider(),
 
             _SupportTile(
-              title: '앱 평가하기',
+              title: 'rate_app'.tr(), // ✅ 번역 적용
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
                 // TODO: 스토어 링크
@@ -54,11 +55,11 @@ class MySupportPage extends StatelessWidget {
             // =========================
             // 이용약관
             // =========================
-            _SectionTitle('이용약관'),
+            _SectionTitle('legal'.tr()), // ✅ 번역 적용
             _Divider(),
 
             _SupportTile(
-              title: '개인정보처리방침',
+              title: 'privacy_policy'.tr(), // ✅ 번역 적용
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
                 // TODO: 개인정보처리방침
@@ -67,7 +68,7 @@ class MySupportPage extends StatelessWidget {
             _Divider(),
 
             _SupportTile(
-              title: '서비스 약관',
+              title: 'terms_of_service'.tr(), // ✅ 번역 적용
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
                 // TODO: 서비스 약관
@@ -76,7 +77,7 @@ class MySupportPage extends StatelessWidget {
             _Divider(),
 
             _SupportTile(
-              title: '타사 라이선스',
+              title: 'open_source_licenses'.tr(), // ✅ 번역 적용
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 showLicensePage(context: context);
@@ -85,7 +86,7 @@ class MySupportPage extends StatelessWidget {
             _Divider(),
 
             _SupportTile(
-              title: '접근성 정책',
+              title: 'accessibility_policy'.tr(), // ✅ 번역 적용
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
                 // TODO: 접근성 정책
@@ -106,9 +107,16 @@ class MySupportPage extends StatelessWidget {
                     color: AppColors.textSecondary,
                   ),
                   const SizedBox(height: 8),
-                  Text('날씨좋다', style: AppTextStyles.sectionTitle),
+                  Text(
+                    'app_brand_name'.tr(),
+                    style: AppTextStyles.sectionTitle,
+                  ), // ✅ 브랜드명 번역
                   const SizedBox(height: 4),
-                  Text('버전 1.0.0 (100)', style: AppTextStyles.caption),
+                  // ✅ 버전 정보 포맷팅 번역 적용
+                  Text(
+                    'app_version_format'.tr(args: ['1.0.0', '100']),
+                    style: AppTextStyles.caption,
+                  ),
                 ],
               ),
             ),
@@ -162,6 +170,8 @@ class _SupportTile extends StatelessWidget {
 }
 
 class _Divider extends StatelessWidget {
+  const _Divider({super.key});
+
   @override
   Widget build(BuildContext context) {
     return const Padding(

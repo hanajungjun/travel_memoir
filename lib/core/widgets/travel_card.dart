@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -39,13 +39,12 @@ class TravelCard extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
-          Text('${travel['city']} 여행', style: AppTextStyles.sectionTitle),
-
+          Text(
+            'travel_with_city'.tr(args: [travel['city'] ?? '']),
+            style: AppTextStyles.sectionTitle,
+          ),
           const SizedBox(height: 6),
-
           Text(
             '${travel['start_date']} ~ ${travel['end_date']}',
             style: AppTextStyles.bodyMuted,
@@ -55,7 +54,6 @@ class TravelCard extends StatelessWidget {
     );
   }
 
-  // 🔥 cover.png 경로 생성
   String? _coverImageUrl(Map<String, dynamic> travel) {
     final userId = travel['user_id'];
     final travelId = travel['id'];

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
 
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
 import 'package:travel_memoir/services/travel_create_service.dart';
@@ -15,6 +16,11 @@ class DomesticTravelDatePage extends StatefulWidget {
   const DomesticTravelDatePage({super.key});
 
   @override
+  Widget build(BuildContext context) {
+    return const DomesticTravelDatePage();
+  }
+
+  @override
   State<DomesticTravelDatePage> createState() => _DomesticTravelDatePageState();
 }
 
@@ -27,15 +33,14 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
       _startDate != null && _endDate != null && _region != null;
 
   // =====================================================
-  // 📅 날짜 선택 (🔥 새로 만든 커스텀 달력 페이지 연결)
+  // 📅 날짜 선택 (커스텀 달력 페이지 연결)
   // =====================================================
   Future<void> _pickDateRange() async {
-    // 🚀 Navigator.push를 통해 우리가 만든 예쁜 달력 화면으로 이동합니다.
     final DateTimeRange? range = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => const CustomRangeCalendarPage(),
-        fullscreenDialog: true, // 밑에서 위로 올라오는 모달 애니메이션
+        fullscreenDialog: true,
       ),
     );
 
@@ -121,8 +126,8 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        '국내여행',
-                        style: TextStyle(
+                        'domestic_travel'.tr(), // ✅ 번역 적용
+                        style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           color: themeColor,
@@ -150,9 +155,9 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '언제의 여행인가요?',
-                          style: TextStyle(
+                        Text(
+                          'when_is_trip'.tr(), // ✅ 번역 적용
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -160,24 +165,27 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                         const SizedBox(height: 12),
                         _buildInputField(
                           text: _startDate == null || _endDate == null
-                              ? '이 여행의 날짜를 골라주세요'
+                              ? 'select_date_hint'
+                                    .tr() // ✅ 번역 적용
                               : '${DateFormat('yyyy.MM.dd').format(_startDate!)} - ${DateFormat('yyyy.MM.dd').format(_endDate!)}',
                           isSelected: _startDate != null,
-                          onTap: _pickDateRange, // 🔥 수정된 함수 호출
+                          onTap: _pickDateRange,
                         ),
 
                         const SizedBox(height: 24),
 
-                        const Text(
-                          '어디로 떠났나요?',
-                          style: TextStyle(
+                        Text(
+                          'where_did_you_go'.tr(), // ✅ 번역 적용
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 12),
                         _buildInputField(
-                          text: _region?.name ?? '기억에 남길 도시를 선택해주세요',
+                          text:
+                              _region?.name ??
+                              'select_city_hint'.tr(), // ✅ 번역 적용
                           isSelected: _region != null,
                           onTap: _pickCity,
                         ),
@@ -195,10 +203,10 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
               width: double.infinity,
               height: 70,
               color: _canNext ? themeColor : themeColor.withOpacity(0.4),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  '기억으로 남기기',
-                  style: TextStyle(
+                  'save_as_memory'.tr(), // ✅ 번역 적용
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,

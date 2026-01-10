@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
 
 import 'package:travel_memoir/features/map/pages/domestic_map_page.dart';
 import 'package:travel_memoir/features/map/pages/global_map_page.dart';
@@ -43,15 +44,26 @@ class _MapMainPageState extends State<MapMainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('여행 지도'), centerTitle: true),
+      appBar: AppBar(
+        title: Text('travel_map'.tr()), // ✅ 번역 적용
+        centerTitle: true,
+      ),
       body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                _Tab(label: '한국', selected: _index == 0, onTap: () => _move(0)),
-                _Tab(label: '해외', selected: _index == 1, onTap: () => _move(1)),
+                _Tab(
+                  label: 'korea'.tr(), // ✅ 번역 적용
+                  selected: _index == 0,
+                  onTap: () => _move(0),
+                ),
+                _Tab(
+                  label: 'overseas'.tr(), // ✅ 번역 적용
+                  selected: _index == 1,
+                  onTap: () => _move(1),
+                ),
               ],
             ),
           ),
@@ -59,7 +71,7 @@ class _MapMainPageState extends State<MapMainPage> {
             child: PageView(
               controller: _controller,
               onPageChanged: (i) => setState(() => _index = i),
-              children: [DomesticMapPage(), const GlobalMapPage()],
+              children: [const DomesticMapPage(), const GlobalMapPage()],
             ),
           ),
         ],

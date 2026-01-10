@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../supabase/supabase.dart';
-import '../features/auth/login_page.dart';
-import 'app_shell.dart';
-
-// 🔥 추가
-import 'route_observer.dart';
+import 'package:travel_memoir/supabase/supabase.dart';
+import 'package:travel_memoir/features/auth/login_page.dart';
+import 'package:travel_memoir/app/app_shell.dart';
+import 'package:travel_memoir/app/route_observer.dart';
+import 'package:travel_memoir/screens/onboarding_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class TravelMemoirApp extends StatefulWidget {
-  const TravelMemoirApp({super.key});
+  final bool showOnboarding;
+
+  const TravelMemoirApp({super.key, required this.showOnboarding});
 
   @override
   State<TravelMemoirApp> createState() => _TravelMemoirAppState();
@@ -34,28 +36,31 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
     return MaterialApp(
       title: 'Travel Memoir',
       debugShowCheckedModeBanner: false,
-
-      // 🔥🔥🔥 핵심 (이거 없으면 didPopNext 안 탐)
+      localizationsDelegates: context.localizationDelegates,
+      supportedLocales: context.supportedLocales,
+      locale: context.locale,
       navigatorObservers: [routeObserver],
-
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
       ),
+      // 🔥 핵심 로직: 초기화 -> 온보딩 -> 로그인 체크 순서
       home: !_initialized
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          ? const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            ) // 1. 초기화 중
+          : widget.showOnboarding
+          ? const OnboardingPage() // 2. 온보딩 안 봤으면 온보딩 먼저!
           : StreamBuilder<AuthState>(
+              // 3. 온보딩 봤으면 로그인 상태 체크
               stream: Supabase.instance.client.auth.onAuthStateChange,
               builder: (context, snapshot) {
                 final session = snapshot.data?.session;
 
-                // 🔐 로그인 안됨
                 if (session == null) {
-                  return const LoginPage();
+                  return const LoginPage(); // 🔐 로그인 안됨
                 }
-
-                // ✅ 로그인 완료
-                return const AppShell();
+                return const AppShell(); // ✅ 로그인 완료
               },
             ),
     );

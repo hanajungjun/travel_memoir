@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -135,7 +136,10 @@ class _SearchDropdownState<T> extends State<SearchDropdown<T>>
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                           const SizedBox(width: 12),
-                          Text('검색 중...', style: AppTextStyles.bodyMuted),
+                          Text(
+                            'searching'.tr(),
+                            style: AppTextStyles.bodyMuted,
+                          ),
                         ],
                       ),
                     )
@@ -143,7 +147,7 @@ class _SearchDropdownState<T> extends State<SearchDropdown<T>>
                   ? Padding(
                       padding: const EdgeInsets.all(16),
                       child: Text(
-                        '검색 결과가 없습니다.',
+                        'no_search_results'.tr(),
                         style: AppTextStyles.bodyMuted,
                       ),
                     )
@@ -217,7 +221,7 @@ class _SearchDropdownState<T> extends State<SearchDropdown<T>>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(widget.label, style: AppTextStyles.sectionTitle),
+          Text(widget.label.tr(), style: AppTextStyles.sectionTitle),
           const SizedBox(height: 6),
           AnimatedBuilder(
             animation: _focusAnim,
@@ -243,7 +247,7 @@ class _SearchDropdownState<T> extends State<SearchDropdown<T>>
                   onChanged: _onChanged,
                   style: AppTextStyles.body,
                   decoration: InputDecoration(
-                    hintText: widget.hintText,
+                    hintText: widget.hintText.tr(),
                     hintStyle: AppTextStyles.bodyMuted,
                     filled: true,
                     fillColor: AppColors.background,

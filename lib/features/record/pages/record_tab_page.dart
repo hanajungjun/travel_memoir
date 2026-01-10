@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
 
-// ✅ RouteObserver 임포트 확인 (프로젝트 경로에 맞게 자동 수정될 수 있음)
 import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/features/travel_album/pages/travel_album_page.dart';
@@ -18,7 +18,6 @@ class RecordTabPage extends StatefulWidget {
   State<RecordTabPage> createState() => _RecordTabPageState();
 }
 
-// ✅ RouteAware를 믹스인하여 화면 복귀를 감지합니다.
 class _RecordTabPageState extends State<RecordTabPage> with RouteAware {
   final PageController _controller = PageController();
   late Future<List<Map<String, dynamic>>> _future;
@@ -30,7 +29,6 @@ class _RecordTabPageState extends State<RecordTabPage> with RouteAware {
     _reload();
   }
 
-  // 🔄 데이터를 새로 불러오는 함수
   void _reload() {
     if (!mounted) return;
     setState(() {
@@ -38,7 +36,6 @@ class _RecordTabPageState extends State<RecordTabPage> with RouteAware {
     });
   }
 
-  // ================= Route 감시 설정 =================
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -56,13 +53,11 @@ class _RecordTabPageState extends State<RecordTabPage> with RouteAware {
     super.dispose();
   }
 
-  // 🔥 핵심: 다른 탭(홈, 여행기록 등)에 갔다가 다시 이 탭을 누르면 자동 실행!
   @override
   void didPopNext() {
-    debugPrint("🎬 기록 탭 복귀: 리스트 즉시 새로고침");
+    debugPrint("🎬 Record Tab Returned: Refreshing list");
     _reload();
   }
-  // =================================================
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +73,10 @@ class _RecordTabPageState extends State<RecordTabPage> with RouteAware {
           final travels = snapshot.data!;
           if (travels.isEmpty) {
             return Center(
-              child: Text('아직 기록된 여행이 없어요', style: AppTextStyles.bodyMuted),
+              child: Text(
+                'no_completed_travels'.tr(),
+                style: AppTextStyles.bodyMuted,
+              ), // ✅ 번역 적용
             );
           }
 
@@ -109,14 +107,12 @@ class _RecordTabPageState extends State<RecordTabPage> with RouteAware {
 
     completed.sort((a, b) => b['end_date'].compareTo(a['end_date']));
 
-    // 🔧 AI 처리 중인 항목(이미지나 요약이 없는 경우)이 있는지 확인
     final stillProcessing = completed.any(
       (t) =>
           (t['cover_image_url'] == null) ||
           (t['ai_cover_summary'] ?? '').toString().isEmpty,
     );
 
-    // AI 처리 중일 때만 3초마다 타이머를 가동하고, 다 완료되면 타이머를 파괴합니다.
     if (stillProcessing) {
       if (_pollingTimer == null || !_pollingTimer!.isActive) {
         _pollingTimer = Timer.periodic(
@@ -128,7 +124,7 @@ class _RecordTabPageState extends State<RecordTabPage> with RouteAware {
       if (_pollingTimer != null) {
         _pollingTimer?.cancel();
         _pollingTimer = null;
-        HapticFeedback.lightImpact(); // 완료 알림 진동
+        HapticFeedback.lightImpact();
       }
     }
 
@@ -157,16 +153,28 @@ class _SummaryHeroCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Spacer(),
-            Text('기억을 다시 꺼내볼까요?', style: AppTextStyles.pageTitle),
+            Text(
+              'memory_hero_title'.tr(),
+              style: AppTextStyles.pageTitle,
+            ), // ✅ 번역 적용
             const SizedBox(height: 24),
-            Text('지금까지의 여행 · 총 $totalCount번', style: AppTextStyles.body),
+            Text(
+              'total_travels_format'.tr(
+                args: [totalCount.toString()],
+              ), // ✅ 번역 적용
+              style: AppTextStyles.body,
+            ),
             const SizedBox(height: 8),
             Text(
-              '마지막 여행 · ${DateUtilsHelper.formatYMD(end)}',
+              'last_travel_format'.tr(
+                args: [DateUtilsHelper.formatYMD(end)],
+              ), // ✅ 번역 적용
               style: AppTextStyles.body,
             ),
             Text(
-              DateUtilsHelper.memoryTimeAgo(end),
+              DateUtilsHelper.memoryTimeAgo(
+                end,
+              ), // 이 함수 내부에서도 tr() 처리가 필요할 수 있습니다.
               style: AppTextStyles.bodyMuted,
             ),
             const Spacer(),
@@ -234,7 +242,7 @@ class _TravelRecordCard extends StatelessWidget {
                       : Container(color: AppColors.divider),
                 ),
                 if (hasCover && !hasSummary)
-                  const _BottomLabel(text: 'AI 여행 정리중…'),
+                  _BottomLabel(text: 'ai_organizing'.tr()), // ✅ 번역 적용
                 if (hasSummary) _BottomLabel(text: summary, gradient: true),
               ],
             ),
@@ -245,9 +253,6 @@ class _TravelRecordCard extends StatelessWidget {
   }
 }
 
-// ==============================
-// ⬇️ 하단 라벨
-// ==============================
 class _BottomLabel extends StatelessWidget {
   final String text;
   final bool gradient;

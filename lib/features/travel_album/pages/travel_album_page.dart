@@ -1,11 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+
+// 1. 데이터 모델 클래스 (파일 하단에 정의되어 있어야 함)
+class _AlbumItem {
+  final DateTime date;
+  final String summary;
+  final String imageUrl;
+
+  _AlbumItem({
+    required this.date,
+    required this.summary,
+    required this.imageUrl,
+  });
+}
 
 class TravelAlbumPage extends StatefulWidget {
   final Map<String, dynamic> travel;
@@ -35,14 +49,12 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
     final userId = user.id;
 
-    // 1️⃣ storage에서 실제 이미지 파일 목록을 가져온다 (🔥 핵심)
     final files = await client.storage
         .from('travel_images')
         .list(path: 'users/$userId/travels/$travelId/days');
 
     if (files.isEmpty) return [];
 
-    // 2️⃣ travel_days에서 요약 정보만 가져온다 (date, ai_summary)
     final daySummaries = await TravelDayService.getAlbumDays(
       travelId: travelId,
     );
@@ -52,7 +64,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
         d['date']?.toString(): (d['ai_summary'] ?? '').toString(),
     };
 
-    // 3️⃣ storage 파일 기준으로 앨범 구성
+    // ⭐ 에러 해결: _AlbumItem 생성자를 명확히 호출
     return files.where((f) => f.name.endsWith('.png')).map((f) {
       final dateStr = f.name.replaceAll('.png', '');
       final date =
@@ -72,42 +84,23 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
   String _travelTitle() {
     final isDomestic = widget.travel['travel_type'] == 'domestic';
-
-    // 🌐 시스템 언어 확인
-    final bool isKo =
-        View.of(context).platformDispatcher.locale.languageCode == 'ko';
+    final String currentLocale = context.locale.languageCode;
 
     final place = isDomestic
         ? (widget.travel['city_name'] ?? widget.travel['city'])
-        // ✅ 해외여행일 때 언어 설정에 따라 ko/en 컬럼 선택
-        : (isKo
+        : (currentLocale == 'ko'
               ? widget.travel['country_name_ko']
               : widget.travel['country_name_en']);
 
     final title = (widget.travel['title'] ?? '').toString();
+    if (title.isNotEmpty) return title;
 
-    // 제목이 있으면 제목을, 없으면 '장소명 여행' 표시
-    return title.isNotEmpty ? title : '${place ?? '해외'} 여행';
-  }
-
-  String _dateRangeText() {
-    final s = (widget.travel['start_date'] ?? '').toString();
-    final e = (widget.travel['end_date'] ?? '').toString();
-    return (s.isNotEmpty && e.isNotEmpty) ? '$s ~ $e' : '';
-  }
-
-  String _topSummary() {
-    return (widget.travel['ai_cover_summary'] ??
-            widget.travel['cover_summary'] ??
-            '')
-        .toString();
+    return 'trip_with_place'.tr(args: [place ?? 'overseas'.tr()]);
   }
 
   @override
   Widget build(BuildContext context) {
     final title = _travelTitle();
-    final dateRange = _dateRangeText();
-    final summary = _topSummary();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -119,10 +112,15 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final items = snapshot.data ?? [];
+          // ⭐ 에러 해결: Null check 및 기본 리스트 할당
+          final List<_AlbumItem> items = snapshot.data ?? [];
+
           if (items.isEmpty) {
             return Center(
-              child: Text('아직 생성된 그림일기가 없어요', style: AppTextStyles.bodyMuted),
+              child: Text(
+                'no_diary_images_yet'.tr(),
+                style: AppTextStyles.bodyMuted,
+              ),
             );
           }
 
@@ -131,32 +129,18 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      if (dateRange.isNotEmpty)
-                        Text(dateRange, style: AppTextStyles.bodyMuted),
-                      if (summary.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: AppColors.surface,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Text(summary, style: AppTextStyles.body),
+                      Text(
+                        'painting_album'.tr(),
+                        style: AppTextStyles.sectionTitle,
+                      ),
+                      const Spacer(),
+                      Text(
+                        'image_count_format'.tr(
+                          args: [items.length.toString()],
                         ),
-                      ],
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Text('그림 앨범', style: AppTextStyles.sectionTitle),
-                          const Spacer(),
-                          Text(
-                            '${items.length}장',
-                            style: AppTextStyles.bodyMuted,
-                          ),
-                        ],
+                        style: AppTextStyles.bodyMuted,
                       ),
                     ],
                   ),
@@ -201,18 +185,9 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 }
 
-class _AlbumItem {
-  final DateTime date;
-  final String summary;
-  final String imageUrl;
-
-  _AlbumItem({
-    required this.date,
-    required this.summary,
-    required this.imageUrl,
-  });
-}
-
+// ---------------------------------------------------------
+// 🖼️ 앨범 뷰어 페이지 (에러 방지를 위해 하단 배치)
+// ---------------------------------------------------------
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
   final List<_AlbumItem> items;
@@ -247,27 +222,28 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
 
   void _share() {
     final item = widget.items[_index];
-
     final text = [
-      '📍 ${widget.title}',
-      '📅 ${DateUtilsHelper.formatYMD(item.date)}',
-      if (item.summary.isNotEmpty) '📝 ${item.summary}',
+      '${'share_location'.tr()} ${widget.title}',
+      '${'share_date'.tr()} ${DateUtilsHelper.formatYMD(item.date)}',
+      if (item.summary.isNotEmpty) '${'share_memo'.tr()} ${item.summary}',
       '',
       item.imageUrl,
     ].join('\n');
-
     Share.share(text);
   }
 
   @override
   Widget build(BuildContext context) {
+    // ⭐ 에러 해결: 현재 index의 아이템을 안전하게 가져옴
+    final currentItem = widget.items[_index];
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          '${widget.items[_index].date.month}/${widget.items[_index].date.day}',
+          '${currentItem.date.month}/${currentItem.date.day}',
           style: const TextStyle(color: Colors.white),
         ),
         actions: [
@@ -290,9 +266,9 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
               child: Image.network(
                 item.imageUrl,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Text(
-                  '이미지를 불러오지 못했어요',
-                  style: TextStyle(color: Colors.white),
+                errorBuilder: (_, __, ___) => Text(
+                  'failed_to_load_image'.tr(),
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
             ),

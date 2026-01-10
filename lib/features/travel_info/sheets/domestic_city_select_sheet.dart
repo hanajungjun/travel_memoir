@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
 import 'package:travel_memoir/core/constants/korea/korea_all.dart';
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
 
@@ -14,6 +15,7 @@ class DomesticCitySelectSheet extends StatefulWidget {
 class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
   String _query = '';
 
+  // ✅ 행정구역 명칭 기반 로직은 데이터 구조(koreaRegions)에 종속되므로 그대로 유지합니다.
   bool _isRepresentativeCity(KoreaRegion region) {
     if (region.province.endsWith('광역시') || region.province.endsWith('특별시')) {
       final provinceName = region.province
@@ -34,7 +36,6 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
           ..sort((a, b) => a.name.compareTo(b.name));
 
     return Container(
-      // 🚀 화면 꽉 채우기: 높이를 전체로 설정
       height: MediaQuery.of(context).size.height,
       decoration: const BoxDecoration(
         color: Color(0xFFF8F9FA),
@@ -42,7 +43,6 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
       ),
       child: Column(
         children: [
-          // 1. 상단 'X' 버튼 (이미지 스타일)
           Padding(
             padding: const EdgeInsets.only(left: 8, top: 12),
             child: Align(
@@ -54,7 +54,6 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
             ),
           ),
 
-          // 2. 검색 바 (그림자 있는 둥근 스타일)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Container(
@@ -70,14 +69,14 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
                 ],
               ),
               child: TextField(
-                autofocus: true, // 시트 열리자마자 키보드 활성화
+                autofocus: true,
                 onChanged: (value) => setState(() => _query = value),
-                decoration: const InputDecoration(
-                  hintText: '도시를 검색하세요',
-                  hintStyle: TextStyle(color: Colors.black26),
-                  prefixIcon: Icon(Icons.search, color: Colors.black26),
+                decoration: InputDecoration(
+                  hintText: 'search_city_hint'.tr(), // ✅ 번역 적용
+                  hintStyle: const TextStyle(color: Colors.black26),
+                  prefixIcon: const Icon(Icons.search, color: Colors.black26),
                   border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 15),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
                 ),
               ),
             ),
@@ -85,7 +84,6 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
 
           const SizedBox(height: 12),
 
-          // 3. 리스트 영역 (Expanded로 남은 공간 꽉 채움)
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(horizontal: 20),

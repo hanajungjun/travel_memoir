@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/screens/onboarding_screen.dart';
 
 class MySettingsPage extends StatefulWidget {
   const MySettingsPage({super.key});
@@ -22,76 +25,78 @@ class _MySettingsPageState extends State<MySettingsPage> {
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('설정'),
+        title: Text('settings'.tr()), // ✅ 번역 적용
         centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 12),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
 
-          // =========================
-          // 언어
-          // =========================
-          _SettingTile(
-            title: '언어',
-            trailingText: '한국어',
-            onTap: () {
-              // TODO: 언어 선택 페이지 (나중)
-            },
-          ),
-          _Divider(),
+            _SettingTile(
+              title: 'language'.tr(),
+              trailingText: context.locale.languageCode == 'ko'
+                  ? '한국어'
+                  : 'English',
+              onTap: () {
+                if (context.locale.languageCode == 'ko') {
+                  context.setLocale(const Locale('en'));
+                } else {
+                  context.setLocale(const Locale('ko'));
+                }
+                setState(() {});
+              },
+            ),
+            _Divider(),
 
-          // =========================
-          // 알림
-          // =========================
-          _SwitchTile(
-            title: '알림',
-            value: _notificationEnabled,
-            onChanged: (value) {
-              setState(() {
-                _notificationEnabled = value;
-              });
-              // TODO: 알림 설정 저장 (Supabase)
-            },
-          ),
-          _Divider(),
+            _SwitchTile(
+              title: 'notifications'.tr(), // ✅ '알림' -> 번역 적용
+              value: _notificationEnabled,
+              onChanged: (value) =>
+                  setState(() => _notificationEnabled = value),
+            ),
+            _Divider(),
 
-          // =========================
-          // 마케팅 정보 수신
-          // =========================
-          _SwitchTile(
-            title: '마케팅 정보 수신',
-            value: _marketingEnabled,
-            onChanged: (value) {
-              setState(() {
-                _marketingEnabled = value;
-              });
-              // TODO: 마케팅 수신 여부 저장
-            },
-          ),
-          _Divider(),
+            _SwitchTile(
+              title: 'marketing_info'.tr(), // ✅ '마케팅 정보 수신' -> 번역 적용
+              value: _marketingEnabled,
+              onChanged: (value) => setState(() => _marketingEnabled = value),
+            ),
+            _Divider(),
 
-          // =========================
-          // 데이터 설정
-          // =========================
-          _SettingTile(
-            title: '데이터 설정',
-            onTap: () {
-              // TODO: 데이터 설정 페이지
-            },
-          ),
-          _Divider(),
-        ],
+            _SettingTile(
+              title: 'view_onboarding'.tr(), // ✅ '앱 가이드 다시보기' -> 번역 적용
+              onTap: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setBool('onboarding_done', false);
+                if (!mounted) return;
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const OnboardingPage()),
+                  (route) => false,
+                );
+              },
+            ),
+            _Divider(),
+
+            _SettingTile(
+              title: 'data_settings'.tr(), // ✅ '데이터 설정' -> 번역 적용
+              onTap: () {
+                // TODO: 데이터 설정 페이지
+              },
+            ),
+            _Divider(),
+          ],
+        ),
       ),
     );
   }
 }
 
 // =======================================================
-// 공통 위젯
+// 공통 위젯 (아래 부분이 없어서 에러가 났던 것입니다)
 // =======================================================
 
 class _SettingTile extends StatelessWidget {
@@ -121,7 +126,7 @@ class _SettingTile extends StatelessWidget {
               ),
             ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right),
+          const Icon(Icons.chevron_right, size: 20),
         ],
       ),
       onTap: onTap,
@@ -155,11 +160,13 @@ class _SwitchTile extends StatelessWidget {
 }
 
 class _Divider extends StatelessWidget {
+  const _Divider();
+
   @override
   Widget build(BuildContext context) {
     return const Padding(
       padding: EdgeInsets.symmetric(horizontal: 20),
-      child: Divider(height: 1),
+      child: Divider(height: 1, thickness: 0.5),
     );
   }
 }

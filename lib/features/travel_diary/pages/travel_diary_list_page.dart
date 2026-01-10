@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/features/travel_day/pages/travel_day_page.dart'
     hide TravelDayService;
@@ -48,7 +49,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
         _isChanged = false;
       });
     } catch (e) {
-      debugPrint('❌ 데이터 로드 에러: $e');
+      debugPrint('❌ Data load error: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -94,14 +95,15 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('순서 변경사항이 저장되었습니다.')));
+      ).showSnackBar(SnackBar(content: Text('save_reorder_success'.tr())));
       await _loadAllDiaries();
     } catch (e) {
-      debugPrint('❌ 저장 에러: $e');
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('저장 오류: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('save_reorder_error'.tr(args: [e.toString()])),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -112,13 +114,13 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   Widget build(BuildContext context) {
     final startDate = DateTime.parse(_travel['start_date']);
     final isDomestic = _travel['travel_type'] == 'domestic';
-    final bool isKo =
-        View.of(context).platformDispatcher.locale.languageCode == 'ko';
 
     final title =
         _travel['region_name'] ??
-        (isKo ? _travel['country_name_ko'] : _travel['country_name_en']) ??
-        '여행';
+        (context.locale.languageCode == 'ko'
+            ? _travel['country_name_ko']
+            : _travel['country_name_en']) ??
+        'travel'.tr();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -162,32 +164,29 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                           extentRatio: 0.22,
                           children: [
                             SlidableAction(
-                              // 🔥 [수정 핵심] onPressed 로직 전면 개편
                               onPressed: (context) async {
                                 final diaryData = _diaries[index];
-                                // ✅ 1. 비동기 작업 전 Messenger 미리 확보 (에러 방지)
                                 final messenger = ScaffoldMessenger.of(context);
 
-                                // 2. 삭제 확인 창
                                 final bool? confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (ctx) => AlertDialog(
-                                    title: const Text('기록 삭제'),
-                                    content: const Text(
-                                      '해당 일의 일기 내용과 이미지가 모두 삭제됩니다.\n정말 삭제하시겠습니까?',
-                                    ),
+                                    title: Text('delete_diary_title'.tr()),
+                                    content: Text('delete_diary_confirm'.tr()),
                                     actions: [
                                       TextButton(
                                         onPressed: () =>
                                             Navigator.pop(ctx, false),
-                                        child: const Text('취소'),
+                                        child: Text('cancel'.tr()),
                                       ),
                                       TextButton(
                                         onPressed: () =>
                                             Navigator.pop(ctx, true),
-                                        child: const Text(
-                                          '삭제',
-                                          style: TextStyle(color: Colors.red),
+                                        child: Text(
+                                          'delete'.tr(),
+                                          style: const TextStyle(
+                                            color: Colors.red,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -199,30 +198,27 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                 setState(() => _loading = true);
 
                                 try {
-                                  // ✅ 3. DB 로우는 남기고 내용만 초기화 (removeAt 제거)
-                                  // TravelDayService 내부에서 is_completed: false 처리 필수
                                   await TravelDayService.clearDiaryRecord(
                                     travelId: _travel['id'],
                                     date: diaryData['date'],
                                     photoUrls: diaryData['photo_urls'],
                                   );
 
-                                  // 4. 데이터 새로고침
                                   await _loadAllDiaries();
 
-                                  // ✅ 5. 미리 받아둔 messenger로 스낵바 표시 (안전)
                                   if (mounted) {
                                     messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text('일기 기록이 초기화되었습니다.'),
+                                      SnackBar(
+                                        content: Text(
+                                          'diary_reset_success'.tr(),
+                                        ),
                                       ),
                                     );
                                   }
                                 } catch (e) {
-                                  debugPrint('❌ 초기화 에러: $e');
                                   messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('삭제 중 오류가 발생했습니다.'),
+                                    SnackBar(
+                                      content: Text('delete_error'.tr()),
                                     ),
                                   );
                                 } finally {
@@ -277,9 +273,9 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
               backgroundColor: AppColors.travelingBlue,
               elevation: 4,
               icon: const Icon(Icons.check, color: Colors.white),
-              label: const Text(
-                '변경사항 저장',
-                style: TextStyle(
+              label: Text(
+                'save_reorder_button'.tr(),
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
@@ -288,9 +284,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
           : null,
     );
   }
-
-  // _buildHeader, _buildListItem, _emptyThumb, _TypeBadge 등은 기존과 동일하므로 코드 양 조절을 위해 생략 가능하나,
-  // 전체 요청이셨으므로 그대로 포함하여 제공합니다.
 
   Widget _buildHeader(bool isDomestic, String title) {
     return Container(
@@ -302,11 +295,11 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
         children: [
           Row(
             children: [
-              _TypeBadge(label: isDomestic ? '국내' : '해외'),
+              _TypeBadge(label: isDomestic ? 'domestic'.tr() : 'overseas'.tr()),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  title,
+                  'travel_diary_list_title'.tr(args: [title]),
                   style: AppTextStyles.pageTitle.copyWith(
                     color: Colors.white,
                     fontSize: 22,
@@ -314,7 +307,15 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                 ),
               ),
               Text(
-                '${_diaries.where((e) => e['text'].toString().isNotEmpty).length}/${_diaries.length} 작성',
+                'diary_count_format'.tr(
+                  args: [
+                    _diaries
+                        .where((e) => e['text'].toString().isNotEmpty)
+                        .length
+                        .toString(),
+                    _diaries.length.toString(),
+                  ],
+                ),
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
@@ -377,12 +378,12 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${DateUtilsHelper.formatMonthDay(date)} · $dayIndex일차',
+                  '${DateUtilsHelper.formatMonthDay(date)} · ${'travel_day_unit'.tr(args: [dayIndex.toString()])}',
                   style: AppTextStyles.bodyMuted.copyWith(fontSize: 13),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  hasDiary ? text.split('\n').first : '일기를 작성해주세요',
+                  hasDiary ? text.split('\n').first : 'please_write_diary'.tr(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.body.copyWith(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
 
 import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
@@ -30,6 +31,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   }
 
   void _refresh() {
+    if (!mounted) return;
     setState(() {
       _future = TravelListService.getTravels();
     });
@@ -58,13 +60,15 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 🎨 전체 배경색을 약간 회색으로 설정 (카드가 돋보이게)
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF8F9FA),
         elevation: 0,
         centerTitle: true,
-        title: Text('여행 기록', style: AppTextStyles.sectionTitle),
+        title: Text(
+          'travel_records'.tr(),
+          style: AppTextStyles.sectionTitle,
+        ), // ✅ 번역 적용
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
@@ -74,8 +78,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Text('아직 여행이 없어요', style: AppTextStyles.bodyMuted),
+            return Center(
+              child: Text(
+                'no_travels_yet'.tr(),
+                style: AppTextStyles.bodyMuted,
+              ), // ✅ 번역 적용
             );
           }
 
@@ -84,7 +91,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
           return ListView.separated(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             itemCount: travels.length,
-            // ✂️ 구분선 대신 간격을 두어 카드 느낌을 살림
             separatorBuilder: (_, __) => const SizedBox(height: 16),
             itemBuilder: (context, index) {
               final travel = travels[index];
@@ -95,9 +101,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                   await TravelCreateService.deleteTravel(travel['id']);
                   if (!mounted) return;
                   _refresh();
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('여행이 삭제되었습니다')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('travel_deleted_message'.tr()),
+                    ), // ✅ 번역 적용
+                  );
                 },
                 onTap: () async {
                   await Navigator.push(
@@ -117,9 +125,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
         width: 60,
         height: 60,
         child: FloatingActionButton(
-          elevation: 8, // 그림자를 조금 더 깊게
+          elevation: 8,
           backgroundColor: AppColors.travelingBlue,
-          // 🎨 카드와 어울리는 둥근 사각형 모양으로 변경
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50),
           ),
@@ -147,9 +154,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   }
 }
 
-// =====================================================
-// 🔥 스와이프 삭제 아이템 (Slidable)
-// =====================================================
 class _SwipeDeleteItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onDelete;
@@ -174,7 +178,7 @@ class _SwipeDeleteItem extends StatelessWidget {
             backgroundColor: AppColors.error,
             foregroundColor: Colors.white,
             icon: Icons.delete,
-            borderRadius: BorderRadius.circular(20), // 카드 곡률과 맞춤
+            borderRadius: BorderRadius.circular(20),
           ),
         ],
       ),
@@ -183,9 +187,6 @@ class _SwipeDeleteItem extends StatelessWidget {
   }
 }
 
-// =====================================================
-// 🧳 리뉴얼된 여행 카드 UI
-// =====================================================
 class _TravelListItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onTap;
@@ -195,13 +196,9 @@ class _TravelListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDomestic = travel['travel_type'] == 'domestic';
-
-    // 🏷️ 제목 (스크린샷처럼 영문명 포함 가능)
-    // 🌐 한국어 설정 여부 확인
     final bool isKo =
-        View.of(context).platformDispatcher.locale.languageCode == 'ko';
+        context.locale.languageCode == 'ko'; // ✅ context.locale 사용
 
-    // ✅ 다국어 컬럼 반영
     final String title =
         travel['region_name'] ??
         (isKo ? travel['country_name_ko'] : travel['country_name_en']) ??
@@ -224,7 +221,6 @@ class _TravelListItem extends StatelessWidget {
         final written = snapshot.data ?? 0;
         final completed = written == totalDays && totalDays > 0;
 
-        // 🎨 상태별 색상 (스크린샷 느낌)
         final badgeColor = completed
             ? const Color(0xFF9E9E9E)
             : isDomestic
@@ -237,7 +233,6 @@ class _TravelListItem extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
-              // ☁️ 부드러운 카드 그림자
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -256,7 +251,6 @@ class _TravelListItem extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            // 💊 국/내외 뱃지
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -267,7 +261,9 @@ class _TravelListItem extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                isDomestic ? '국내' : '해외',
+                                isDomestic
+                                    ? 'domestic'.tr()
+                                    : 'overseas'.tr(), // ✅ 번역 적용
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -276,7 +272,6 @@ class _TravelListItem extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 10),
-                            // 📍 지역명
                             Expanded(
                               child: Text(
                                 engTitle.isNotEmpty
@@ -294,7 +289,6 @@ class _TravelListItem extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        // 📅 여행 기간
                         Text(
                           '$start ~ $end',
                           style: AppTextStyles.bodyMuted.copyWith(fontSize: 13),
@@ -302,7 +296,6 @@ class _TravelListItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // 📊 작성 진행률
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -321,7 +314,11 @@ class _TravelListItem extends StatelessWidget {
                                 color: completed ? Colors.grey : Colors.black,
                               ),
                             ),
-                            TextSpan(text: ' / $totalDays 작성'),
+                            TextSpan(
+                              text: 'written_days_format'.tr(
+                                args: [totalDays.toString()],
+                              ),
+                            ), // ✅ 번역 적용
                           ],
                         ),
                       ),

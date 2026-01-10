@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
+
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
-
-import 'package:travel_memoir/features/auth/login_page.dart';
 
 import 'package:travel_memoir/features/my/pages/user_details/my_profile_page.dart';
 import 'package:travel_memoir/features/my/pages/user_details/account_management_page.dart';
@@ -21,7 +21,7 @@ class MyUserDetailPage extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('사용자 세부 정보'),
+        title: Text('user_detail_title'.tr()), // ✅ 번역 적용
         centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.white,
@@ -31,26 +31,20 @@ class MyUserDetailPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 24),
-
-          _Divider(),
-
+          const _Divider(),
           _SettingTile(
-            title: '로그인 정보',
+            title: 'login_info'.tr(), // ✅ 번역 적용
             onTap: () {
-              // 로그인 정보 페이지로 이동
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const MyProfilePage()),
               );
             },
           ),
-
-          _Divider(),
-
+          const _Divider(),
           _SettingTile(
-            title: '계정 관리',
+            title: 'account_management'.tr(), // ✅ 번역 적용
             onTap: () {
-              // 계정 관리 페이지로 이동
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -59,24 +53,18 @@ class MyUserDetailPage extends StatelessWidget {
               );
             },
           ),
-
-          _Divider(),
-
+          const _Divider(),
           _SettingTile(
-            title: '결제 관리',
+            title: 'payment_management'.tr(), // ✅ 번역 적용
             onTap: () {
-              // 결제 관리 페이지로 이동
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const PayManagementPage()),
               );
             },
           ),
-
-          _Divider(),
-
+          const _Divider(),
           const SizedBox(height: 12),
-
           _LogoutTile(
             onTap: () async {
               await Supabase.instance.client.auth.signOut();
@@ -122,7 +110,7 @@ class _LogoutTile extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20),
       title: Text(
-        '로그아웃',
+        'logout'.tr(), // ✅ 번역 적용
         style: AppTextStyles.body.copyWith(
           color: AppColors.primary,
           fontWeight: FontWeight.w600,
@@ -134,6 +122,8 @@ class _LogoutTile extends StatelessWidget {
 }
 
 class _Divider extends StatelessWidget {
+  const _Divider({super.key});
+
   @override
   Widget build(BuildContext context) {
     return const Padding(

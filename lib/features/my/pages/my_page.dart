@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
@@ -20,48 +21,57 @@ class MyPage extends StatefulWidget {
 
 class _MyPageState extends State<MyPage> {
   late Future<Map<String, dynamic>> _future;
+  Locale? _lastLocale; // ✅ 언어 변경 감지를 위한 변수 추가
 
   @override
   void initState() {
     super.initState();
-    _future = _fetchMyProfileWithStats();
+    // 초기 로딩은 didChangeDependencies에서 처리되므로 비워둠
   }
 
-  // 📡 프로필 정보와 여행 횟수를 한 번에 가져오기
+  // ✅ 언어(Locale)가 변경되면 Flutter가 이 함수를 호출합니다.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final currentLocale = EasyLocalization.of(context)?.locale;
+
+    // 언어가 처음 설정되거나 변경되었을 때만 데이터를 다시 불러옴
+    if (_lastLocale != currentLocale) {
+      _lastLocale = currentLocale;
+      _future = _fetchMyProfileWithStats();
+    }
+  }
+
   Future<Map<String, dynamic>> _fetchMyProfileWithStats() async {
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser!;
 
-    // 1. 유저 프로필 정보 가져오기
     final profile = await supabase
         .from('users')
         .select()
         .eq('auth_uid', user.id)
         .single();
 
-    // 2. 완료된 여행 데이터 리스트 가져오기 (count 파라미터 대신 길이를 활용)
     final List<dynamic> travels = await supabase
         .from('travels')
-        .select('id') // id만 가져오는 게 메모리에 훨씬 이득입니다!
+        .select('id')
         .eq('user_id', user.id)
         .eq('is_completed', true);
 
-    // 가져온 리스트의 길이가 곧 여행 횟수입니다.
     final travelCount = travels.length;
 
     return {'profile': profile, 'travelCount': travelCount};
   }
 
-  // 🎖️ 여행 횟수에 따른 칭호 부여 로직
   Map<String, dynamic> _getBadge(int count) {
     if (count >= 16) {
-      return {'title': '지구 정복자 🌍', 'color': Colors.deepPurple};
+      return {'title_key': 'badge_earth_conqueror', 'color': Colors.deepPurple};
     } else if (count >= 6) {
-      return {'title': '프로 방랑객 🎒', 'color': Colors.blueAccent};
+      return {'title_key': 'badge_pro_wanderer', 'color': Colors.blueAccent};
     } else if (count >= 1) {
-      return {'title': '새내기 여행자 🌱', 'color': Colors.green};
+      return {'title_key': 'badge_newbie_traveler', 'color': Colors.green};
     } else {
-      return {'title': '모험 준비 중 🚀', 'color': Colors.grey};
+      return {'title_key': 'badge_preparing_adventure', 'color': Colors.grey};
     }
   }
 
@@ -83,16 +93,13 @@ class _MyPageState extends State<MyPage> {
             final badge = _getBadge(travelCount);
 
             final imageUrl = profile['profile_image_url'];
-            final nickname = profile['nickname'] ?? '여행자';
+            final nickname = profile['nickname'] ?? 'default_nickname'.tr();
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // =========================
-                  // 👤 상단 프로필 (닉네임 + 칭호)
-                  // =========================
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -109,7 +116,6 @@ class _MyPageState extends State<MyPage> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                // 칭호 뱃지
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -123,7 +129,7 @@ class _MyPageState extends State<MyPage> {
                                     ),
                                   ),
                                   child: Text(
-                                    badge['title'],
+                                    (badge['title_key'] as String).tr(),
                                     style: TextStyle(
                                       color: badge['color'],
                                       fontWeight: FontWeight.bold,
@@ -175,15 +181,12 @@ class _MyPageState extends State<MyPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 32),
-
-                  Text('계정 관리', style: AppTextStyles.sectionTitle),
+                  Text(
+                    'account_management'.tr(),
+                    style: AppTextStyles.sectionTitle,
+                  ),
                   const SizedBox(height: 16),
-
-                  // =========================
-                  // 🧩 2x2 타일 메뉴 (그대로)
-                  // =========================
                   GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
@@ -192,7 +195,7 @@ class _MyPageState extends State<MyPage> {
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _MenuTile(
-                        title: '사용자 세부 정보',
+                        title: 'user_detail_title'.tr(),
                         icon: Icons.manage_accounts_outlined,
                         onTap: () {
                           Navigator.push(
@@ -204,7 +207,7 @@ class _MyPageState extends State<MyPage> {
                         },
                       ),
                       _MenuTile(
-                        title: '내 여행',
+                        title: 'my_travels'.tr(),
                         icon: Icons.public,
                         onTap: () {
                           Navigator.push(
@@ -216,7 +219,7 @@ class _MyPageState extends State<MyPage> {
                         },
                       ),
                       _MenuTile(
-                        title: '설정',
+                        title: 'settings'.tr(),
                         icon: Icons.settings_outlined,
                         onTap: () {
                           Navigator.push(
@@ -228,7 +231,7 @@ class _MyPageState extends State<MyPage> {
                         },
                       ),
                       _MenuTile(
-                        title: '지원',
+                        title: 'support'.tr(),
                         icon: Icons.menu_book_outlined,
                         onTap: () {
                           Navigator.push(
@@ -241,12 +244,7 @@ class _MyPageState extends State<MyPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 32),
-
-                  // =========================
-                  // 🔴 로그아웃
-                  // =========================
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -267,7 +265,7 @@ class _MyPageState extends State<MyPage> {
                           (_) => false,
                         );
                       },
-                      child: Text('로그아웃', style: AppTextStyles.body),
+                      child: Text('logout'.tr(), style: AppTextStyles.body),
                     ),
                   ),
                 ],
@@ -280,7 +278,6 @@ class _MyPageState extends State<MyPage> {
   }
 }
 
-// 🔹 타일 위젯 (그대로)
 class _MenuTile extends StatelessWidget {
   final String title;
   final IconData icon;

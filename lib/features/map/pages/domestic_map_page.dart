@@ -4,7 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/foundation.dart'; // TargetPlatform 확인용
+import 'package:flutter/foundation.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/visited_region_service.dart';
@@ -48,9 +49,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     );
   }
 
-  // =========================================================
-  // ✂️ [핵심] 안드로이드를 위한 GeoJSON 좌표 단순화 알고리즘
-  // =========================================================
   Map<String, dynamic> _simplifyGeoJson(
     String rawJson, {
     double tolerance = 0.005,
@@ -86,11 +84,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
       for (int i = 1; i < ring.length - 1; i++) {
         var last = simplified.last;
         var curr = ring[i];
-
-        // 두 좌표 사이의 단순 거리를 계산 (위도/경도 차이합)
         double dist = (curr[0] - last[0]).abs() + (curr[1] - last[1]).abs();
-
-        // 설정한 허용치보다 멀리 떨어진 좌표만 리스트에 포함
         if (dist > tolerance) {
           simplified.add(curr);
         }
@@ -100,9 +94,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     }).toList();
   }
 
-  // =========================================================
-  // 🗺️ 스타일 로드 및 데이터 바인딩
-  // =========================================================
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
     if (_styleInitialized) return;
     _styleInitialized = true;
@@ -112,7 +103,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     final style = map.style;
 
     try {
-      // 1. 투영법 및 한글화 처리
       await style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
@@ -133,7 +123,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         }
       }
 
-      // 2. 방문 지역 데이터 가져오기
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
@@ -150,14 +139,10 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
           visitedSigunguCodes.add(row['sgg_cd'].toString());
       }
 
-      // 3. 시도(Sido) 레이어 적용
       if (visitedSidoCodes.isNotEmpty) {
         final String rawSido = await rootBundle.loadString(_sidoGeoJson);
         String finalSido;
-
-        // 🤖 안드로이드라면 메모리를 위해 다이어트!
         if (defaultTargetPlatform == TargetPlatform.android) {
-          debugPrint('🤖 Android detected: Sido 데이터 단순화 적용 중...');
           finalSido = jsonEncode(_simplifyGeoJson(rawSido, tolerance: 0.005));
         } else {
           finalSido = rawSido;
@@ -183,14 +168,10 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         );
       }
 
-      // 4. 시군구(Sig) 레이어 적용 (메모리 폭발 위험 구간)
       if (visitedSigunguCodes.isNotEmpty) {
         final String rawSig = await rootBundle.loadString(_sigGeoJson);
         String finalSig;
-
         if (defaultTargetPlatform == TargetPlatform.android) {
-          debugPrint('🤖 Android detected: Sig 데이터 단순화 적용 중...');
-          // 시군구는 데이터가 더 많으므로 확실하게 단순화합니다.
           finalSig = jsonEncode(_simplifyGeoJson(rawSig, tolerance: 0.005));
         } else {
           finalSig = rawSig;
@@ -214,13 +195,10 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         );
       }
     } catch (e) {
-      debugPrint('❌ [MAP] 데이터 로드 중 에러: $e');
+      debugPrint('❌ [MAP] Error: $e');
     }
   }
 
-  // =========================================================
-  // 🖱️ 클릭 및 팝업 로직
-  // =========================================================
   Future<void> _onMapTap(MapContentGestureContext context) async {
     final map = _map;
     if (map == null) return;
@@ -248,15 +226,13 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         }
       }
     } catch (e) {
-      debugPrint('❌ 클릭 쿼리 에러: $e');
+      debugPrint('❌ Tap Query Error: $e');
     }
   }
 
   void _showAiMapPopup(String code, String name) async {
-    // 1. 이름 정제 ('광주시' -> '광주')
     final searchName = name.replaceAll(RegExp(r'(시|군|구)$'), '').trim();
 
-    // 2. [핵심] 코드를 바탕으로 province 컬럼에 들어갈 정확한 이름 매칭
     String provinceName = "";
     if (code.startsWith('41'))
       provinceName = "경기도";
@@ -269,7 +245,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     else if (code.startsWith('46'))
       provinceName = "전라남도";
     else if (code.startsWith('45'))
-      provinceName = "전라북도"; // 혹은 전북특별자치도
+      provinceName = "전라북도";
     else if (code.startsWith('44'))
       provinceName = "충청남도";
     else if (code.startsWith('43'))
@@ -293,24 +269,18 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     else if (code.startsWith('36'))
       provinceName = "세종특별자치시";
 
-    debugPrint(
-      '📍 클릭: $name(코드:$code) -> 검색: region($searchName) + province($provinceName)',
-    );
-
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
     try {
-      // 3. Supabase 쿼리: region_name과 province를 각각 조건으로 겁니다.
       var query = Supabase.instance.client
           .from('travels')
           .select('map_image_url, region_name, ai_cover_summary, province')
           .eq('user_id', user.id)
           .eq('travel_type', 'domestic')
-          .eq('region_name', searchName) // "광주" 정확히 일치
+          .eq('region_name', searchName)
           .not('map_image_url', 'is', null);
 
-      // province 정보가 있으면 조건에 추가 (경기도 광주 vs 광주광역시 완벽 구분)
       if (provinceName.isNotEmpty) {
         query = query.eq('province', provinceName);
       }
@@ -321,20 +291,18 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
           .maybeSingle();
 
       if (response == null) {
-        debugPrint('❌ DB에서 해당 기록($provinceName $searchName)을 찾을 수 없음');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('$provinceName $name 지역의 기록이 없습니다.')),
+            SnackBar(
+              content: Text('no_record_found'.tr(args: [provinceName, name])),
+            ),
           );
         }
         return;
       }
 
-      debugPrint('✅ 이미지 찾음: ${response['map_image_url']}');
-
       if (!mounted) return;
 
-      // 4. 팝업 실행
       showGeneralDialog(
         context: context,
         barrierDismissible: true,
@@ -345,8 +313,10 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
           return Center(
             child: AiMapPopup(
               imageUrl: response['map_image_url'],
+              // 💡 provinceName과 region_name은 DB값이므로 그대로 조합하거나, 필요시 provinceName도 tr() 처리할 수 있습니다.
               regionName: "${response['province']} ${response['region_name']}",
-              summary: response['ai_cover_summary'] ?? "기록된 추억이 없습니다.",
+              summary:
+                  response['ai_cover_summary'] ?? "no_memories_recorded".tr(),
             ),
           );
         },
@@ -362,7 +332,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         },
       );
     } catch (e) {
-      debugPrint('❌ 지도 클릭 처리 중 에러: $e');
+      debugPrint('❌ Click processing error: $e');
     }
   }
 

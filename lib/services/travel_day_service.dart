@@ -64,7 +64,7 @@ class TravelDayService {
   }) async {
     final user = _supabase.auth.currentUser;
     if (user == null) {
-      throw Exception('로그인 필요');
+      throw Exception('need login');
     }
 
     final res = await _supabase
@@ -255,7 +255,7 @@ class TravelDayService {
         );
       }
     } catch (e) {
-      debugPrint('⚠️ 일기 정보 조회 실패: $e');
+      debugPrint('⚠️ diary list failed: $e');
     }
 
     // --- 2️⃣ 여행 대표 이미지 경로 추가 (Cover, Map) ---
@@ -274,7 +274,7 @@ class TravelDayService {
               .join('/');
           pathsToDelete.add(path);
         } catch (e) {
-          debugPrint('⚠️ 사진 경로 파싱 실패: $e');
+          debugPrint('⚠️ phote parsing error: $e');
         }
       }
     }

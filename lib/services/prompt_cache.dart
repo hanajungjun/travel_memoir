@@ -10,14 +10,14 @@ class PromptCache {
 
   static PromptModel get textPrompt {
     if (_textPrompt == null) {
-      throw Exception('❌ 텍스트 프롬프트 없음');
+      throw Exception('❌ need text prompt');
     }
     return _textPrompt!;
   }
 
   static ImagePromptModel get imagePrompt {
     if (_imagePrompt == null) {
-      throw Exception('❌ 이미지 프롬프트 없음');
+      throw Exception('❌ need image prompt');
     }
     return _imagePrompt!;
   }

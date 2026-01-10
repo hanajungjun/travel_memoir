@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:scrollable_clean_calendar/scrollable_clean_calendar.dart';
 import 'package:scrollable_clean_calendar/controllers/clean_calendar_controller.dart';
 import 'package:scrollable_clean_calendar/utils/enums.dart';
@@ -20,9 +21,14 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
   @override
   void initState() {
     super.initState();
+  }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // locale 설정 반영을 위해 여기서 초기화
     calendarController = CleanCalendarController(
-      minDate: DateTime(2024, 1, 1), // 과거 날짜 선택 허용
+      minDate: DateTime(2024, 1, 1),
       maxDate: DateTime(2027, 12, 31),
       onRangeSelected: (min, max) {
         setState(() {
@@ -30,7 +36,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
           rangeMax = max;
         });
       },
-      initialFocusDate: DateTime.now(), // 2026년 현재 기준
+      initialFocusDate: DateTime.now(),
       weekdayStart: DateTime.monday,
     );
   }
@@ -44,9 +50,6 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // -----------------------------------------------------
-            // 1️⃣ 상단 바 (X 버튼 및 파란색 원형 체크 버튼)
-            // -----------------------------------------------------
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
@@ -88,10 +91,6 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                 ],
               ),
             ),
-
-            // -----------------------------------------------------
-            // 2️⃣ 날짜 선택 카드 (디자인 유지)
-            // -----------------------------------------------------
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
               child: Container(
@@ -111,17 +110,17 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.calendar_today_outlined,
                           size: 18,
                           color: Colors.black54,
                         ),
-                        SizedBox(width: 8),
+                        const SizedBox(width: 8),
                         Text(
-                          '날짜 선택',
-                          style: TextStyle(
+                          'select_date'.tr(),
+                          style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                             color: Colors.black87,
@@ -132,7 +131,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                     const SizedBox(height: 12),
                     Text(
                       rangeMin == null || rangeMax == null
-                          ? '여행 기간을 선택해주세요'
+                          ? 'please_select_travel_period'.tr()
                           : '${DateFormat('yyyy. MM. dd').format(rangeMin!)} ~ ${DateFormat('yyyy. MM. dd').format(rangeMax!)}',
                       style: const TextStyle(
                         fontSize: 22,
@@ -144,15 +143,11 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                 ),
               ),
             ),
-
-            // -----------------------------------------------------
-            // 3️⃣ 세로 스크롤 달력 (직접 범위 계산 로직 적용)
-            // -----------------------------------------------------
             Expanded(
               child: ScrollableCleanCalendar(
                 calendarController: calendarController,
                 layout: Layout.BEAUTY,
-                locale: 'ko',
+                locale: context.locale.languageCode, // ✅ 현재 언어 자동 반영
                 calendarCrossAxisSpacing: 0,
                 showWeekdays: true,
                 weekdayTextStyle: const TextStyle(
@@ -165,12 +160,9 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
                 ),
-
-                // ⭐ 에러 해결: dayBuilder 내에서 직접 범위 체크
                 dayBuilder: (context, values) {
                   final date = values.day;
 
-                  // 1. 시작일 또는 종료일인지 확인
                   bool isStartOrEnd =
                       (rangeMin != null &&
                           date.year == rangeMin!.year &&
@@ -181,14 +173,12 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                           date.month == rangeMax!.month &&
                           date.day == rangeMax!.day);
 
-                  // 2. 선택된 범위 사이인지 확인
                   bool isBetween =
                       rangeMin != null &&
                       rangeMax != null &&
                       date.isAfter(rangeMin!) &&
                       date.isBefore(rangeMax!);
 
-                  // 배경 디자인 설정
                   BoxDecoration? decoration;
                   if (isStartOrEnd) {
                     decoration = const BoxDecoration(
@@ -202,14 +192,15 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                     );
                   }
 
-                  // 텍스트 색상 설정 (토요일-파란색, 일요일-빨간색, 선택시-흰색)
                   Color textColor = Colors.black;
-                  if (isStartOrEnd || isBetween) {
-                    textColor = Colors.white; // 선택 시 무조건 흰색
+                  if (isStartOrEnd) {
+                    textColor = Colors.white;
+                  } else if (isBetween) {
+                    textColor = themeColor;
                   } else if (date.weekday == DateTime.saturday) {
-                    textColor = Colors.blue; // 토요일
+                    textColor = Colors.blue;
                   } else if (date.weekday == DateTime.sunday) {
-                    textColor = Colors.red; // 일요일
+                    textColor = Colors.red;
                   }
 
                   return Container(

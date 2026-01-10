@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -11,7 +12,7 @@ class TravelTypeSelectPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // 스크린샷의 연한 배경색
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -26,7 +27,7 @@ class TravelTypeSelectPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            // ✨ 상단 메인 타이틀
+            // ✨ 상단 메인 타이틀 (번역 적용)
             RichText(
               text: TextSpan(
                 style: const TextStyle(
@@ -35,11 +36,13 @@ class TravelTypeSelectPage extends StatelessWidget {
                   height: 1.4,
                 ),
                 children: [
-                  const TextSpan(
-                    text: '어떤 여행',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  TextSpan(
+                    text: 'select_type_bold'.tr(), // ✅ "어떤 여행" / "Which trip"
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const TextSpan(text: '을 기록할까요?'),
+                  TextSpan(
+                    text: 'select_type_normal'.tr(),
+                  ), // ✅ "을 기록할까요?" / " should we record?"
                 ],
               ),
             ),
@@ -49,11 +52,11 @@ class TravelTypeSelectPage extends StatelessWidget {
             // 🇰🇷 국내 여행 카드
             // ======================
             _TravelTypeCard(
-              title: '국내여행, ',
-              subTitleSuffix: 'Local',
-              description: '한국 곳곳을 기록하는 여행',
+              title: 'domestic_travel_comma'.tr(), // ✅ "국내여행, " / "Domestic, "
+              subTitleSuffix: 'local_label'.tr(), // ✅ "Local"
+              description: 'domestic_description'.tr(), // ✅ "한국 곳곳을 기록하는 여행"
               icon: Icons.location_on_rounded,
-              iconColor: const Color(0xFF3498DB), // 국내여행 블루
+              iconColor: const Color(0xFF3498DB),
               onTap: () async {
                 final createdTravel =
                     await Navigator.push<Map<String, dynamic>>(
@@ -74,11 +77,11 @@ class TravelTypeSelectPage extends StatelessWidget {
             // 🌍 해외 여행 카드
             // ======================
             _TravelTypeCard(
-              title: '해외여행, ',
-              subTitleSuffix: 'Abroad',
-              description: '낯선 곳에서의 하루 기록',
+              title: 'overseas_travel_comma'.tr(), // ✅ "해외여행, " / "Abroad, "
+              subTitleSuffix: 'abroad_label'.tr(), // ✅ "Abroad"
+              description: 'overseas_description'.tr(), // ✅ "낯선 곳에서의 하루 기록"
               icon: Icons.public_rounded,
-              iconColor: const Color(0xFF6C5CE7), // 해외여행 퍼플
+              iconColor: const Color(0xFF6C5CE7),
               onTap: () async {
                 final createdTravel =
                     await Navigator.push<Map<String, dynamic>>(
@@ -99,9 +102,6 @@ class TravelTypeSelectPage extends StatelessWidget {
   }
 }
 
-// ==============================
-// 🧭 리뉴얼된 여행 타입 카드 위젯
-// ==============================
 class _TravelTypeCard extends StatelessWidget {
   final String title;
   final String subTitleSuffix;
@@ -128,10 +128,10 @@ class _TravelTypeCard extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(25), // 피그마 스타일의 큰 곡률
+          borderRadius: BorderRadius.circular(25),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04), // 아주 연한 그림자
+              color: Colors.black.withOpacity(0.04),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -139,7 +139,6 @@ class _TravelTypeCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // 아이콘 박스
             Container(
               width: 50,
               height: 50,
@@ -150,7 +149,6 @@ class _TravelTypeCard extends StatelessWidget {
               child: Icon(icon, color: iconColor, size: 28),
             ),
             const SizedBox(width: 20),
-            // 텍스트 영역
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +164,7 @@ class _TravelTypeCard extends StatelessWidget {
                         TextSpan(text: title),
                         TextSpan(
                           text: subTitleSuffix,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.black45,
                             fontWeight: FontWeight.normal,
                             fontSize: 18,

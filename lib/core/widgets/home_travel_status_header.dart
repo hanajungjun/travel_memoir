@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/services/travel_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
-
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/home_travel_status_header_skeleton.dart';
@@ -31,7 +30,7 @@ class HomeTravelStatusHeader extends StatelessWidget {
             key: snapshot.connectionState == ConnectionState.waiting
                 ? const ValueKey('header-skeleton-bg')
                 : const ValueKey('header-content-bg'),
-            color: bgColor, // ✅ SafeArea 포함 색
+            color: bgColor,
             child: SafeArea(
               bottom: false,
               child: snapshot.connectionState == ConnectionState.waiting
@@ -67,23 +66,33 @@ class _HeaderContent extends StatelessWidget {
     final isTraveling = t != null;
     final isDomestic = t?['travel_type'] == 'domestic';
 
-    final bool isKo =
-        View.of(context).platformDispatcher.locale.languageCode == 'ko';
+    final String location;
+    if (isTraveling) {
+      if (isDomestic) {
+        location = t['region_name'] ?? t['city_name'] ?? 'domestic'.tr();
+      } else {
+        location =
+            (context.locale.languageCode == 'ko'
+                ? t['country_name_ko']
+                : t['country_name_en']) ??
+            'overseas'.tr();
+      }
+    } else {
+      location = '';
+    }
 
     final title = isTraveling
-        ? (isDomestic
-              ? '${(t['region_name'] ?? t['city_name'] ?? '국내')} 여행중' // 👈 t?['...'] 에서 ? 제거
-              : '${((isKo ? t['country_name_ko'] : t['country_name_en']) ?? '해외')} 여행중') // 👈 t?['...'] 에서 ? 제거
-        : '여행 준비중';
+        ? 'traveling_status'.tr(args: [location])
+        : 'preparing_travel'.tr();
 
     final subtitle = isTraveling
-        ? '${t?['start_date'] ?? ''} ~ ${t?['end_date'] ?? ''}'
-        : '여행을 먼저 등록해볼까요?';
+        ? '${t['start_date'] ?? ''} ~ ${t['end_date'] ?? ''}'
+        : 'register_travel_first'.tr();
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-      color: bgColor, // ✅ 내부도 같은 색으로 (빈칸/네모 느낌 방지)
+      color: bgColor,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -121,7 +130,7 @@ class _HeaderContent extends StatelessWidget {
               await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => TravelDiaryListPage(travel: t!),
+                  builder: (_) => TravelDiaryListPage(travel: t),
                 ),
               );
             },

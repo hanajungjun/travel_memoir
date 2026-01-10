@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/skeleton_box.dart';
@@ -7,7 +8,7 @@ import 'package:travel_memoir/core/widgets/skeletons/skeleton_box.dart';
 class TotalDonutCard extends StatelessWidget {
   final int visited;
   final int total;
-  final String title;
+  final String? title; // 기본값 처리를 위해 nullable로 변경
   final String sub;
   final int percent;
 
@@ -15,7 +16,7 @@ class TotalDonutCard extends StatelessWidget {
     super.key,
     required this.visited,
     required this.total,
-    this.title = 'In Total',
+    this.title,
     required this.sub,
     required this.percent,
   });
@@ -35,7 +36,8 @@ class TotalDonutCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.caption),
+                // ✅ 기본값 'in_total' 번역 적용
+                Text(title ?? 'in_total'.tr(), style: AppTextStyles.caption),
                 const SizedBox(height: 8),
                 RichText(
                   text: TextSpan(
@@ -82,7 +84,7 @@ class TotalDonutCard extends StatelessWidget {
   }
 }
 
-// 🧩 2. 공통 여행 요약 카드 (이모지 + 너비 꽉 채움)
+// 🧩 2. 공통 여행 요약 카드
 class CommonTravelSummaryCard extends StatelessWidget {
   final int travelCount;
   final int travelDays;
@@ -100,7 +102,7 @@ class CommonTravelSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity, // ✅ 너비를 꽉 채움
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.lightSurface,
@@ -109,13 +111,27 @@ class CommonTravelSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('여행 요약', style: AppTextStyles.sectionTitle),
+          Text(
+            'travel_summary'.tr(),
+            style: AppTextStyles.sectionTitle,
+          ), // ✅ 번역
           const SizedBox(height: 16),
-          _buildSummaryItem('✈️ 여행 횟수', '$travelCount회'),
+          _buildSummaryItem(
+            'trip_count_label'.tr(),
+            'count_unit'.tr(
+              args: [travelCount.toString()],
+            ), // ✅ '회' 혹은 'Trips' 대응
+          ),
           const SizedBox(height: 12),
-          _buildSummaryItem('🗓️ 총 여행 일수', '$travelDays일'),
+          _buildSummaryItem(
+            'total_days_label'.tr(),
+            'day_unit'.tr(args: [travelDays.toString()]), // ✅ '일' 혹은 'Days' 대응
+          ),
           const SizedBox(height: 12),
-          _buildSummaryItem('📍 가장 많이 간 $mostVisitedLabel', mostVisited),
+          _buildSummaryItem(
+            'most_visited_format'.tr(args: [mostVisitedLabel]),
+            mostVisited,
+          ),
         ],
       ),
     );
@@ -138,16 +154,16 @@ class CommonTravelSummaryCard extends StatelessWidget {
   }
 }
 
-// 🧩 3. 공통 스켈레톤
+// 🧩 3. 공통 스켈레톤 (텍스트가 없으므로 그대로 유지)
 class MyTravelSummarySkeleton extends StatelessWidget {
   const MyTravelSummarySkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(20),
       child: Column(
-        children: const [
+        children: [
           SkeletonBox(width: double.infinity, height: 120, radius: 20),
           SizedBox(height: 20),
           SkeletonBox(width: double.infinity, height: 350, radius: 20),

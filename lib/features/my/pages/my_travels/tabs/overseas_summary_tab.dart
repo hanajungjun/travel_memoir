@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
 import 'package:travel_memoir/features/map/pages/global_map_page.dart';
 import 'package:travel_memoir/services/overseas_travel_summary_service.dart';
 import '../widgets/travel_summary_common_widgets.dart';
@@ -18,8 +19,13 @@ class OverseasSummaryTab extends StatelessWidget {
         OverseasTravelSummaryService.getMostVisitedCountry(userId: userId),
       ]),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting)
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const MyTravelSummarySkeleton();
+        }
+
+        if (snapshot.hasError || !snapshot.hasData) {
+          return Center(child: Text("error_loading_data".tr()));
+        }
 
         final total = snapshot.data![0] as int;
         final visited = snapshot.data![1] as int;
@@ -35,15 +41,15 @@ class OverseasSummaryTab extends StatelessWidget {
                 child: TotalDonutCard(
                   visited: visited,
                   total: total,
-                  title: 'In Total',
-                  sub: 'Countries',
+                  title: 'in_total'.tr(), // ✅ 번역 적용
+                  sub: 'countries'.tr(), // ✅ 번역 적용
                   percent: total == 0 ? 0 : (visited / total * 100).round(),
                 ),
               ),
-              SizedBox(
+              const SizedBox(
                 width: double.infinity,
                 height: 300,
-                child: const GlobalMapPage(isReadOnly: true),
+                child: GlobalMapPage(isReadOnly: true),
               ),
               const SizedBox(height: 24),
               Padding(
@@ -52,7 +58,7 @@ class OverseasSummaryTab extends StatelessWidget {
                   travelCount: travelCount,
                   travelDays: travelDays,
                   mostVisited: mostVisited,
-                  mostVisitedLabel: '국가',
+                  mostVisitedLabel: 'country'.tr(), // ✅ 번역 적용
                 ),
               ),
               const SizedBox(height: 40),

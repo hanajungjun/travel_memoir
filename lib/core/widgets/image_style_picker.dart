@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'package:easy_localization/easy_localization.dart'; // 추가
 import 'package:travel_memoir/models/image_style_model.dart';
 import 'package:travel_memoir/services/image_style_service.dart';
-
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -42,9 +41,9 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   @override
   Widget build(BuildContext context) {
     if (_styles.isEmpty) {
-      return const SizedBox(
+      return SizedBox(
         height: 80,
-        child: Center(child: Text('사용 가능한 스타일 없음')),
+        child: Center(child: Text('no_available_styles'.tr())), // 번역 적용
       );
     }
 
@@ -67,7 +66,6 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ===== 썸네일 =====
                 Container(
                   width: 72,
                   height: 72,
@@ -86,12 +84,9 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                       ? Image.network(style.thumbnailUrl!, fit: BoxFit.cover)
                       : const Icon(Icons.image, color: Colors.grey),
                 ),
-
                 const SizedBox(height: 6),
-
-                // ===== 제목 =====
                 Text(
-                  style.title,
+                  style.title.tr(), // 모델의 title이 번역 키인 경우를 가정
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.bodyMuted.copyWith(

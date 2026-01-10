@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/features/home/pages/home_page.dart';
 import 'package:travel_memoir/features/record/pages/record_tab_page.dart';
 import 'package:travel_memoir/features/travel_info/pages/travel_info_page.dart';
@@ -19,28 +19,18 @@ class _AppShellState extends State<AppShell> {
     setState(() => _currentIndex = index);
   }
 
-  late final List<Widget> _pages = [
-    HomePage(onGoToTravel: () => _onTabSelected(1)),
-    const TravelInfoPage(),
-    const RecordTabPage(),
-    const MyPage(),
-  ];
-
-  // 커스텀 메뉴 아이템 빌더
+  // ✅ _buildMenuItem 함수는 그대로 유지
   BottomNavigationBarItem _buildMenuItem({
     required IconData icon,
     required String label,
     required int index,
   }) {
     return BottomNavigationBarItem(
-      // 1. 선택되지 않았을 때 (기본 회색 아이콘)
       icon: Icon(icon),
-
-      // 2. 선택되었을 때 (아이콘 색상은 그대로 검정, 파란 점만 추가)
       activeIcon: Stack(
         clipBehavior: Clip.none,
         children: [
-          Icon(icon, color: Colors.black87), // 아이콘 색상을 파란색이 아닌 검정색으로 고정
+          Icon(icon, color: Colors.black87),
           Positioned(
             top: -2,
             right: -4,
@@ -48,7 +38,7 @@ class _AppShellState extends State<AppShell> {
               width: 7,
               height: 7,
               decoration: const BoxDecoration(
-                color: Color(0xFF2196F3), // 오직 이 점만 파란색!
+                color: Color(0xFF2196F3),
                 shape: BoxShape.circle,
               ),
             ),
@@ -61,25 +51,46 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 중요: _pages 리스트를 build 내부로 옮겨야 언어 변경 시 자식 페이지들도 새로고침됩니다.
+    final List<Widget> pages = [
+      HomePage(onGoToTravel: () => _onTabSelected(1)),
+      const TravelInfoPage(),
+      const RecordTabPage(),
+      const MyPage(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      // ✅ IndexedStack에 새로 생성된 pages 전달
+      body: IndexedStack(index: _currentIndex, children: pages),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onTabSelected,
         type: BottomNavigationBarType.fixed,
-
-        // 글자 색상 설정
-        selectedItemColor: Colors.black87, // 선택된 글자도 검정색 계열로
+        selectedItemColor: Colors.black87,
         unselectedItemColor: Colors.grey,
-
         selectedFontSize: 12,
         unselectedFontSize: 12,
-
         items: [
-          _buildMenuItem(icon: Icons.home_outlined, label: '홈', index: 0),
-          _buildMenuItem(icon: Icons.work_outline, label: '여행', index: 1),
-          _buildMenuItem(icon: Icons.menu_book, label: '기록', index: 2),
-          _buildMenuItem(icon: Icons.person_outline, label: '마이', index: 3),
+          _buildMenuItem(
+            icon: Icons.home_outlined,
+            label: 'nav_home'.tr(),
+            index: 0,
+          ),
+          _buildMenuItem(
+            icon: Icons.work_outline,
+            label: 'nav_travel'.tr(),
+            index: 1,
+          ),
+          _buildMenuItem(
+            icon: Icons.menu_book,
+            label: 'nav_record'.tr(),
+            index: 2,
+          ),
+          _buildMenuItem(
+            icon: Icons.person_outline,
+            label: 'nav_my'.tr(),
+            index: 3,
+          ),
         ],
       ),
     );

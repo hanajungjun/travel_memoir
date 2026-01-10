@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/domestic_summary_tab.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/overseas_summary_tab.dart';
 
@@ -33,18 +34,18 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('내 여행'),
+        title: Text('my_travels'.tr()), // ✅ 번역 적용
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: '국내'),
-            Tab(text: '해외'),
+          tabs: [
+            Tab(text: 'domestic'.tr()), // ✅ 번역 적용
+            Tab(text: 'overseas'.tr()), // ✅ 번역 적용
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
-        physics: const NeverScrollableScrollPhysics(), // 스와이프 차단
+        physics: const NeverScrollableScrollPhysics(),
         children: [
           DomesticSummaryTab(userId: _userId),
           OverseasSummaryTab(userId: _userId),

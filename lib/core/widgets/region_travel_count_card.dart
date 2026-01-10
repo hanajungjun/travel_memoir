@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -25,13 +25,10 @@ class RegionTravelCountCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // ======================
-          // 🔢 큰 숫자
-          // ======================
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(regionName, style: AppTextStyles.sectionTitle),
+              Text(regionName.tr(), style: AppTextStyles.sectionTitle),
               const SizedBox(height: 12),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -52,13 +49,8 @@ class RegionTravelCountCard extends StatelessWidget {
               ),
             ],
           ),
-
           const Spacer(),
-
-          // ======================
-          // 📍 보조 텍스트
-          // ======================
-          Text('방문 완료', style: AppTextStyles.bodyMuted),
+          Text('visited_complete'.tr(), style: AppTextStyles.bodyMuted),
         ],
       ),
     );

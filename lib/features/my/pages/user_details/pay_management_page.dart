@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -9,7 +10,7 @@ class PayManagementPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('결제 관리'),
+        title: Text('payment_management'.tr()), // ✅ 번역 적용
         backgroundColor: AppColors.primary,
       ),
       body: Padding(
@@ -18,17 +19,31 @@ class PayManagementPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 20),
-            Text('구독 정보', style: AppTextStyles.pageTitle),
+            Text(
+              'subscription_info'.tr(),
+              style: AppTextStyles.pageTitle,
+            ), // ✅ 번역 적용
             const SizedBox(height: 16),
-            Text('현재 구독 상태: 유료', style: AppTextStyles.body),
+
+            // ✅ 상태값(유료/무료) 번역 대응
+            Text(
+              'current_subscription_status'.tr(args: ['status_paid'.tr()]),
+              style: AppTextStyles.body,
+            ),
             const SizedBox(height: 32),
-            Text('다음 결제일: 2026년 2월 1일', style: AppTextStyles.body),
+
+            // ✅ 날짜 포맷팅 번역 대응
+            Text(
+              'next_billing_date'.tr(args: ['2026. 02. 01']),
+              style: AppTextStyles.body,
+            ),
             const SizedBox(height: 32),
+
             ElevatedButton(
               onPressed: () {
                 // 결제 정보 변경 페이지로 이동
               },
-              child: const Text('결제 정보 변경'),
+              child: Text('change_payment_info'.tr()), // ✅ 번역 적용
             ),
           ],
         ),

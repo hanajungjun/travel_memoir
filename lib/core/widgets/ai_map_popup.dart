@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -18,21 +18,19 @@ class AiMapPopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFFF4EBD0), // 양피지 색상
+      backgroundColor: const Color(0xFFF4EBD0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       contentPadding: EdgeInsets.zero,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 🖼️ 상단 이미지 섹션
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             child: Image.network(
               imageUrl,
               fit: BoxFit.cover,
-              // 기본 Image.network는 loadingBuilder를 사용합니다.
               loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child; // 로딩 완료 시 이미지 표시
+                if (loadingProgress == null) return child;
                 return const SizedBox(
                   height: 250,
                   child: Center(
@@ -40,7 +38,6 @@ class AiMapPopup extends StatelessWidget {
                   ),
                 );
               },
-              // 에러 발생 시 표시할 위젯
               errorBuilder: (context, error, stackTrace) => const SizedBox(
                 height: 250,
                 child: Center(
@@ -49,14 +46,12 @@ class AiMapPopup extends StatelessWidget {
               ),
             ),
           ),
-
-          // 📝 하단 텍스트 섹션
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               children: [
                 Text(
-                  "$regionName 여행의 기록",
+                  'travel_record_with_region'.tr(args: [regionName]),
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -65,7 +60,6 @@ class AiMapPopup extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
-                // "얄궂은 즐거움" 같은 요약 텍스트
                 Text(
                   "\"$summary\"",
                   textAlign: TextAlign.center,
@@ -77,7 +71,6 @@ class AiMapPopup extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                // 닫기 버튼
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -89,7 +82,7 @@ class AiMapPopup extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text("추억 닫기"),
+                    child: Text('close_memory'.tr()),
                   ),
                 ),
               ],

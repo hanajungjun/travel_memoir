@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:easy_localization/easy_localization.dart'; // 추가
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -54,7 +55,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
   bool _loading = false;
   String _loadingMessage = "";
 
-  // 📢 광고 관련 변수
   RewardedAd? _rewardedAd;
   InterstitialAd? _interstitialAd;
   bool _isAdLoaded = false;
@@ -78,7 +78,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     super.dispose();
   }
 
-  // 📺 광고 로드 로직 (기존 유지)
   void _loadRewardedAd() {
     final String adId = Platform.isAndroid
         ? 'ca-app-pub-3890698783881393/3553280276'
@@ -121,9 +120,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     );
   }
 
-  // ---------------------------------------------------------
-  // 📝 데이터 로드 및 삭제 로직 (기존 유지)
-  // ---------------------------------------------------------
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
       travelId: widget.travelId,
@@ -153,7 +149,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
   Future<void> _deleteUploadedPhoto(String url) async {
     setState(() {
       _loading = true;
-      _loadingMessage = "사진 삭제 중...";
+      _loadingMessage = "deleting_photo".tr(); // 번역 적용
     });
     try {
       await ImageUploadService.deleteUserImageByUrl(url);
@@ -172,9 +168,9 @@ class _TravelDayPageState extends State<TravelDayPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     final content = _contentController.text.trim();
     if (content.isEmpty || _selectedStyle == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('일기와 스타일을 선택해주세요!')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('select_diary_style_error'.tr())),
+      ); // 번역 적용
       return;
     }
     showDialog(
@@ -184,7 +180,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
         onAccept: () async {
           setState(() {
             _loading = true;
-            _loadingMessage = "광고 시청 후 일기가 자동 생성됩니다";
+            _loadingMessage = "ad_loading_message".tr(); // 번역 적용
           });
           try {
             if (_isAdLoaded && _rewardedAd != null) {
@@ -241,9 +237,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     return {'summary': summary, 'image': imageBytes};
   }
 
-  // ---------------------------------------------------------
-  // 🔥 [핵심] 투트랙 저장 로직 (Parallel Processing)
-  // ---------------------------------------------------------
   Future<void> _saveDiary() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final text = _contentController.text.trim();
@@ -256,7 +249,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
       currentDate: widget.date,
     );
 
-    // 마지막 날 일기인지 여부
     final bool isLastDay = currentDayNumber >= totalDays;
 
     _executeSave(isLastDay);
@@ -268,22 +260,21 @@ class _TravelDayPageState extends State<TravelDayPage> {
     setState(() {
       _loading = true;
       _loadingMessage = isCompleting
-          ? "AI가 여행 전체를 정산 중입니다..."
-          : "추억을 저장하고 있습니다...";
+          ? "completing_travel_loading"
+                .tr() // 번역 적용
+          : "saving_memory_loading".tr(); // 번역 적용
     });
 
     try {
-      // 🎯 투트랙(병렬) 처리를 위한 리스트
       final List<Future> tasks = [];
       Completer<void>? adCompleter;
 
-      // 1️⃣ 광고 시청 태스크 (전면 광고가 로드되어 있고 완료 시점인 경우)
       if (isCompleting && _isInterstitialLoaded && _interstitialAd != null) {
         adCompleter = Completer<void>();
         _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
           onAdDismissedFullScreenContent: (ad) {
             ad.dispose();
-            _loadInterstitialAd(); // 미리 다음 광고 로드
+            _loadInterstitialAd();
             if (!adCompleter!.isCompleted) adCompleter.complete();
           },
           onAdFailedToShowFullScreenContent: (ad, error) {
@@ -293,14 +284,11 @@ class _TravelDayPageState extends State<TravelDayPage> {
           },
         );
 
-        // 광고 실행 (비동기로 실행됨)
         _interstitialAd!.show();
         tasks.add(adCompleter.future);
       }
 
-      // 2️⃣ AI 및 DB 저장 태스크 (광고가 나오는 동안 뒤에서 열일함)
       final saveTask = Future(() async {
-        // 사진 업로드
         final List<String> newUrls = [];
         for (final file in _localPhotos) {
           final url = await ImageUploadService.uploadUserImage(
@@ -317,7 +305,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
           currentDate: widget.date,
         );
 
-        // DB Upsert
         final savedDiary = await TravelDayService.upsertDiary(
           travelId: widget.travelId,
           dayIndex: dayIndex,
@@ -342,7 +329,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
           );
         }
 
-        // 여행 완료 정산 (이미지 생성 등)
         await TravelCompleteService.tryCompleteTravel(
           travelId: widget.travelId,
           startDate: widget.startDate,
@@ -353,11 +339,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
 
       tasks.add(saveTask);
 
-      // 🏁 광고 끝날 때까지 & AI 작업 끝날 때까지 대기
       await Future.wait(tasks);
 
       if (!mounted) return;
-      Navigator.of(context).pop(true); // 광고 닫자마자 바로 홈으로!
+      Navigator.of(context).pop(true);
     } catch (e) {
       debugPrint("❌ 저장 중 에러: $e");
     } finally {
@@ -365,9 +350,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     }
   }
 
-  // ---------------------------------------------------------
-  // 🎨 UI 빌더 (기존 유지)
-  // ---------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final dayNumber = DateUtilsHelper.calculateDayNumber(
@@ -386,7 +368,9 @@ class _TravelDayPageState extends State<TravelDayPage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'DAY ${dayNumber.toString().padLeft(2, '0')}',
+          'travel_day_title'.tr(
+            args: [dayNumber.toString().padLeft(2, '0')],
+          ), // 번역 적용
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -438,9 +422,12 @@ class _TravelDayPageState extends State<TravelDayPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      "잠시만 기다려 주세요...",
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    Text(
+                      "please_wait".tr(), // 번역 적용
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
@@ -464,6 +451,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
   );
 
   Widget _buildFigmaContentCard() {
+    final dayNum = DateUtilsHelper.calculateDayNumber(
+      startDate: widget.startDate,
+      currentDate: widget.date,
+    );
     return Container(
       decoration: _cardDeco(),
       child: Column(
@@ -475,7 +466,9 @@ class _TravelDayPageState extends State<TravelDayPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'DAY ${DateUtilsHelper.calculateDayNumber(startDate: widget.startDate, currentDate: widget.date).toString().padLeft(2, '0')}',
+                  'travel_day_title'.tr(
+                    args: [dayNum.toString().padLeft(2, '0')],
+                  ), // 번역 적용
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -495,7 +488,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
               controller: _contentController,
               maxLines: 5,
               decoration: InputDecoration(
-                hintText: '나중에 다시 읽었을 때 그때의 기분이 생각나도록 적어주세요.',
+                hintText: 'diary_hint'.tr(), // 번역 적용
                 filled: true,
                 fillColor: const Color(0xFFF8F9FA),
                 border: OutlineInputBorder(
@@ -510,28 +503,31 @@ class _TravelDayPageState extends State<TravelDayPage> {
             ),
           ),
           const SizedBox(height: 20),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                Icon(Icons.camera_alt, size: 18),
-                SizedBox(width: 8),
-                Text('오늘의 순간들', style: TextStyle(fontWeight: FontWeight.bold)),
+                const Icon(Icons.camera_alt, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'todays_moments'.tr(),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ), // 번역 적용
               ],
             ),
           ),
           const SizedBox(height: 10),
           _buildPhotoRow(),
           const SizedBox(height: 20),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               children: [
-                Icon(Icons.palette, size: 18),
-                SizedBox(width: 8),
+                const Icon(Icons.palette, size: 18),
+                const SizedBox(width: 8),
                 Text(
-                  '오늘을 그리는 방식',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+                  'drawing_style'.tr(), // 번역 적용
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -556,10 +552,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
                   bottomRight: Radius.circular(25),
                 ),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  '↓ 이 하루를 그림으로..',
-                  style: TextStyle(
+                  'generate_image_button'.tr(), // 번역 적용
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -640,7 +636,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
                   height: 200,
                   width: double.infinity,
                   color: const Color(0xFFF1F3F5),
-                  child: const Center(child: Text('이미지를 불러오는 중입니다...')),
+                  child: Center(child: Text('image_loading'.tr())), // 번역 적용
                 ),
               )
             else if (_generatedImage != null)
@@ -665,10 +661,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
         ),
         child: GestureDetector(
           onTap: _loading ? null : _saveDiary,
-          child: const Text(
-            '기억으로 남기기',
+          child: Text(
+            'save_as_memory'.tr(), // 번역 적용
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 18,
