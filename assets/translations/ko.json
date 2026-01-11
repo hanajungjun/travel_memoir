@@ -164,5 +164,7 @@
   "diary_count_format": "{} / {}",
   "travel_delete_success": "여행 기록이 삭제되었습니다.",
   "travel_day_unit":"{}일차",
-  "please_write_diary":"일기를 작성해 주세요"
+  "please_write_diary":"일기를 작성해 주세요",
+  "login_sign_in": "로그인",
+  "login_failed": "로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요."
 }

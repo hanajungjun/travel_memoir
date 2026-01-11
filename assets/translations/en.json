@@ -164,5 +164,7 @@
   "diary_count_format": "{} / {}",
   "travel_delete_success": "Travel record has been deleted.",
   "travel_day_unit":"{}day",
-  "please_write_diary":"please_write_diary"
+  "please_write_diary":"please_write_diary",
+  "login_sign_in": "Sign In",
+  "login_failed": "Login failed. Please check your credentials."
 }
