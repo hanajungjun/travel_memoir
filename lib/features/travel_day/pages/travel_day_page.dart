@@ -6,7 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:easy_localization/easy_localization.dart'; // 추가
+import 'package:easy_localization/easy_localization.dart';
+import 'package:lottie/lottie.dart'; // ✅ Lottie 추가 확인
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -21,6 +22,7 @@ import 'package:travel_memoir/core/widgets/ad_request_dialog.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/features/travel_day/pages/travel_completion_page.dart';
 
 class TravelDayPage extends StatefulWidget {
   final String travelId;
@@ -56,9 +58,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
   String _loadingMessage = "";
 
   RewardedAd? _rewardedAd;
-  InterstitialAd? _interstitialAd;
   bool _isAdLoaded = false;
-  bool _isInterstitialLoaded = false;
 
   String get _userId => Supabase.instance.client.auth.currentUser!.id;
 
@@ -66,22 +66,22 @@ class _TravelDayPageState extends State<TravelDayPage> {
   void initState() {
     super.initState();
     _loadDiary();
-    _loadRewardedAd();
-    _loadInterstitialAd();
+    _loadAds();
   }
 
   @override
   void dispose() {
     _contentController.dispose();
     _rewardedAd?.dispose();
-    _interstitialAd?.dispose();
     super.dispose();
   }
 
-  void _loadRewardedAd() {
+  // ✅ 광고 로드 (일기 작성 중 미리 로드)
+  void _loadAds() {
     final String adId = Platform.isAndroid
         ? 'ca-app-pub-3890698783881393/3553280276'
         : 'ca-app-pub-3890698783881393/4814391052';
+
     RewardedAd.load(
       adUnitId: adId,
       request: const AdRequest(),
@@ -97,29 +97,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
     );
   }
 
-  void _loadInterstitialAd() {
-    final String adId = Platform.isAndroid
-        ? 'ca-app-pub-3890698783881393/1136502741'
-        : 'ca-app-pub-3890698783881393/9417088998';
-    InterstitialAd.load(
-      adUnitId: adId,
-      request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (ad) {
-          debugPrint("✅ 전면 광고 로드 성공");
-          setState(() {
-            _interstitialAd = ad;
-            _isInterstitialLoaded = true;
-          });
-        },
-        onAdFailedToLoad: (error) {
-          debugPrint("❌ 전면 광고 로드 실패: ${error.message}");
-          setState(() => _isInterstitialLoaded = false);
-        },
-      ),
-    );
-  }
-
+  // ✅ 기존 데이터 로드
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
       travelId: widget.travelId,
@@ -129,6 +107,12 @@ class _TravelDayPageState extends State<TravelDayPage> {
     setState(() {
       _diaryId = diary['id'];
       _contentController.text = diary['content'] ?? '';
+
+      if (diary['photo_urls'] != null) {
+        _uploadedPhotoUrls.clear();
+        _uploadedPhotoUrls.addAll(List<String>.from(diary['photo_urls']));
+      }
+
       if (diary['ai_summary'] != null &&
           diary['ai_summary'].toString().isNotEmpty) {
         _imageUrl = TravelDayService.getAiImageUrl(
@@ -139,17 +123,11 @@ class _TravelDayPageState extends State<TravelDayPage> {
     });
   }
 
-  Future<void> _pickPhoto() async {
-    if (_localPhotos.length + _uploadedPhotoUrls.length >= 3) return;
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) setState(() => _localPhotos.add(File(picked.path)));
-  }
-
+  // ✅ 업로드된 사진 삭제
   Future<void> _deleteUploadedPhoto(String url) async {
     setState(() {
       _loading = true;
-      _loadingMessage = "deleting_photo".tr(); // 번역 적용
+      _loadingMessage = "deleting_photo".tr();
     });
     try {
       await ImageUploadService.deleteUserImageByUrl(url);
@@ -159,20 +137,32 @@ class _TravelDayPageState extends State<TravelDayPage> {
         date: widget.date,
         photoUrls: _uploadedPhotoUrls,
       );
+    } catch (e) {
+      debugPrint("❌ 사진 삭제 실패: $e");
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
+  // ✅ 갤러리 사진 선택
+  Future<void> _pickPhoto() async {
+    if (_localPhotos.length + _uploadedPhotoUrls.length >= 3) return;
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) setState(() => _localPhotos.add(File(picked.path)));
+  }
+
+  // ✅ [병렬 처리] AI 생성 + 보상형 광고 동시 실행
   Future<void> _handleGenerateWithAd() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final content = _contentController.text.trim();
     if (content.isEmpty || _selectedStyle == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('select_diary_style_error'.tr())),
-      ); // 번역 적용
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('select_diary_style_error'.tr())));
       return;
     }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -180,31 +170,45 @@ class _TravelDayPageState extends State<TravelDayPage> {
         onAccept: () async {
           setState(() {
             _loading = true;
-            _loadingMessage = "ad_loading_message".tr(); // 번역 적용
+            _loadingMessage = "ad_loading_message".tr();
           });
+
           try {
+            // 1. AI 작업 즉시 백그라운드에서 시작
+            final Future<Map<String, dynamic>> aiTask = Future(
+              () => _runAiGeneration(),
+            );
+
+            // 2. 약간의 지연 후 광고 노출
+            await Future.delayed(const Duration(milliseconds: 100));
+
             if (_isAdLoaded && _rewardedAd != null) {
-              final Completer<void> adCompleter = Completer<void>();
+              final adCompleter = Completer<void>();
               _rewardedAd!.fullScreenContentCallback =
                   FullScreenContentCallback(
                     onAdDismissedFullScreenContent: (ad) {
                       ad.dispose();
                       adCompleter.complete();
-                      _loadRewardedAd();
+                      _loadAds();
                     },
                     onAdFailedToShowFullScreenContent: (ad, error) {
                       ad.dispose();
                       adCompleter.complete();
-                      _loadRewardedAd();
+                      _loadAds();
                     },
                   );
-              _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
-              await adCompleter.future;
+
+              debugPrint("📺 [AD] 광고 노출 시작");
+              await _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
+              await adCompleter.future; // 광고 시청 대기
+              debugPrint("📺 [AD] 광고 종료");
             }
-            final aiData = await _runAiGeneration();
+
+            // 3. 광고 끝난 후 AI 결과 수확
+            final aiData = await aiTask;
             _updateAiResult(aiData);
           } catch (e) {
-            debugPrint("에러 발생: $e");
+            debugPrint("❌ AI 생성 중 에러: $e");
           } finally {
             if (mounted) setState(() => _loading = false);
           }
@@ -237,6 +241,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
     return {'summary': summary, 'image': imageBytes};
   }
 
+  // ✅ 일기 저장 버튼 로직
   Future<void> _saveDiary() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final text = _contentController.text.trim();
@@ -250,113 +255,93 @@ class _TravelDayPageState extends State<TravelDayPage> {
     );
 
     final bool isLastDay = currentDayNumber >= totalDays;
-
     _executeSave(isLastDay);
   }
 
   Future<void> _executeSave(bool isCompleting) async {
     if (!mounted) return;
 
-    setState(() {
-      _loading = true;
-      _loadingMessage = isCompleting
-          ? "completing_travel_loading"
-                .tr() // 번역 적용
-          : "saving_memory_loading".tr(); // 번역 적용
-    });
+    if (isCompleting) {
+      // 여행 완료 시: 완료 대기 페이지로 이동하며 백그라운드 저장 시작
+      final Future<void> saveTask = Future(() => _performActualSaveLogic());
 
-    try {
-      final List<Future> tasks = [];
-      Completer<void>? adCompleter;
-
-      if (isCompleting && _isInterstitialLoaded && _interstitialAd != null) {
-        adCompleter = Completer<void>();
-        _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
-          onAdDismissedFullScreenContent: (ad) {
-            ad.dispose();
-            _loadInterstitialAd();
-            if (!adCompleter!.isCompleted) adCompleter.complete();
-          },
-          onAdFailedToShowFullScreenContent: (ad, error) {
-            ad.dispose();
-            _loadInterstitialAd();
-            if (!adCompleter!.isCompleted) adCompleter.complete();
-          },
-        );
-
-        _interstitialAd!.show();
-        tasks.add(adCompleter.future);
-      }
-
-      final saveTask = Future(() async {
-        final List<String> newUrls = [];
-        for (final file in _localPhotos) {
-          final url = await ImageUploadService.uploadUserImage(
-            file: file,
-            userId: _userId,
-            travelId: widget.travelId,
-            date: widget.date,
-          );
-          newUrls.add(url);
-        }
-        final allPhotoUrls = [..._uploadedPhotoUrls, ...newUrls];
-        final dayIndex = DateUtilsHelper.calculateDayNumber(
-          startDate: widget.startDate,
-          currentDate: widget.date,
-        );
-
-        final savedDiary = await TravelDayService.upsertDiary(
-          travelId: widget.travelId,
-          dayIndex: dayIndex,
-          date: widget.date,
-          text: _contentController.text.trim(),
-          aiSummary: _summaryText,
-          aiStyle: _selectedStyle?.id,
-        );
-
-        await TravelDayService.updateDiaryPhotos(
-          travelId: widget.travelId,
-          date: widget.date,
-          photoUrls: allPhotoUrls,
-        );
-
-        if (_generatedImage != null) {
-          await ImageUploadService.uploadDiaryImage(
-            userId: _userId,
-            travelId: widget.travelId,
-            diaryId: savedDiary['id'],
-            imageBytes: _generatedImage!,
-          );
-        }
-
-        await TravelCompleteService.tryCompleteTravel(
-          travelId: widget.travelId,
-          startDate: widget.startDate,
-          endDate: widget.endDate,
-        );
-        debugPrint("✅ 백그라운드 AI 작업 완료");
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TravelCompletionPage(
+            processingTask: saveTask,
+            rewardedAd: _rewardedAd,
+          ),
+        ),
+      );
+    } else {
+      // 일반 저장
+      setState(() {
+        _loading = true;
+        _loadingMessage = "saving_memory_loading".tr();
       });
-
-      tasks.add(saveTask);
-
-      await Future.wait(tasks);
-
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
-    } catch (e) {
-      debugPrint("❌ 저장 중 에러: $e");
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      try {
+        await _performActualSaveLogic();
+        if (mounted) Navigator.pop(context, true);
+      } catch (e) {
+        debugPrint("❌ 저장 중 에러: $e");
+      } finally {
+        if (mounted) setState(() => _loading = false);
+      }
     }
+  }
+
+  Future<void> _performActualSaveLogic() async {
+    final List<String> newUrls = [];
+    for (final file in _localPhotos) {
+      final url = await ImageUploadService.uploadUserImage(
+        file: file,
+        userId: _userId,
+        travelId: widget.travelId,
+        date: widget.date,
+      );
+      newUrls.add(url);
+    }
+
+    final allPhotoUrls = [..._uploadedPhotoUrls, ...newUrls];
+    final dayIndex = DateUtilsHelper.calculateDayNumber(
+      startDate: widget.startDate,
+      currentDate: widget.date,
+    );
+
+    final savedDiary = await TravelDayService.upsertDiary(
+      travelId: widget.travelId,
+      dayIndex: dayIndex,
+      date: widget.date,
+      text: _contentController.text.trim(),
+      aiSummary: _summaryText,
+      aiStyle: _selectedStyle?.id,
+    );
+
+    await TravelDayService.updateDiaryPhotos(
+      travelId: widget.travelId,
+      date: widget.date,
+      photoUrls: allPhotoUrls,
+    );
+
+    if (_generatedImage != null) {
+      await ImageUploadService.uploadDiaryImage(
+        userId: _userId,
+        travelId: widget.travelId,
+        diaryId: savedDiary['id'],
+        imageBytes: _generatedImage!,
+      );
+    }
+
+    await TravelCompleteService.tryCompleteTravel(
+      travelId: widget.travelId,
+      startDate: widget.startDate,
+      endDate: widget.endDate,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final dayNumber = DateUtilsHelper.calculateDayNumber(
-      startDate: widget.startDate,
-      currentDate: widget.date,
-    );
-    const themeColor = AppColors.travelingBlue;
+    final themeColor = AppColors.travelingBlue;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -369,8 +354,13 @@ class _TravelDayPageState extends State<TravelDayPage> {
         ),
         title: Text(
           'travel_day_title'.tr(
-            args: [dayNumber.toString().padLeft(2, '0')],
-          ), // 번역 적용
+            args: [
+              DateUtilsHelper.calculateDayNumber(
+                startDate: widget.startDate,
+                currentDate: widget.date,
+              ).toString().padLeft(2, '0'),
+            ],
+          ),
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -390,7 +380,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
                       children: [
-                        _buildFigmaContentCard(),
+                        _buildDiaryCard(),
                         const SizedBox(height: 20),
                         _buildAiResultCard(),
                         const SizedBox(height: 100),
@@ -402,55 +392,48 @@ class _TravelDayPageState extends State<TravelDayPage> {
             ),
           ),
           _buildBottomSaveButton(),
-          if (_loading)
-            Container(
-              color: Colors.black.withOpacity(0.7),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      _loadingMessage,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "please_wait".tr(), // 번역 적용
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          if (_loading) _buildLoadingOverlay(), // ✅ 수정된 로딩 화면
         ],
       ),
     );
   }
 
-  BoxDecoration _cardDeco() => BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(25),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.05),
-        blurRadius: 15,
-        offset: const Offset(0, 5),
+  // ✅ [수정] 텍스트 대신 Lottie 애니메이션이 들어간 로딩 화면
+  Widget _buildLoadingOverlay() {
+    return Container(
+      color: Colors.black.withOpacity(0.8),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Lottie.asset(
+              'assets/lottie/ai_magic_wand.json', // 👈 이 파일명인지 확인 필수!
+              width: 200,
+              height: 200,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _loadingMessage,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "please_wait".tr(),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ],
+        ),
       ),
-    ],
-  );
+    );
+  }
 
-  Widget _buildFigmaContentCard() {
+  // --- 기존 UI 컴포넌트들 (변경사항 없음) ---
+  Widget _buildDiaryCard() {
     final dayNum = DateUtilsHelper.calculateDayNumber(
       startDate: widget.startDate,
       currentDate: widget.date,
@@ -461,14 +444,14 @@ class _TravelDayPageState extends State<TravelDayPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.all(20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   'travel_day_title'.tr(
                     args: [dayNum.toString().padLeft(2, '0')],
-                  ), // 번역 적용
+                  ),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -481,21 +464,16 @@ class _TravelDayPageState extends State<TravelDayPage> {
               ],
             ),
           ),
-          const SizedBox(height: 15),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
               controller: _contentController,
               maxLines: 5,
               decoration: InputDecoration(
-                hintText: 'diary_hint'.tr(), // 번역 적용
+                hintText: 'diary_hint'.tr(),
                 filled: true,
                 fillColor: const Color(0xFFF8F9FA),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
-                ),
-                enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(15),
                   borderSide: const BorderSide(color: Color(0xFFEEEEEE)),
                 ),
@@ -503,36 +481,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
             ),
           ),
           const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                const Icon(Icons.camera_alt, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'todays_moments'.tr(),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ), // 번역 적용
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
+          _buildSectionTitle(Icons.camera_alt, 'todays_moments'.tr()),
           _buildPhotoRow(),
           const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                const Icon(Icons.palette, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'drawing_style'.tr(), // 번역 적용
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
+          _buildSectionTitle(Icons.palette, 'drawing_style'.tr()),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ImageStylePicker(
@@ -540,31 +492,48 @@ class _TravelDayPageState extends State<TravelDayPage> {
             ),
           ),
           const SizedBox(height: 20),
-          GestureDetector(
-            onTap: _loading ? null : _handleGenerateWithAd,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              decoration: const BoxDecoration(
-                color: Color(0xFF3498DB),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(25),
-                  bottomRight: Radius.circular(25),
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  'generate_image_button'.tr(), // 번역 적용
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
+          _buildGenerateButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(IconData icon, String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 8),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGenerateButton() {
+    return GestureDetector(
+      onTap: _loading ? null : _handleGenerateWithAd,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: const BoxDecoration(
+          color: Color(0xFF3498DB),
+          borderRadius: BorderRadius.only(
+            bottomLeft: Radius.circular(25),
+            bottomRight: Radius.circular(25),
+          ),
+        ),
+        child: Center(
+          child: Text(
+            'generate_image_button'.tr(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -617,27 +586,9 @@ class _TravelDayPageState extends State<TravelDayPage> {
           children: [
             if (_imageUrl != null)
               Image.network(
-                _imageUrl!.contains('?')
-                    ? '$_imageUrl&v=${DateTime.now().millisecondsSinceEpoch}'
-                    : '$_imageUrl?v=${DateTime.now().millisecondsSinceEpoch}',
+                '$_imageUrl?v=${DateTime.now().millisecondsSinceEpoch}',
                 fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    height: 200,
-                    width: double.infinity,
-                    color: const Color(0xFFF1F3F5),
-                    child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) => Container(
-                  height: 200,
-                  width: double.infinity,
-                  color: const Color(0xFFF1F3F5),
-                  child: Center(child: Text('image_loading'.tr())), // 번역 적용
-                ),
+                errorBuilder: (_, __, ___) => const Icon(Icons.error),
               )
             else if (_generatedImage != null)
               Image.memory(_generatedImage!, fit: BoxFit.cover),
@@ -662,7 +613,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
         child: GestureDetector(
           onTap: _loading ? null : _saveDiary,
           child: Text(
-            'save_as_memory'.tr(), // 번역 적용
+            'save_as_memory'.tr(),
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
@@ -674,6 +625,18 @@ class _TravelDayPageState extends State<TravelDayPage> {
       ),
     );
   }
+
+  BoxDecoration _cardDeco() => BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(25),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.05),
+        blurRadius: 15,
+        offset: const Offset(0, 5),
+      ),
+    ],
+  );
 }
 
 class _PhotoThumb extends StatelessWidget {

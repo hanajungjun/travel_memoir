@@ -9,10 +9,10 @@
   "start_button": "시작하기",
   "nav_home": "홈",
   "nav_travel": "여행",
-  "nav_record": "기록",
+  "nav_record": "기록", 
   "nav_my": "마이",
   "ad_dialog_title": "AI 여행 일기 생성",
-  "ad_dialog_body": "정성스러운 일기를 생성하고 있어요.\n약 15초의 광고 시청 후\n결과를 바로 확인하실 수 있습니다.",
+  "ad_dialog_body": "정성스러운 일기를 생성하고 있어요.",
   "cancel": "취소",
   "watch_ad": "광고 보기",
   "travel_record_with_region": "{} 여행의 기록",
@@ -158,5 +158,11 @@
   "abroad_label": "Abroad",
   "overseas_description": "낯선 곳에서의 하루 기록",
   "search_city_hint": "도시를 검색하세요",
-  "error_country_api_fail": "국가 API 호출 실패 ({})"
+  "error_country_api_fail": "국가 API 호출 실패 ({})",
+  "travel_diary_list_title": "{} 여행",
+  "travel": "여행",
+  "diary_count_format": "{} / {}",
+  "travel_delete_success": "여행 기록이 삭제되었습니다.",
+  "travel_day_unit":"{}일차",
+  "please_write_diary":"일기를 작성해 주세요"
 }

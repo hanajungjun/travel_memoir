@@ -9,10 +9,10 @@
   "start_button": "Get Started",
   "nav_home": "Home",
   "nav_travel": "Travel",
-  "nav_record": "Log",
+  "nav_record": "Log", 
   "nav_my": "My",
   "ad_dialog_title": "AI Travel Diary Generation",
-  "ad_dialog_body": "We are creating a heartfelt diary for you.\nYou can check the results immediately\nafter watching a 15-second ad.",
+  "ad_dialog_body": "We are creating a heartfelt diary for you.",
   "cancel": "Cancel",
   "watch_ad": "Watch Ad",
   "travel_record_with_region": "Travel record of {}",
@@ -158,5 +158,11 @@
   "abroad_label": "Abroad",
   "overseas_description": "A record of days in a foreign place",
   "search_city_hint": "Search for a city",
-  "error_country_api_fail": "Country API call failed ({})"
+  "error_country_api_fail": "Country API call failed ({})",
+  "travel_diary_list_title": "{} Travel",
+  "travel": "Travel",
+  "diary_count_format": "{} / {}",
+  "travel_delete_success": "Travel record has been deleted.",
+  "travel_day_unit":"{}day",
+  "please_write_diary":"please_write_diary"
 }

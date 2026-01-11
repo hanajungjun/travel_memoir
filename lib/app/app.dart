@@ -44,6 +44,13 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
       ),
+
+      // ✅ [추가] 경로(Route) 설정
+      // 여행 완료 후 돌아올 '지도' 역할을 합니다.
+      routes: {
+        '/travel_info': (context) => const AppShell(), // 메인 탭 화면으로 연결
+      },
+
       // 🔥 핵심 로직: 초기화 -> 온보딩 -> 로그인 체크 순서
       home: !_initialized
           ? const Scaffold(

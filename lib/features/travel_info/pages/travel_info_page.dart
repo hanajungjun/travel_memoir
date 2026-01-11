@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:lottie/lottie.dart';
 
 import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
@@ -14,7 +15,6 @@ import 'package:travel_memoir/features/travel_info/pages/travel_type_select_page
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_info_list_skeleton.dart';
-import 'package:lottie/lottie.dart';
 
 class TravelInfoPage extends StatefulWidget {
   const TravelInfoPage({super.key});
@@ -66,12 +66,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
         future: _future,
         builder: (context, snapshot) {
           return CustomScrollView(
-            // ✅ iOS 스타일의 쫀득한 바운싱 효과 적용
             physics: const BouncingScrollPhysics(
               parent: AlwaysScrollableScrollPhysics(),
             ),
             slivers: [
-              // ✅ [1] 숨겨진 오버스크롤 헤더 (당길 때만 등장)
+              // ✅ [1] 오버스크롤 새로고침 헤더 (주석 복구 완료)
               CupertinoSliverRefreshControl(
                 refreshTriggerPullDistance: 120.0,
                 refreshIndicatorExtent: 80.0,
@@ -84,13 +83,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                       refreshTriggerPullDistance,
                       refreshIndicatorExtent,
                     ) {
-                      // 당기는 거리에 따라 투명도 조절 (0.0 ~ 1.0)
                       double opacity =
                           (pulledExtent / refreshTriggerPullDistance).clamp(
                             0.0,
                             1.0,
                           );
-
                       return Center(
                         child: OverflowBox(
                           maxHeight: 150,
@@ -100,26 +97,23 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // 💡 당겨진 높이가 충분할 때만 아이콘과 텍스트 표시 (에러 방지)
                                 if (pulledExtent > 30) ...[
-                                  // Icon
+                                  // ✅ 복구된 Icon 주석
                                   // const Icon(
                                   //   Icons.auto_awesome,
                                   //   size: 50,
                                   //   color: Colors.blueAccent,
                                   // ),
-
-                                  // lottie 패키지 설치 필요
                                   Lottie.asset(
                                     'assets/lottie/Earth globe rotating with Seamless loop animation.json',
                                     width: 100,
                                     fit: BoxFit.contain,
                                   ),
 
-                                  // Image
+                                  // ✅ 복구된 Image 주석
                                   // Image.asset(
-                                  //   'assets/images/파일명.png', // 유저님이 넣은 이미지 경로
-                                  //   width: 80, // 적당한 크기 조절
+                                  //   'assets/images/파일명.png',
+                                  //   width: 80,
                                   //   height: 80,
                                   //   fit: BoxFit.contain,
                                   // ),
@@ -138,7 +132,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                     },
               ),
 
-              // ✅ [2] 상단 타이틀 바
               SliverAppBar(
                 backgroundColor: const Color(0xFFF8F9FA),
                 elevation: 0,
@@ -150,7 +143,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                 ),
               ),
 
-              // ✅ [3] 리스트 영역 (로딩/비어있음/데이터)
               if (snapshot.connectionState == ConnectionState.waiting)
                 const SliverToBoxAdapter(child: TravelInfoListSkeleton())
               else if (!snapshot.hasData || snapshot.data!.isEmpty)
@@ -177,10 +169,31 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                         child: _SwipeDeleteItem(
                           travel: travel,
                           onDelete: () async {
-                            await TravelCreateService.deleteTravel(
-                              travel['id'],
-                            );
-                            _refresh();
+                            try {
+                              await TravelCreateService.deleteTravel(
+                                travel['id'],
+                              );
+                              if (mounted) {
+                                ScaffoldMessenger.of(
+                                  context,
+                                ).hideCurrentSnackBar();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('travel_delete_success'.tr()),
+                                    backgroundColor: Colors.black87,
+                                    behavior: SnackBarBehavior.floating,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                                _refresh();
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('delete_error'.tr())),
+                                );
+                              }
+                            }
                           },
                           onTap: () async {
                             await Navigator.push(
@@ -204,7 +217,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
     );
   }
 
-  // ✅ Floating Action Button (여행 추가 버튼)
   Widget _buildFab() {
     return SizedBox(
       width: 60,
@@ -235,9 +247,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   }
 }
 
-// -----------------------------------------------------------------------------
-// 🗑️ 슬라이드 삭제 위젯
-// -----------------------------------------------------------------------------
 class _SwipeDeleteItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onDelete;
@@ -271,9 +280,6 @@ class _SwipeDeleteItem extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// 📄 여행 목록 아이템 카드
-// -----------------------------------------------------------------------------
 class _TravelListItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onTap;
@@ -291,7 +297,6 @@ class _TravelListItem extends StatelessWidget {
         '';
     final String engTitle =
         travel['region_eng'] ?? travel['country_code'] ?? '';
-
     final start = travel['start_date']?.toString().replaceAll('-', '.') ?? '';
     final end = travel['end_date']?.toString().replaceAll('-', '.') ?? '';
 
@@ -306,7 +311,6 @@ class _TravelListItem extends StatelessWidget {
       builder: (context, snapshot) {
         final written = snapshot.data ?? 0;
         final completed = written == totalDays && totalDays > 0;
-
         final badgeColor = completed
             ? const Color(0xFF9E9E9E)
             : isDomestic
@@ -380,33 +384,25 @@ class _TravelListItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 13,
+                  RichText(
+                    text: TextSpan(
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
+                      children: [
+                        TextSpan(
+                          text: '$written',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: completed ? Colors.grey : Colors.black,
                           ),
-                          children: [
-                            TextSpan(
-                              text: '$written',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: completed ? Colors.grey : Colors.black,
-                              ),
-                            ),
-                            TextSpan(
-                              text: 'written_days_format'.tr(
-                                args: [totalDays.toString()],
-                              ),
-                            ),
-                          ],
                         ),
-                      ),
-                    ],
+                        TextSpan(
+                          text: 'written_days_format'.tr(
+                            args: [totalDays.toString()],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
