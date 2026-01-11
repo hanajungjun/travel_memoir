@@ -71,7 +71,7 @@ Future<void> main() async {
   runApp(
     EasyLocalization(
       supportedLocales: const [Locale('ko'), Locale('en')],
-      path: 'assets/translations/',
+      path: 'assets/translations',
       fallbackLocale: const Locale('ko'),
       useOnlyLangCode: true,
       child: TravelMemoirApp(showOnboarding: !onboardingDone),

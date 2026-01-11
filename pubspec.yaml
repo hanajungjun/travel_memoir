@@ -21,7 +21,7 @@ dependencies:
   # UI/기본 유틸
   overlay_support: ^2.1.0
   cupertino_icons: ^1.0.2
-  url_launcher: ^6.2.5
+  url_launcher: ^6.3.2
   shared_preferences: ^2.2.2
 
   # Supabase
@@ -57,13 +57,13 @@ dependencies:
   easy_localization: ^3.0.8
   lottie: ^3.1.2
   purchases_flutter: ^8.2.0 
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.2
   image_picker: ^1.1.2
-  flutter_native_splash: ^2.4.3
 
 dependency_overrides:
   flutter_math_fork: ^0.6.0
@@ -87,8 +87,11 @@ flutter_launcher_icons:
 flutter_native_splash:
   color: "#FFFFFF" # 배경색 (흰색이 무난합니다)
   image: assets/images/splash.png # 👈 로딩 화면에 띄울 이미지 경로
+  fullscreen: true
   ios: true
   android_12:
     image: assets/images/splash.png
     color: "#FFFFFF"
     icon_background_color: "#FFFFFF"  
+
+

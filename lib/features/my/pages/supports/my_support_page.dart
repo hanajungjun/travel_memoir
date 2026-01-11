@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart'; // 추가
+import 'package:easy_localization/easy_localization.dart';
+import 'package:url_launcher/url_launcher.dart'; // 패키지 추가 필수
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 class MySupportPage extends StatelessWidget {
   const MySupportPage({super.key});
+
+  // URL을 외부 브라우저로 열기 위한 공통 함수
+  Future<void> _launchURL(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    try {
+      if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+        throw Exception('Could not launch $url');
+      }
+    } catch (e) {
+      debugPrint('URL 실행 에러: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +28,7 @@ class MySupportPage extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('support'.tr()), // ✅ 번역 적용
+        title: Text('support'.tr()),
         centerTitle: false,
         elevation: 0,
         backgroundColor: Colors.white,
@@ -27,57 +40,65 @@ class MySupportPage extends StatelessWidget {
           children: [
             const SizedBox(height: 24),
 
-            // =========================
-            // 답변과 피드백
-            // =========================
-            _SectionTitle('help_and_feedback'.tr()), // ✅ 번역 적용
+            // ✅ 공지사항 버튼 (맨 위로 이동)
+            _SupportTile(
+              title: 'notice'.tr(), // 번역 파일에 'notice' 추가 필요
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _launchURL(
+                'https://hanajungjun.github.io/travel-memoir-docs/notice.html',
+              ),
+            ),
             _Divider(),
 
             _SupportTile(
-              title: 'get_help'.tr(), // ✅ 번역 적용
+              title: 'get_help'.tr(),
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
-                // TODO: FAQ 링크
+                // FAQ나 고객센터 링크가 있다면 여기에 넣으세요.
+                _launchURL(
+                  'https://hanajungjun.github.io/travel-memoir-docs/faq.html',
+                );
               },
             ),
             _Divider(),
 
             _SupportTile(
-              title: 'rate_app'.tr(), // ✅ 번역 적용
+              title: 'rate_app'.tr(),
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
-                // TODO: 스토어 링크
+                // TODO: 실제 스토어 출시 후 스토어 링크로 교체하세요.
+                // _launchURL('market://details?id=com.hanajungjun.travelmemoir');
               },
             ),
 
             const SizedBox(height: 32),
 
             // =========================
-            // 이용약관
+            // 이용약관 및 법적 고지 섹션
             // =========================
-            _SectionTitle('legal'.tr()), // ✅ 번역 적용
+            _SectionTitle('legal'.tr()),
             _Divider(),
 
             _SupportTile(
-              title: 'privacy_policy'.tr(), // ✅ 번역 적용
+              title: 'privacy_policy'.tr(),
               trailing: const Icon(Icons.open_in_new),
-              onTap: () {
-                // TODO: 개인정보처리방침
-              },
+              onTap: () => _launchURL(
+                'https://hanajungjun.github.io/travel-memoir-docs/',
+              ),
             ),
             _Divider(),
 
             _SupportTile(
-              title: 'terms_of_service'.tr(), // ✅ 번역 적용
+              title: 'terms_of_service'.tr(),
               trailing: const Icon(Icons.open_in_new),
-              onTap: () {
-                // TODO: 서비스 약관
-              },
+              onTap: () => _launchURL(
+                'https://hanajungjun.github.io/travel-memoir-docs/terms.html',
+              ),
             ),
             _Divider(),
 
             _SupportTile(
-              title: 'open_source_licenses'.tr(), // ✅ 번역 적용
+              title: 'open_source_licenses'.tr(),
               trailing: const Icon(Icons.chevron_right),
               onTap: () {
                 showLicensePage(context: context);
@@ -85,18 +106,10 @@ class MySupportPage extends StatelessWidget {
             ),
             _Divider(),
 
-            _SupportTile(
-              title: 'accessibility_policy'.tr(), // ✅ 번역 적용
-              trailing: const Icon(Icons.open_in_new),
-              onTap: () {
-                // TODO: 접근성 정책
-              },
-            ),
-
             const SizedBox(height: 48),
 
             // =========================
-            // 하단 버전 정보
+            // 하단 브랜드 및 버전 정보
             // =========================
             Center(
               child: Column(
@@ -110,9 +123,8 @@ class MySupportPage extends StatelessWidget {
                   Text(
                     'app_brand_name'.tr(),
                     style: AppTextStyles.sectionTitle,
-                  ), // ✅ 브랜드명 번역
+                  ),
                   const SizedBox(height: 4),
-                  // ✅ 버전 정보 포맷팅 번역 적용
                   Text(
                     'app_version_format'.tr(args: ['1.0.0', '100']),
                     style: AppTextStyles.caption,
@@ -130,12 +142,11 @@ class MySupportPage extends StatelessWidget {
 }
 
 // =======================================================
-// 공통 위젯들
+// 내부 위젯들 (SectionTitle, SupportTile, Divider)
 // =======================================================
 
 class _SectionTitle extends StatelessWidget {
   final String text;
-
   const _SectionTitle(this.text);
 
   @override
