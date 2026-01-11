@@ -97,7 +97,7 @@
   "subscription_info": "Subscription Info",
   "current_subscription_status": "Current Status: {}",
   "status_paid": "Paid",
-  "status_free": "Free",
+  "status_free": "Free Plan",
   "next_billing_date": "Next billing date: {}",
   "change_payment_info": "Change Payment Info",
   "user_detail_title": "User Details",
@@ -166,5 +166,10 @@
   "travel_day_unit":"{}day",
   "please_write_diary":"please_write_diary",
   "login_sign_in": "Sign In",
-  "login_failed": "Login failed. Please check your credentials."
+  "login_failed": "Login failed. Please check your credentials.",
+  "my_stickers": "Stickers",
+  "premium_benefit_desc": "프리미엄 구독 시 빈티지 양피지 지도와 AI 육각형 스티커를 무제한으로 이용할 수 있습니다.",
+  "upgrade_to_premium": "Upgrade To Premium ({})",
+  "restore_purchase": "Restore Purchase",
+  "upgrade_success_msg":"Upgrade Success Msg"
 }

@@ -8,6 +8,7 @@ import 'package:travel_memoir/features/my/pages/my_travels/my_travel_summary_pag
 import 'package:travel_memoir/features/my/pages/settings/my_settings_page.dart';
 import 'package:travel_memoir/features/my/pages/supports/my_support_page.dart';
 import 'package:travel_memoir/features/my/pages/user_details/user_details.dart';
+import 'package:travel_memoir/features/my/pages/sticker/my_sticker_page.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
@@ -92,7 +93,6 @@ class _MyPageState extends State<MyPage> {
             final profile = data['profile'];
             final travelCount = data['travelCount'] as int;
             final badge = _getBadge(travelCount);
-
             final imageUrl = profile['profile_image_url'];
             final nickname = profile['nickname'] ?? 'default_nickname'.tr();
 
@@ -101,6 +101,7 @@ class _MyPageState extends State<MyPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // --- 상단 프로필 섹션 (동일) ---
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -158,12 +159,10 @@ class _MyPageState extends State<MyPage> {
                               builder: (_) => const ProfileEditPage(),
                             ),
                           );
-
-                          if (updated == true) {
+                          if (updated == true)
                             setState(() {
                               _future = _fetchMyProfileWithStats();
                             });
-                          }
                         },
                         child: CircleAvatar(
                           radius: 36,
@@ -183,11 +182,8 @@ class _MyPageState extends State<MyPage> {
                     ],
                   ),
                   const SizedBox(height: 32),
-                  Text(
-                    'account_management'.tr(),
-                    style: AppTextStyles.sectionTitle,
-                  ),
-                  const SizedBox(height: 16),
+
+                  // ✅ 2x3 그리드로 변경 (총 6개 칸)
                   GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
@@ -198,23 +194,33 @@ class _MyPageState extends State<MyPage> {
                       _MenuTile(
                         title: 'user_detail_title'.tr(),
                         icon: Icons.manage_accounts_outlined,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MyUserDetailPage(),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyUserDetailPage(),
+                          ),
+                        ),
                       ),
                       _MenuTile(
                         title: 'my_travels'.tr(),
                         icon: Icons.public,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyTravelSummaryPage(),
+                          ),
+                        ),
+                      ),
+                      // ✅ 신규 추가: AI 스티커 북
+                      _MenuTile(
+                        title: 'my_stickers'.tr(),
+                        icon: Icons.portrait_rounded,
                         onTap: () {
+                          // ✅ 내 스티커 북 페이지로 이동!
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const MyTravelSummaryPage(),
+                              builder: (_) => const MyStickerPage(),
                             ),
                           );
                         },
@@ -222,44 +228,42 @@ class _MyPageState extends State<MyPage> {
                       _MenuTile(
                         title: 'settings'.tr(),
                         icon: Icons.settings_outlined,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MySettingsPage(),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MySettingsPage(),
+                          ),
+                        ),
                       ),
                       _MenuTile(
                         title: 'support'.tr(),
                         icon: Icons.menu_book_outlined,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MySupportPage(),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MySupportPage(),
+                          ),
+                        ),
+                      ),
+
+                      // ✅ 6번째 칸: 고양이 애니메이션 (메뉴 타일과 크기를 맞춤)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.transparent, // 투명하게 해서 고양이만 돋보이게
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: Lottie.asset(
+                            'assets/lottie/Happy New Year Cat Jumping.json',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32), // 공백을 조금 더 주면 예뻐요
-                  // ✅ 2. 로그아웃 버튼 위 귀여운 Lottie 애니메이션
-                  Center(
-                    child: Column(
-                      children: [
-                        Lottie.asset(
-                          'assets/lottie/Happy New Year Cat Jumping.json', // 🐶 이미지 교체 지점!
-                          height: 120,
-                          repeat: true,
-                        ),
-                        const SizedBox(height: 2),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+
+                  const SizedBox(height: 40), // 그리드와 버튼 사이 간격
+                  // --- 로그아웃 버튼 (동일) ---
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -273,7 +277,6 @@ class _MyPageState extends State<MyPage> {
                       onPressed: () async {
                         await Supabase.instance.client.auth.signOut();
                         if (!context.mounted) return;
-
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(builder: (_) => const LoginPage()),

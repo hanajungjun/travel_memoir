@@ -1,28 +1,39 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart'; // 추가
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/features/map/pages/domestic_map_page.dart';
 import 'package:travel_memoir/features/map/pages/global_map_page.dart';
 
 class MapMainPage extends StatefulWidget {
-  final int initialIndex;
+  final int? initialIndex;
   final String travelId;
 
-  const MapMainPage({super.key, required this.travelId, this.initialIndex = 0});
+  const MapMainPage({super.key, required this.travelId, this.initialIndex});
 
   @override
   State<MapMainPage> createState() => _MapMainPageState();
 }
 
 class _MapMainPageState extends State<MapMainPage> {
-  late int _index;
+  int? _index;
   late PageController _controller;
 
   @override
-  void initState() {
-    super.initState();
-    _index = widget.initialIndex;
-    _controller = PageController(initialPage: _index);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // ✅ 위젯이 생성될 때 딱 한 번 실행
+    if (_index == null) {
+      final String lang = context.locale.languageCode;
+
+      // 1. 인덱스 결정 (한국어면 0, 영어 등 그 외엔 1)
+      _index = widget.initialIndex ?? (lang == 'ko' ? 0 : 1);
+
+      // 2. 결정된 인덱스로 컨트롤러를 생성 (초기 페이지 고정)
+      _controller = PageController(initialPage: _index!);
+
+      debugPrint("🏁 [MapMainPage] 초기 설정 완료: 언어($lang) -> 인덱스($_index)");
+    }
   }
 
   void _move(int i) {
@@ -43,11 +54,11 @@ class _MapMainPageState extends State<MapMainPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_index == null)
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text('travel_map'.tr()), // ✅ 번역 적용
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: Text('travel_map'.tr()), centerTitle: true),
       body: Column(
         children: [
           Padding(
@@ -55,12 +66,12 @@ class _MapMainPageState extends State<MapMainPage> {
             child: Row(
               children: [
                 _Tab(
-                  label: 'korea'.tr(), // ✅ 번역 적용
+                  label: 'korea'.tr(),
                   selected: _index == 0,
                   onTap: () => _move(0),
                 ),
                 _Tab(
-                  label: 'overseas'.tr(), // ✅ 번역 적용
+                  label: 'overseas'.tr(),
                   selected: _index == 1,
                   onTap: () => _move(1),
                 ),
@@ -71,7 +82,7 @@ class _MapMainPageState extends State<MapMainPage> {
             child: PageView(
               controller: _controller,
               onPageChanged: (i) => setState(() => _index = i),
-              children: [const DomesticMapPage(), const GlobalMapPage()],
+              children: const [DomesticMapPage(), GlobalMapPage()],
             ),
           ),
         ],

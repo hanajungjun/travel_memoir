@@ -49,7 +49,145 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     );
   }
 
-  // ... (_simplifyGeoJson, _processPolygon 함수는 그대로 유지) ...
+  // ✅ [수정] 에러 나는 setStyleConfigProperty 대신, 모든 레이어를 전수 조사하는 안전한 방식
+  Future<void> _localizeMapLabels(StyleManager style) async {
+    final String langCode = context.locale.languageCode; // 'ko' 또는 'en'
+
+    try {
+      // 1. 현재 지도의 모든 레이어 목록을 가져옵니다.
+      final layers = await style.getStyleLayers();
+
+      for (var layer in layers) {
+        if (layer == null) continue;
+        final String layerId = layer.id;
+
+        // 2. 글자(라벨)와 관련된 레이어만 필터링해서 언어 컬럼을 강제로 변경합니다.
+        // 보통 레이어 ID에 'label', 'place', 'poi', 'road' 등이 포함되어 있습니다.
+        if (layerId.contains('label') ||
+            layerId.contains('place') ||
+            layerId.contains('poi') ||
+            layerId.contains('road')) {
+          try {
+            await style.setStyleLayerProperty(
+              layerId,
+              'text-field',
+              '["get", "name_$langCode"]',
+            );
+          } catch (_) {
+            // text-field 속성이 없는 레이어는 무시하고 넘어갑니다.
+          }
+        }
+      }
+      debugPrint("✅ 지도의 모든 레이어를 앱 언어($langCode)로 변경 시도 완료");
+    } catch (e) {
+      debugPrint("❌ 레이어 언어 변경 중 오류 발생: $e");
+    }
+  }
+
+  Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
+    if (_styleInitialized) return;
+    _styleInitialized = true;
+
+    final map = _map;
+    if (map == null) return;
+    final style = map.style;
+
+    try {
+      await style.setProjection(
+        StyleProjection(name: StyleProjectionName.mercator),
+      );
+
+      // ✅ 언어 설정 로직 실행
+      await _localizeMapLabels(style);
+
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final rows = await VisitedRegionService.getVisitedRegionsAll(
+        userId: user.id,
+      );
+
+      const Map<String, List<String>> majorCityMapping = {
+        "41110": ["41111", "41113", "41115", "41117"], // 수원시
+        "41130": ["41131", "41133", "41135"], // 성남시
+        "41170": ["41171", "41173"], // 안양시
+        "41270": ["41271", "41273"], // 안산시
+        "41280": ["41281", "41285", "41287"], // 고양시
+        "41460": ["41461", "41463", "41465"], // 용인시
+        "43110": ["43111", "43112", "43113", "43114"], // 청주시
+        "44130": ["44131", "44133"], // 천안시
+        "45110": ["45111", "45113"], // 전주시
+        "47110": ["47111", "47113"], // 포항시
+        "48120": ["48121", "48123", "48125", "48127", "48129"], // 창원시
+      };
+
+      final Set<String> visitedSidoCodes = {};
+      final Set<String> visitedSigunguCodes = {};
+
+      for (final row in rows) {
+        if (row['type'] == 'sido' && row['sido_cd'] != null) {
+          visitedSidoCodes.add(row['sido_cd'].toString());
+        }
+        if (row['type'] == 'city' && row['sgg_cd'] != null) {
+          String sggCode = row['sgg_cd'].toString();
+          if (majorCityMapping.containsKey(sggCode)) {
+            visitedSigunguCodes.addAll(majorCityMapping[sggCode]!);
+          } else {
+            visitedSigunguCodes.add(sggCode);
+          }
+        }
+      }
+
+      if (visitedSidoCodes.isNotEmpty) {
+        final String rawSido = await rootBundle.loadString(_sidoGeoJson);
+        await _rmLayer(style, _visitedSidoLayer);
+        await _rmSource(style, _sidoSourceId);
+        await style.addSource(GeoJsonSource(id: _sidoSourceId, data: rawSido));
+        await style.addLayer(
+          FillLayer(
+            id: _visitedSidoLayer,
+            sourceId: _sidoSourceId,
+            filter: [
+              'in',
+              ['get', 'SIDO_CD'],
+              ['literal', visitedSidoCodes.toList()],
+            ],
+            fillColor: AppColors.mapVisitedFill.value,
+            fillOpacity: 0.85,
+          ),
+        );
+      }
+
+      if (visitedSigunguCodes.isNotEmpty) {
+        final String rawSig = await rootBundle.loadString(_sigGeoJson);
+        String finalSig = (defaultTargetPlatform == TargetPlatform.android)
+            ? jsonEncode(_simplifyGeoJson(rawSig))
+            : rawSig;
+
+        await _rmLayer(style, _visitedSigLayer);
+        await _rmSource(style, _sigSourceId);
+        await style.addSource(GeoJsonSource(id: _sigSourceId, data: finalSig));
+        await style.addLayer(
+          FillLayer(
+            id: _visitedSigLayer,
+            sourceId: _sigSourceId,
+            filter: [
+              'in',
+              ['get', 'SGG_CD'],
+              ['literal', visitedSigunguCodes.toList()],
+            ],
+            fillColor: AppColors.mapVisitedFill.value,
+            fillOpacity: 0.85,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ [MAP ERROR]: $e');
+    }
+  }
+
+  // --- 나머지 헬퍼 함수들 (_simplifyGeoJson, _onMapTap 등)은 이전과 동일하게 유지됩니다 ---
+
   Map<String, dynamic> _simplifyGeoJson(
     String rawJson, {
     double tolerance = 0.005,
@@ -88,113 +226,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     }).toList();
   }
 
-  Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
-    if (_styleInitialized) return;
-    _styleInitialized = true;
-
-    final map = _map;
-    if (map == null) return;
-    final style = map.style;
-
-    try {
-      await style.setProjection(
-        StyleProjection(name: StyleProjectionName.mercator),
-      );
-
-      // 1️⃣ [데이터 준비] 유저 확인 및 DB 데이터 호출
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-
-      final rows = await VisitedRegionService.getVisitedRegionsAll(
-        userId: user.id,
-      );
-      debugPrint("🔍 [DB DATA] 가져온 행 개수: ${rows.length}");
-
-      // 2️⃣ [매핑 테이블] 대도시 통합 코드 -> 하위 구 코드 리스트
-      const Map<String, List<String>> majorCityMapping = {
-        "41110": ["41111", "41113", "41115", "41117"], // 수원시
-        "41130": ["41131", "41133", "41135"], // 성남시 ✅
-        "41170": ["41171", "41173"], // 안양시
-        "41270": ["41271", "41273"], // 안산시
-        "41280": ["41281", "41285", "41287"], // 고양시
-        "41460": ["41461", "41463", "41465"], // 용인시
-        "43110": ["43111", "43112", "43113", "43114"], // 청주시
-        "44130": ["44131", "44133"], // 천안시
-        "45110": ["45111", "45113"], // 전주시
-        "47110": ["47111", "47113"], // 포항시
-        "48120": ["48121", "48123", "48125", "48127", "48129"], // 창원시
-      };
-
-      final Set<String> visitedSidoCodes = {};
-      final Set<String> visitedSigunguCodes = {};
-
-      // 3️⃣ [코드 수집 및 확장]
-      for (final row in rows) {
-        if (row['type'] == 'sido' && row['sido_cd'] != null) {
-          visitedSidoCodes.add(row['sido_cd'].toString());
-        }
-        if (row['type'] == 'city' && row['sgg_cd'] != null) {
-          String sggCode = row['sgg_cd'].toString();
-          if (majorCityMapping.containsKey(sggCode)) {
-            visitedSigunguCodes.addAll(majorCityMapping[sggCode]!);
-            debugPrint("📍 [MATCH] 대도시 확장: $sggCode");
-          } else {
-            visitedSigunguCodes.add(sggCode);
-          }
-        }
-      }
-
-      // 4️⃣ [레이어 적용 - 시도]
-      if (visitedSidoCodes.isNotEmpty) {
-        final String rawSido = await rootBundle.loadString(_sidoGeoJson);
-        await _rmLayer(style, _visitedSidoLayer);
-        await _rmSource(style, _sidoSourceId);
-        await style.addSource(GeoJsonSource(id: _sidoSourceId, data: rawSido));
-        await style.addLayer(
-          FillLayer(
-            id: _visitedSidoLayer,
-            sourceId: _sidoSourceId,
-            filter: [
-              'in',
-              ['get', 'SIDO_CD'],
-              ['literal', visitedSidoCodes.toList()],
-            ],
-            fillColor: AppColors.mapVisitedFill.value,
-            fillOpacity: 0.85,
-          ),
-        );
-      }
-
-      // 5️⃣ [레이어 적용 - 시군구]
-      if (visitedSigunguCodes.isNotEmpty) {
-        final String rawSig = await rootBundle.loadString(_sigGeoJson);
-        String finalSig = (defaultTargetPlatform == TargetPlatform.android)
-            ? jsonEncode(_simplifyGeoJson(rawSig))
-            : rawSig;
-
-        await _rmLayer(style, _visitedSigLayer);
-        await _rmSource(style, _sigSourceId);
-        await style.addSource(GeoJsonSource(id: _sigSourceId, data: finalSig));
-        await style.addLayer(
-          FillLayer(
-            id: _visitedSigLayer,
-            sourceId: _sigSourceId,
-            filter: [
-              'in',
-              ['get', 'SGG_CD'],
-              ['literal', visitedSigunguCodes.toList()],
-            ],
-            fillColor: AppColors.mapVisitedFill.value,
-            fillOpacity: 0.85,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ [MAP ERROR]: $e');
-    }
-  }
-
-  // ... (이후 _onMapTap, _showAiMapPopup, _rmLayer, _rmSource 함수는 유저님 코드와 동일하게 유지)
   Future<void> _onMapTap(MapContentGestureContext context) async {
     final map = _map;
     if (map == null) return;
@@ -225,17 +256,13 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
   }
 
   void _showAiMapPopup(String code, String name) async {
-    // 1️⃣ [지역명 정제] "성남시분당구" -> "성남", "강릉시" -> "강릉"으로 가공
     String searchName = name;
     if (name.contains('시') && name.endsWith('구')) {
-      // 대도시 자치구 케이스: "성남시분당구" -> "성남"
       searchName = name.split('시').first;
     } else {
-      // 일반 시군구 케이스: "강릉시" -> "강릉", "가평군" -> "가평"
       searchName = name.replaceAll(RegExp(r'(시|군|구)$'), '').trim();
     }
 
-    // 2️⃣ [행정코드 매핑] 길었던 if-else를 Map으로 깔끔하게 정리
     const provinceCodes = {
       '41': '경기도',
       '11': '서울특별시',
@@ -258,29 +285,20 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
       '50': '제주특별자치도',
     };
 
-    // 코드의 앞 2자리를 보고 도(Province) 이름을 가져옵니다.
     final String provinceName = provinceCodes[code.substring(0, 2)] ?? "";
-
-    debugPrint(
-      "🔍 [MAP TAP] 클릭: $name ($code) -> 검색어: $searchName, 지역: $provinceName",
-    );
-
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
     try {
-      // 3️⃣ [DB 쿼리] 가공된 searchName과 provinceName으로 검색
       var query = Supabase.instance.client
           .from('travels')
           .select('map_image_url, region_name, ai_cover_summary, province')
           .eq('user_id', user.id)
           .eq('travel_type', 'domestic')
-          .eq('region_name', searchName) // "성남"으로 검색
+          .eq('region_name', searchName)
           .not('map_image_url', 'is', null);
 
-      if (provinceName.isNotEmpty) {
-        query = query.eq('province', provinceName);
-      }
+      if (provinceName.isNotEmpty) query = query.eq('province', provinceName);
 
       final response = await query
           .order('created_at', ascending: false)
@@ -300,7 +318,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
 
       if (!mounted) return;
 
-      // 4️⃣ [팝업 노출] Matrix4 애니메이션 효과가 들어간 팝업
       showGeneralDialog(
         context: context,
         barrierDismissible: true,
@@ -308,11 +325,13 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         barrierColor: Colors.black54,
         transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (context, anim1, anim2) {
+          final String displayRegion =
+              "${response['province'].toString().tr()} ${response['region_name'].toString().tr()}";
+
           return Center(
             child: AiMapPopup(
               imageUrl: response['map_image_url'],
-              // 표시할 때는 "경기도 성남" 이런 식으로 보여줌
-              regionName: "${response['province']} ${response['region_name']}",
+              regionName: displayRegion,
               summary:
                   response['ai_cover_summary'] ?? "no_memories_recorded".tr(),
             ),

@@ -70,7 +70,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
               parent: AlwaysScrollableScrollPhysics(),
             ),
             slivers: [
-              // ✅ [1] 오버스크롤 새로고침 헤더 (주석 복구 완료)
               CupertinoSliverRefreshControl(
                 refreshTriggerPullDistance: 120.0,
                 refreshIndicatorExtent: 80.0,
@@ -98,25 +97,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (pulledExtent > 30) ...[
-                                  // ✅ 복구된 Icon 주석
-                                  // const Icon(
-                                  //   Icons.auto_awesome,
-                                  //   size: 50,
-                                  //   color: Colors.blueAccent,
-                                  // ),
                                   Lottie.asset(
                                     'assets/lottie/Earth globe rotating with Seamless loop animation.json',
                                     width: 100,
                                     fit: BoxFit.contain,
                                   ),
-
-                                  // ✅ 복구된 Image 주석
-                                  // Image.asset(
-                                  //   'assets/images/파일명.png',
-                                  //   width: 80,
-                                  //   height: 80,
-                                  //   fit: BoxFit.contain,
-                                  // ),
                                   Text(
                                     "pull_to_discover".tr(),
                                     style: AppTextStyles.bodyMuted.copyWith(
@@ -131,7 +116,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                       );
                     },
               ),
-
               SliverAppBar(
                 backgroundColor: const Color(0xFFF8F9FA),
                 elevation: 0,
@@ -142,7 +126,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                   style: AppTextStyles.sectionTitle,
                 ),
               ),
-
               if (snapshot.connectionState == ConnectionState.waiting)
                 const SliverToBoxAdapter(child: TravelInfoListSkeleton())
               else if (!snapshot.hasData || snapshot.data!.isEmpty)
@@ -188,11 +171,10 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                                 _refresh();
                               }
                             } catch (e) {
-                              if (mounted) {
+                              if (mounted)
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text('delete_error'.tr())),
                                 );
-                              }
                             }
                           },
                           onTap: () async {
@@ -251,7 +233,6 @@ class _SwipeDeleteItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onDelete;
   final VoidCallback onTap;
-
   const _SwipeDeleteItem({
     required this.travel,
     required this.onDelete,
@@ -283,7 +264,6 @@ class _SwipeDeleteItem extends StatelessWidget {
 class _TravelListItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onTap;
-
   const _TravelListItem({required this.travel, required this.onTap});
 
   @override
@@ -291,10 +271,13 @@ class _TravelListItem extends StatelessWidget {
     final isDomestic = travel['travel_type'] == 'domestic';
     final bool isKo = context.locale.languageCode == 'ko';
 
-    final String title =
-        travel['region_name'] ??
-        (isKo ? travel['country_name_ko'] : travel['country_name_en']) ??
-        '';
+    // ✅ [번역 핵심] 한글 지역명(성남 등)을 .tr()로 감싸서 영어일 때 번역 파일 매핑을 타게 함
+    final String regionName = travel['region_name']?.toString().tr() ?? '';
+    final String countryName = isKo
+        ? (travel['country_name_ko'] ?? '')
+        : (travel['country_name_en'] ?? '');
+    final String title = regionName.isNotEmpty ? regionName : countryName;
+
     final String engTitle =
         travel['region_eng'] ?? travel['country_code'] ?? '';
     final start = travel['start_date']?.toString().replaceAll('-', '.') ?? '';

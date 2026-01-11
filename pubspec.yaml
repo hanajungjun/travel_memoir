@@ -52,11 +52,12 @@ dependencies:
   scrollable_clean_calendar: ^1.5.0
   intl: ^0.20.2
   gal: ^2.3.2
-  google_mobile_ads: ^7.0.0  # 최신 버전 확인 필요
+  google_mobile_ads: ^7.0.0  
   introduction_screen: ^4.0.0
   easy_localization: ^3.0.8
   lottie: ^3.1.2
-  
+  purchases_flutter: ^8.2.0 
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
