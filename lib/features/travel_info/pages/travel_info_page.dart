@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
@@ -13,6 +14,7 @@ import 'package:travel_memoir/features/travel_info/pages/travel_type_select_page
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_info_list_skeleton.dart';
+import 'package:lottie/lottie.dart';
 
 class TravelInfoPage extends StatefulWidget {
   const TravelInfoPage({super.key});
@@ -53,107 +55,189 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   }
 
   @override
-  void didPopNext() {
-    _refresh();
-  }
+  void didPopNext() => _refresh();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F9FA),
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          'travel_records'.tr(),
-          style: AppTextStyles.sectionTitle,
-        ), // ✅ 번역 적용
-      ),
+      floatingActionButton: _buildFab(),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const TravelInfoListSkeleton();
-          }
+          return CustomScrollView(
+            // ✅ iOS 스타일의 쫀득한 바운싱 효과 적용
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            slivers: [
+              // ✅ [1] 숨겨진 오버스크롤 헤더 (당길 때만 등장)
+              CupertinoSliverRefreshControl(
+                refreshTriggerPullDistance: 120.0,
+                refreshIndicatorExtent: 80.0,
+                onRefresh: () async => _refresh(),
+                builder:
+                    (
+                      context,
+                      refreshState,
+                      pulledExtent,
+                      refreshTriggerPullDistance,
+                      refreshIndicatorExtent,
+                    ) {
+                      // 당기는 거리에 따라 투명도 조절 (0.0 ~ 1.0)
+                      double opacity =
+                          (pulledExtent / refreshTriggerPullDistance).clamp(
+                            0.0,
+                            1.0,
+                          );
 
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(
-              child: Text(
-                'no_travels_yet'.tr(),
-                style: AppTextStyles.bodyMuted,
-              ), // ✅ 번역 적용
-            );
-          }
+                      return Center(
+                        child: OverflowBox(
+                          maxHeight: 150,
+                          minHeight: 0,
+                          child: Opacity(
+                            opacity: opacity,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // 💡 당겨진 높이가 충분할 때만 아이콘과 텍스트 표시 (에러 방지)
+                                if (pulledExtent > 30) ...[
+                                  // Icon
+                                  // const Icon(
+                                  //   Icons.auto_awesome,
+                                  //   size: 50,
+                                  //   color: Colors.blueAccent,
+                                  // ),
 
-          final travels = snapshot.data!;
+                                  // lottie 패키지 설치 필요
+                                  Lottie.asset(
+                                    'assets/lottie/Earth globe rotating with Seamless loop animation.json',
+                                    width: 100,
+                                    fit: BoxFit.contain,
+                                  ),
 
-          return ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            itemCount: travels.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 16),
-            itemBuilder: (context, index) {
-              final travel = travels[index];
+                                  // Image
+                                  // Image.asset(
+                                  //   'assets/images/파일명.png', // 유저님이 넣은 이미지 경로
+                                  //   width: 80, // 적당한 크기 조절
+                                  //   height: 80,
+                                  //   fit: BoxFit.contain,
+                                  // ),
+                                  Text(
+                                    "pull_to_discover".tr(),
+                                    style: AppTextStyles.bodyMuted.copyWith(
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+              ),
 
-              return _SwipeDeleteItem(
-                travel: travel,
-                onDelete: () async {
-                  await TravelCreateService.deleteTravel(travel['id']);
-                  if (!mounted) return;
-                  _refresh();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('travel_deleted_message'.tr()),
-                    ), // ✅ 번역 적용
-                  );
-                },
-                onTap: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TravelDiaryListPage(travel: travel),
+              // ✅ [2] 상단 타이틀 바
+              SliverAppBar(
+                backgroundColor: const Color(0xFFF8F9FA),
+                elevation: 0,
+                pinned: true,
+                centerTitle: true,
+                title: Text(
+                  'travel_records'.tr(),
+                  style: AppTextStyles.sectionTitle,
+                ),
+              ),
+
+              // ✅ [3] 리스트 영역 (로딩/비어있음/데이터)
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const SliverToBoxAdapter(child: TravelInfoListSkeleton())
+              else if (!snapshot.hasData || snapshot.data!.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Text(
+                      'no_travels_yet'.tr(),
+                      style: AppTextStyles.bodyMuted,
                     ),
-                  );
-                  _refresh();
-                },
-              );
-            },
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final travel = snapshot.data![index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _SwipeDeleteItem(
+                          travel: travel,
+                          onDelete: () async {
+                            await TravelCreateService.deleteTravel(
+                              travel['id'],
+                            );
+                            _refresh();
+                          },
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    TravelDiaryListPage(travel: travel),
+                              ),
+                            );
+                            _refresh();
+                          },
+                        ),
+                      );
+                    }, childCount: snapshot.data!.length),
+                  ),
+                ),
+            ],
           );
         },
       ),
-      floatingActionButton: SizedBox(
-        width: 60,
-        height: 60,
-        child: FloatingActionButton(
-          elevation: 8,
-          backgroundColor: AppColors.travelingBlue,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(50),
-          ),
-          onPressed: () async {
-            final created = await Navigator.push<Map<String, dynamic>>(
+    );
+  }
+
+  // ✅ Floating Action Button (여행 추가 버튼)
+  Widget _buildFab() {
+    return SizedBox(
+      width: 60,
+      height: 60,
+      child: FloatingActionButton(
+        elevation: 8,
+        backgroundColor: AppColors.travelingBlue,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+        onPressed: () async {
+          final created = await Navigator.push<Map<String, dynamic>>(
+            context,
+            MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
+          );
+          if (created != null && mounted) {
+            _refresh();
+            await Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
+              MaterialPageRoute(
+                builder: (_) => TravelDiaryListPage(travel: created),
+              ),
             );
-            if (!mounted) return;
-            if (created != null) {
-              _refresh();
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => TravelDiaryListPage(travel: created),
-                ),
-              );
-              _refresh();
-            }
-          },
-          child: const Icon(Icons.add, color: Colors.white, size: 32),
-        ),
+            _refresh();
+          }
+        },
+        child: const Icon(Icons.add, color: Colors.white, size: 32),
       ),
     );
   }
 }
 
+// -----------------------------------------------------------------------------
+// 🗑️ 슬라이드 삭제 위젯
+// -----------------------------------------------------------------------------
 class _SwipeDeleteItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onDelete;
@@ -187,6 +271,9 @@ class _SwipeDeleteItem extends StatelessWidget {
   }
 }
 
+// -----------------------------------------------------------------------------
+// 📄 여행 목록 아이템 카드
+// -----------------------------------------------------------------------------
 class _TravelListItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onTap;
@@ -196,8 +283,7 @@ class _TravelListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDomestic = travel['travel_type'] == 'domestic';
-    final bool isKo =
-        context.locale.languageCode == 'ko'; // ✅ context.locale 사용
+    final bool isKo = context.locale.languageCode == 'ko';
 
     final String title =
         travel['region_name'] ??
@@ -261,9 +347,7 @@ class _TravelListItem extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                isDomestic
-                                    ? 'domestic'.tr()
-                                    : 'overseas'.tr(), // ✅ 번역 적용
+                                isDomestic ? 'domestic'.tr() : 'overseas'.tr(),
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -318,7 +402,7 @@ class _TravelListItem extends StatelessWidget {
                               text: 'written_days_format'.tr(
                                 args: [totalDays.toString()],
                               ),
-                            ), // ✅ 번역 적용
+                            ),
                           ],
                         ),
                       ),

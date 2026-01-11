@@ -7,12 +7,20 @@ class TravelInfoListSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    // ✅ CustomScrollView(Sliver) 안에서 쓰기 위해 ListView 대신 Column으로 변경합니다.
+    return Padding(
       padding: const EdgeInsets.all(20),
-      itemCount: 6,
-      separatorBuilder: (_, __) =>
-          Divider(height: 24, color: AppColors.divider),
-      itemBuilder: (_, __) => const _TravelInfoItemSkeleton(),
+      child: Column(
+        children: List.generate(6, (index) {
+          return Column(
+            children: [
+              const _TravelInfoItemSkeleton(),
+              // 마지막 아이템 뒤에는 구분선을 넣지 않습니다.
+              if (index < 5) Divider(height: 24, color: AppColors.divider),
+            ],
+          );
+        }),
+      ),
     );
   }
 }
@@ -22,8 +30,13 @@ class _TravelInfoItemSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // 기존 디자인 유지를 위해 마진만 살짝 조정했습니다.
+    return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

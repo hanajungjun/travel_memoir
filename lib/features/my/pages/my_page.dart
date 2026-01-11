@@ -11,6 +11,7 @@ import 'package:travel_memoir/features/my/pages/user_details/user_details.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:lottie/lottie.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -244,7 +245,21 @@ class _MyPageState extends State<MyPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 32), // 공백을 조금 더 주면 예뻐요
+                  // ✅ 2. 로그아웃 버튼 위 귀여운 Lottie 애니메이션
+                  Center(
+                    child: Column(
+                      children: [
+                        Lottie.asset(
+                          'assets/lottie/Happy New Year Cat Jumping.json', // 🐶 이미지 교체 지점!
+                          height: 120,
+                          repeat: true,
+                        ),
+                        const SizedBox(height: 2),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     height: 48,

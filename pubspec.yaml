@@ -55,7 +55,8 @@ dependencies:
   google_mobile_ads: ^7.0.0  # 최신 버전 확인 필요
   introduction_screen: ^4.0.0
   easy_localization: ^3.0.8
-
+  lottie: ^3.1.2
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -75,6 +76,7 @@ flutter:
     - assets/geo/processed/
     - assets/geo/raw/
     - assets/translations/
+    - assets/lottie/
      
 flutter_launcher_icons:
   android: true
