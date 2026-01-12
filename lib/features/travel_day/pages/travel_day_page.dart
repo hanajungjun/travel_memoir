@@ -7,7 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:lottie/lottie.dart'; // ✅ Lottie 추가 확인
+import 'package:lottie/lottie.dart';
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -373,19 +373,16 @@ class _TravelDayPageState extends State<TravelDayPage> {
           SingleChildScrollView(
             child: Column(
               children: [
-                Container(height: 30, color: themeColor),
-                Transform.translate(
-                  offset: const Offset(0, -10),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        _buildDiaryCard(),
-                        const SizedBox(height: 20),
-                        _buildAiResultCard(),
-                        const SizedBox(height: 100),
-                      ],
-                    ),
+                Container(height: 40, color: themeColor),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                  child: Column(
+                    children: [
+                      _buildDiaryCard(),
+                      const SizedBox(height: 20),
+                      _buildAiResultCard(),
+                      const SizedBox(height: 100),
+                    ],
                   ),
                 ),
               ],
@@ -480,10 +477,14 @@ class _TravelDayPageState extends State<TravelDayPage> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          _buildSectionTitle(Icons.camera_alt, 'todays_moments'.tr()),
+          const SizedBox(height: 10),
+          _buildSectionTitle(
+            Icons.camera_alt,
+            'todays_moments'.tr(),
+            subtitle: 'max_3_photos'.tr(), // 👈 다국어 키값 적용!
+          ),
           _buildPhotoRow(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           _buildSectionTitle(Icons.palette, 'drawing_style'.tr()),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -491,21 +492,33 @@ class _TravelDayPageState extends State<TravelDayPage> {
               onChanged: (style) => setState(() => _selectedStyle = style),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           _buildGenerateButton(),
         ],
       ),
     );
   }
 
-  Widget _buildSectionTitle(IconData icon, String title) {
+  Widget _buildSectionTitle(IconData icon, String title, {String? subtitle}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 18),
           const SizedBox(width: 8),
           Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          if (subtitle != null) ...[
+            const SizedBox(width: 4),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+              ),
+            ),
+          ],
         ],
       ),
     );

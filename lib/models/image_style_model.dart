@@ -1,6 +1,7 @@
 class ImageStyleModel {
   final String id;
   final String title;
+  final String titleEn;
   final String prompt;
   final bool isEnabled;
 
@@ -11,6 +12,7 @@ class ImageStyleModel {
   ImageStyleModel({
     required this.id,
     required this.title,
+    required this.titleEn,
     required this.prompt,
     required this.isEnabled,
     this.thumbnailUrl,
@@ -21,6 +23,7 @@ class ImageStyleModel {
     return ImageStyleModel(
       id: map['id'] as String,
       title: (map['title'] ?? '') as String,
+      titleEn: (map['title_en'] ?? '') as String,
       prompt: (map['prompt'] ?? '') as String,
       isEnabled: map['is_enabled'] as bool? ?? true,
 
@@ -32,6 +35,7 @@ class ImageStyleModel {
 
   ImageStyleModel copyWith({
     String? title,
+    String? titleEn,
     String? prompt,
     bool? isEnabled,
     String? thumbnailUrl,
@@ -40,10 +44,19 @@ class ImageStyleModel {
     return ImageStyleModel(
       id: id,
       title: title ?? this.title,
+      titleEn: titleEn ?? this.titleEn,
       prompt: prompt ?? this.prompt,
       isEnabled: isEnabled ?? this.isEnabled,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       sortOrder: sortOrder ?? this.sortOrder,
     );
+  }
+
+  // ✨ 현재 언어에 맞는 제목을 가져오는 헬퍼 함수
+  String getLocalizedTitle(String languageCode) {
+    if (languageCode == 'en') {
+      return titleEn.isNotEmpty ? titleEn : title; // 영어 없으면 한국어라도 노출
+    }
+    return title;
   }
 }

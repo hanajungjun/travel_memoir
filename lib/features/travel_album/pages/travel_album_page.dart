@@ -2,28 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
-
-import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
-// 1. 데이터 모델 클래스 (파일 하단에 정의되어 있어야 함)
 class _AlbumItem {
   final DateTime date;
-  final String summary;
   final String imageUrl;
-
-  _AlbumItem({
-    required this.date,
-    required this.summary,
-    required this.imageUrl,
-  });
+  _AlbumItem({required this.date, required this.imageUrl});
 }
 
 class TravelAlbumPage extends StatefulWidget {
   final Map<String, dynamic> travel;
-
   const TravelAlbumPage({super.key, required this.travel});
 
   @override
@@ -44,9 +34,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     final user = client.auth.currentUser;
     if (user == null) return [];
 
-    final travelId = widget.travel['id']?.toString();
-    if (travelId == null || travelId.isEmpty) return [];
-
+    final travelId = widget.travel['id']?.toString() ?? '';
     final userId = user.id;
 
     final files = await client.storage
@@ -55,80 +43,89 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
     if (files.isEmpty) return [];
 
-    final daySummaries = await TravelDayService.getAlbumDays(
-      travelId: travelId,
-    );
-
-    final summaryMap = {
-      for (final d in daySummaries)
-        d['date']?.toString(): (d['ai_summary'] ?? '').toString(),
-    };
-
-    // ⭐ 에러 해결: _AlbumItem 생성자를 명확히 호출
     return files.where((f) => f.name.endsWith('.png')).map((f) {
       final dateStr = f.name.replaceAll('.png', '');
-      final date =
-          DateTime.tryParse(dateStr) ?? DateTime.fromMillisecondsSinceEpoch(0);
-
+      final date = DateTime.tryParse(dateStr) ?? DateTime.now();
       final imageUrl = client.storage
           .from('travel_images')
           .getPublicUrl('users/$userId/travels/$travelId/days/${f.name}');
 
-      return _AlbumItem(
-        date: date,
-        summary: summaryMap[dateStr] ?? '',
-        imageUrl: imageUrl,
-      );
+      return _AlbumItem(date: date, imageUrl: imageUrl);
     }).toList()..sort((a, b) => a.date.compareTo(b.date));
   }
 
   String _travelTitle() {
     final isDomestic = widget.travel['travel_type'] == 'domestic';
-    final String currentLocale = context.locale.languageCode;
-
+    final currentLocale = context.locale.languageCode;
     final place = isDomestic
         ? (widget.travel['city_name'] ?? widget.travel['city'])
         : (currentLocale == 'ko'
               ? widget.travel['country_name_ko']
               : widget.travel['country_name_en']);
-
     final title = (widget.travel['title'] ?? '').toString();
-    if (title.isNotEmpty) return title;
-
-    return 'trip_with_place'.tr(args: [place ?? 'overseas'.tr()]);
+    return title.isNotEmpty
+        ? title
+        : 'trip_with_place'.tr(args: [place ?? 'overseas'.tr()]);
   }
 
   @override
   Widget build(BuildContext context) {
     final title = _travelTitle();
+    final overallSummary = (widget.travel['ai_cover_summary'] ?? '').toString();
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: Text(title, style: AppTextStyles.pageTitle)),
+      appBar: AppBar(
+        title: Text(title, style: AppTextStyles.pageTitle),
+        elevation: 0,
+        backgroundColor: AppColors.background,
+      ),
       body: FutureBuilder<List<_AlbumItem>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
+          if (snapshot.connectionState != ConnectionState.done)
             return const Center(child: CircularProgressIndicator());
-          }
-
-          // ⭐ 에러 해결: Null check 및 기본 리스트 할당
-          final List<_AlbumItem> items = snapshot.data ?? [];
-
-          if (items.isEmpty) {
+          final items = snapshot.data ?? [];
+          if (items.isEmpty)
             return Center(
               child: Text(
                 'no_diary_images_yet'.tr(),
                 style: AppTextStyles.bodyMuted,
               ),
             );
-          }
 
           return CustomScrollView(
             slivers: [
+              // ✨ 1. 요약 내용만 보여주는 섹션 (제목/아이콘 삭제)
+              if (overallSummary.isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 22,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.05), // 은은한 배경
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      overallSummary,
+                      style: AppTextStyles.body.copyWith(
+                        fontSize: 15,
+                        height: 1.6,
+                        color: Colors.black87,
+                        fontStyle: FontStyle.italic, // 약간의 감성 추가
+                      ),
+                      textAlign: TextAlign.center, // 요약문이므로 가운데 정렬
+                    ),
+                  ),
+                ),
+
+              // 2. "그림 앨범" 타이틀 섹션
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
                   child: Row(
                     children: [
                       Text(
@@ -146,8 +143,10 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                   ),
                 ),
               ),
+
+              // 3. 사진 그리드 섹션
               SliverPadding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverGrid(
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
@@ -155,28 +154,30 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                     mainAxisSpacing: 10,
                   ),
                   delegate: SliverChildBuilderDelegate((context, index) {
-                    final item = items[index];
                     return GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => _AlbumViewerPage(
-                              title: title,
-                              items: items,
-                              initialIndex: index,
-                            ),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => _AlbumViewerPage(
+                            title: title,
+                            items: items,
+                            initialIndex: index,
+                            overallSummary: overallSummary,
                           ),
-                        );
-                      },
+                        ),
+                      ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(item.imageUrl, fit: BoxFit.cover),
+                        child: Image.network(
+                          items[index].imageUrl,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     );
                   }, childCount: items.length),
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: 50)),
             ],
           );
         },
@@ -185,18 +186,16 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 }
 
-// ---------------------------------------------------------
-// 🖼️ 앨범 뷰어 페이지 (에러 방지를 위해 하단 배치)
-// ---------------------------------------------------------
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
   final List<_AlbumItem> items;
   final int initialIndex;
-
+  final String overallSummary;
   const _AlbumViewerPage({
     required this.title,
     required this.items,
     required this.initialIndex,
+    required this.overallSummary,
   });
 
   @override
@@ -220,23 +219,9 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
     super.dispose();
   }
 
-  void _share() {
-    final item = widget.items[_index];
-    final text = [
-      '${'share_location'.tr()} ${widget.title}',
-      '${'share_date'.tr()} ${DateUtilsHelper.formatYMD(item.date)}',
-      if (item.summary.isNotEmpty) '${'share_memo'.tr()} ${item.summary}',
-      '',
-      item.imageUrl,
-    ].join('\n');
-    Share.share(text);
-  }
-
   @override
   Widget build(BuildContext context) {
-    // ⭐ 에러 해결: 현재 index의 아이템을 안전하게 가져옴
     final currentItem = widget.items[_index];
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -249,31 +234,69 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.ios_share, color: Colors.white),
-            onPressed: _share,
+            onPressed: () {
+              final text = [
+                '${'share_location'.tr()} ${widget.title}',
+                '${'share_date'.tr()} ${DateUtilsHelper.formatYMD(currentItem.date)}',
+                if (widget.overallSummary.isNotEmpty)
+                  '${'share_memo'.tr()} ${widget.overallSummary}',
+                '',
+                currentItem.imageUrl,
+              ].join('\n');
+              Share.share(text);
+            },
           ),
         ],
       ),
-      body: PageView.builder(
-        controller: _controller,
-        itemCount: widget.items.length,
-        onPageChanged: (i) => setState(() => _index = i),
-        itemBuilder: (_, i) {
-          final item = widget.items[i];
-          return InteractiveViewer(
-            minScale: 1,
-            maxScale: 4,
-            child: Center(
-              child: Image.network(
-                item.imageUrl,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => Text(
-                  'failed_to_load_image'.tr(),
-                  style: const TextStyle(color: Colors.white),
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _controller,
+            itemCount: widget.items.length,
+            onPageChanged: (i) => setState(() => _index = i),
+            itemBuilder: (_, i) => InteractiveViewer(
+              minScale: 1,
+              maxScale: 4,
+              child: Center(
+                child: Image.network(
+                  widget.items[i].imageUrl,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
-          );
-        },
+          ),
+          if (widget.overallSummary.isNotEmpty)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(24, 80, 24, 50),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.8),
+                        Colors.black,
+                      ],
+                    ),
+                  ),
+                  child: Text(
+                    widget.overallSummary,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

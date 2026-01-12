@@ -1,37 +1,25 @@
-/// 📅 날짜/시간 관련 유틸리티 모음
-/// UI에서 반복적으로 사용하는 날짜 포맷, 요일, 여행 기간 계산을 담당한다.
+import 'package:easy_localization/easy_localization.dart';
+import 'package:intl/intl.dart';
+
 class DateUtilsHelper {
-  /// 🗓 오늘 날짜를 "12월 12일 금요일" 형태로 반환
+  /// 🗓 오늘 날짜를 언어 설정에 맞게 반환 (예: 12월 12일 금요일 / Friday, Dec 12)
   static String todayText() {
     final now = DateTime.now();
-    return '${now.month}월 ${now.day}일 ${weekday(now.weekday)}';
+    // 언어별로 최적화된 포맷 사용 (ko: M월 d일 E요일 / en: E, MMM d)
+    return DateFormat.MMMEd().format(now);
   }
 
-  /// 📆 요일 숫자를 한글 요일로 변환
+  /// 📆 요일 숫자를 해당 언어의 요일로 변환
   static String weekday(int day) {
-    switch (day) {
-      case DateTime.monday:
-        return '월요일';
-      case DateTime.tuesday:
-        return '화요일';
-      case DateTime.wednesday:
-        return '수요일';
-      case DateTime.thursday:
-        return '목요일';
-      case DateTime.friday:
-        return '금요일';
-      case DateTime.saturday:
-        return '토요일';
-      case DateTime.sunday:
-        return '일요일';
-      default:
-        return '';
-    }
+    final now = DateTime.now();
+    final firstDayOfWeek = now.subtract(Duration(days: now.weekday - 1));
+    final targetDay = firstDayOfWeek.add(Duration(days: day - 1));
+    return DateFormat.EEEE().format(targetDay); // 월요일, Monday 등 자동 변환
   }
 
   /// 📌 날짜를 "12.12" 형태로 포맷
   static String formatMonthDay(DateTime date) {
-    return '${date.month}.${date.day}';
+    return DateFormat('M.d').format(date);
   }
 
   /// 🧳 여행 n일차 계산
@@ -51,13 +39,13 @@ class DateUtilsHelper {
     final diff = target.difference(today).inDays;
 
     if (diff <= 0) return '';
-    if (diff == 1) return '내일 열려요';
-    return '${diff}일 후 열려요';
+    if (diff == 1) return 'lock_tomorrow'.tr(); // 내일 열려요
+    return 'lock_days_later'.tr(args: [diff.toString()]); // n일 후 열려요
   }
 
   /// 🗓 yyyy.MM.dd 포맷
   static String formatYMD(DateTime date) {
-    return '${date.year}.${_two(date.month)}.${_two(date.day)}';
+    return DateFormat('yyyy.MM.dd').format(date);
   }
 
   /// ✨ 감성 상대 날짜
@@ -68,17 +56,17 @@ class DateUtilsHelper {
 
     final diff = today.difference(target).inDays;
 
-    if (diff <= 0) return '오늘';
-    if (diff == 1) return '어제';
-    if (diff < 7) return '$diff일 전';
-    if (diff < 14) return '1주 전';
-    if (diff < 28) return '2주 전';
-    return '${(diff / 30).floor()}달 전';
+    if (diff <= 0) return 'today'.tr();
+    if (diff == 1) return 'yesterday'.tr();
+    if (diff < 7) return 'days_ago'.tr(args: [diff.toString()]);
+    if (diff < 14) return 'weeks_ago'.tr(args: ['1']);
+    if (diff < 28) return 'weeks_ago'.tr(args: ['2']);
+
+    final months = (diff / 30).floor();
+    return 'months_ago'.tr(args: [months.toString()]);
   }
 
   /// 🧾 여행 기간 텍스트
-  /// - 0박 1일 → 당일치기
-  /// - 그 외 → n박 n+1일
   static String periodText({
     required String? startDate,
     required String? endDate,
@@ -91,11 +79,12 @@ class DateUtilsHelper {
     final nights = end.difference(start).inDays;
 
     if (nights <= 0) {
-      return '당일치기';
+      return 'day_trip'.tr(); // 당일치기
     }
 
-    return '${nights}박 ${nights + 1}일';
+    // ko: n박 n+1일 / en: nN n+1D
+    return 'period_format'.tr(
+      args: [nights.toString(), (nights + 1).toString()],
+    );
   }
-
-  static String _two(int n) => n.toString().padLeft(2, '0');
 }

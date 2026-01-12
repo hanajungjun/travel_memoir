@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/models/country_model.dart';
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
+import 'package:travel_memoir/core/constants/korea/sgg_code_map.dart';
 
 class TravelCreateService {
   static final SupabaseClient _supabase = Supabase.instance.client;
@@ -16,7 +17,7 @@ class TravelCreateService {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    // 1. 여행 기록 생성
+    // 1️⃣ 여행 기록 생성
     final travel = await _supabase
         .from('travels')
         .insert({
@@ -39,7 +40,21 @@ class TravelCreateService {
         .select()
         .single();
 
-    // 2. 🔥 [핵심] 빈 일기 칸 선발행
+    // 2️⃣ 🔥 지도용 방문 지역 즉시 upsert (미완료 = 빨강)
+    final code = SggCodeMap.fromRegionId(region.id);
+
+    await _supabase.from('domestic_travel_regions').upsert({
+      'travel_id': travel['id'],
+      'user_id': userId,
+      'region_id': region.id,
+      'map_region_id': region.id,
+      'map_region_type': code.type,
+      'sido_cd': code.sidoCd,
+      'sgg_cd': code.sggCd,
+      'is_completed': false, // 🔴 여행 시작
+    }, onConflict: 'user_id,region_id');
+
+    // 3️⃣ 🔥 빈 일기 칸 선발행
     await _createEmptyDays(
       travelId: travel['id'],
       startDate: startDate,
@@ -50,7 +65,7 @@ class TravelCreateService {
   }
 
   // ============================
-  // 🌍 해외 여행 생성
+  // 🌍 해외 여행 생성 (지도 로직 없음)
   // ============================
   static Future<Map<String, dynamic>> createOverseasTravel({
     required String userId,
@@ -58,20 +73,17 @@ class TravelCreateService {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    // 1. 여행 기록 생성
     final travel = await _supabase
         .from('travels')
         .insert({
           'user_id': userId,
           'travel_type': 'overseas',
           'country_code': country.code,
-          // ✅ 수정: 기존 country_name 대신 분리된 컬럼에 각각 저장
           'country_name_ko': country.nameKo,
           'country_name_en': country.nameEn,
           'continent': country.continent,
           'country_lat': country.lat,
           'country_lng': country.lng,
-          // 날짜 저장 (YYYY-MM-DD 형식)
           'start_date': startDate.toIso8601String().substring(0, 10),
           'end_date': endDate.toIso8601String().substring(0, 10),
           'is_completed': false,
@@ -79,7 +91,7 @@ class TravelCreateService {
         .select()
         .single();
 
-    // 2. 🔥 [핵심] 빈 일기 칸 선발행
+    // 빈 일기 생성
     await _createEmptyDays(
       travelId: travel['id'],
       startDate: startDate,
@@ -90,7 +102,7 @@ class TravelCreateService {
   }
 
   // ============================
-  // 📦 [헬퍼] 빈 일기 로우 배치 인서트 (Batch Insert)
+  // 📦 [헬퍼] 빈 일기 로우 배치 인서트
   // ============================
   static Future<void> _createEmptyDays({
     required String travelId,
@@ -106,13 +118,12 @@ class TravelCreateService {
         'travel_id': travelId,
         'day_index': i + 1,
         'date': currentDate.toIso8601String().substring(0, 10),
-        'text': '', // 빈 칸으로 생성
+        'text': '',
         'photo_urls': [],
         'is_completed': false,
       });
     }
 
-    // 🚀 200일이라도 네트워크 통신 단 1번으로 해결!
     await _supabase.from('travel_days').insert(batchData);
   }
 

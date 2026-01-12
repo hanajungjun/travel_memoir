@@ -53,11 +53,12 @@ class TravelCompleteService {
         })
         .eq('id', travelId);
 
-    // 4️⃣ 국내 지역 upsert
+    // 4️⃣ 국내 지역 upsert (🔥 완료 시 → is_completed = true 로 색 전환)
     if (travel['travel_type'] == 'domestic') {
       final String? regionId = travel['region_id'];
       if (regionId != null) {
         final code = SggCodeMap.fromRegionId(regionId);
+
         await _supabase.from('domestic_travel_regions').upsert({
           'travel_id': travelId,
           'user_id': userId,
@@ -66,6 +67,7 @@ class TravelCompleteService {
           'map_region_type': code.type,
           'sido_cd': code.sidoCd,
           'sgg_cd': code.sggCd,
+          'is_completed': true, // ✅ 완료 → 색 변경용
         }, onConflict: 'user_id,region_id');
       }
     }
@@ -77,7 +79,6 @@ class TravelCompleteService {
     final String placeName =
         (travel['travel_type'] == 'domestic'
                 ? travel['region_name']
-                // ✅ 해외여행일 때 시스템 언어에 따라 분기 처리
                 : (isKo
                       ? travel['country_name_ko']
                       : travel['country_name_en']))
@@ -162,7 +163,7 @@ class TravelCompleteService {
       }
     } catch (_) {}
 
-    // 9️⃣ 🔥 day 이미지 생성 (여행 완료 시) - 중복 생성을 막기 위해 주석 처리함
+    // 9️⃣ 🔥 day 이미지 생성 (여행 완료 시) - 주석 그대로 유지
     /*
     try {
       final days = await _supabase
@@ -178,7 +179,7 @@ class TravelCompleteService {
         final summary = (d['ai_summary'] ?? '').toString().trim();
         if (summary.isEmpty) continue;
 
-        final style = (d['ai_style'] ?? 'default').toString();
+        final style = (d['ai_stylea'] ?? 'default').toString();
 
         final bytes = await gemini.generateImage(
           finalPrompt:
