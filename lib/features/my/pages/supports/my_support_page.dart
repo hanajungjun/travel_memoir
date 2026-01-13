@@ -43,7 +43,7 @@ class MySupportPage extends StatelessWidget {
             // ✅ 공지사항 버튼 (맨 위로 이동)
             _SupportTile(
               title: 'notice'.tr(), // 번역 파일에 'notice' 추가 필요
-              trailing: const Icon(Icons.chevron_right),
+              trailing: const Icon(Icons.open_in_new),
               onTap: () => _launchURL(
                 'https://hanajungjun.github.io/travel-memoir-docs/notice.html',
               ),

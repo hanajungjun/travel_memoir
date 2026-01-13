@@ -1,10 +1,10 @@
-import 'dart:io'; // File 클래스 사용을 위해 추가
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:path_provider/path_provider.dart'; // 임시 디렉토리 경로 획득용
-import 'package:http/http.dart' as http; // 이미지 다운로드용
+import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
@@ -207,7 +207,7 @@ class _AlbumViewerPage extends StatefulWidget {
 class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   late final PageController _controller;
   late int _index;
-  bool _isSharing = false; // 공유 진행 중 상태 표시용
+  bool _isSharing = false;
 
   @override
   void initState() {
@@ -224,24 +224,21 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentItem = widget.items[_index];
-
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
+        // ✅ [수정] 날짜 대신 "현재 페이지 / 전체 페이지"를 제목으로 표시
         title: Text(
-          '${currentItem.date.month}/${currentItem.date.day}',
-          style: const TextStyle(color: Colors.white),
+          '${_index + 1} / ${widget.items.length}',
+          style: const TextStyle(color: Colors.white, fontSize: 17),
         ),
         actions: [
-          // 🛠 수정된 공유 버튼 로직
           Builder(
             builder: (innerContext) => IconButton(
               icon: _isSharing
                   ? const SizedBox(
-                      // 공유 중일 때 로딩 표시
                       width: 24,
                       height: 24,
                       child: CircularProgressIndicator(
@@ -253,12 +250,11 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
               onPressed: _isSharing
                   ? null
                   : () async {
-                      // 공유 중 중복 클릭 방지
-                      setState(() => _isSharing = true); // 로딩 시작
+                      setState(() => _isSharing = true);
 
-                      // 1. 공유할 텍스트 메시지 구성 (URL 제외)
+                      final currentItem = widget.items[_index];
                       final String location = widget.title;
-                      final String date = DateUtilsHelper.formatYMD(
+                      final String dateStr = DateUtilsHelper.formatYMD(
                         currentItem.date,
                       );
                       final String memo = widget.overallSummary.isNotEmpty
@@ -267,47 +263,38 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
 
                       final String shareText =
                           '${'share_location'.tr()} $location\n'
-                          '${'share_date'.tr()} $date'
+                          '${'share_date'.tr()} $dateStr'
                           '$memo';
 
                       try {
-                        // 2. 이미지 파일 준비 (다운로드 및 임시 파일 저장)
                         final RenderBox? box =
                             innerContext.findRenderObject() as RenderBox?;
                         final tempDir = await getTemporaryDirectory();
                         final fileName =
-                            '${currentItem.date.millisecondsSinceEpoch}.png'; // 고유한 파일명 생성
+                            '${currentItem.date.millisecondsSinceEpoch}.png';
                         final file = File('${tempDir.path}/$fileName');
 
-                        // http 패키지를 사용하여 이미지 다운로드
                         final response = await http.get(
                           Uri.parse(currentItem.imageUrl),
                         );
-                        if (response.statusCode != 200) {
-                          throw Exception('Failed to download image');
-                        }
+                        if (response.statusCode != 200)
+                          throw Exception('Failed download');
                         await file.writeAsBytes(response.bodyBytes);
 
-                        // 3. 파일 공유 실행 (shareXFiles 사용)
                         await Share.shareXFiles(
-                          [XFile(file.path)], // 공유할 파일 리스트
-                          text: shareText, // 함께 보낼 텍스트
+                          [XFile(file.path)],
+                          text: shareText,
                           sharePositionOrigin: box != null
                               ? box.localToGlobal(Offset.zero) & box.size
-                              : null, // iPad 크래시 방지
+                              : null,
                         );
                       } catch (e) {
                         debugPrint('Share Error: $e');
-                        // 에러 발생 시 사용자에게 알림 (선택 사항)
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('failed_to_share_image'.tr()),
-                          ), // 다국어 키 필요
+                          SnackBar(content: Text('failed_to_share_image'.tr())),
                         );
                       } finally {
-                        if (mounted) {
-                          setState(() => _isSharing = false); // 로딩 종료
-                        }
+                        if (mounted) setState(() => _isSharing = false);
                       }
                     },
             ),
