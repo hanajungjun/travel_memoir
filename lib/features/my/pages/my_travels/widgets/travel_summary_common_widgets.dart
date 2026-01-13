@@ -84,9 +84,9 @@ class TotalDonutCard extends StatelessWidget {
   }
 }
 
-// 🧩 2. 공통 여행 요약 카드
 class CommonTravelSummaryCard extends StatelessWidget {
-  final int travelCount;
+  final int travelCount; // 총 방문 횟수
+  final int completedCount; // ✅ 추가: 일기 작성 완료 횟수 (is_completed == true)
   final int travelDays;
   final String mostVisited;
   final String mostVisitedLabel;
@@ -94,6 +94,7 @@ class CommonTravelSummaryCard extends StatelessWidget {
   const CommonTravelSummaryCard({
     super.key,
     required this.travelCount,
+    required this.completedCount, // ✅ 필수 인자로 추가
     required this.travelDays,
     required this.mostVisited,
     required this.mostVisitedLabel,
@@ -111,23 +112,28 @@ class CommonTravelSummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'travel_summary'.tr(),
-            style: AppTextStyles.sectionTitle,
-          ), // ✅ 번역
+          Text('travel_summary'.tr(), style: AppTextStyles.sectionTitle),
           const SizedBox(height: 16),
+          // 1. 총 방문 횟수
           _buildSummaryItem(
             'trip_count_label'.tr(),
-            'count_unit'.tr(
-              args: [travelCount.toString()],
-            ), // ✅ '회' 혹은 'Trips' 대응
+            'count_unit'.tr(args: [travelCount.toString()]),
           ),
           const SizedBox(height: 12),
+          // 2. ✅ 일기 작성 완료 (새로 추가된 줄)
+          _buildSummaryItem(
+            'diary_completed_label'
+                .tr(), // 번역 키 예: "일기 작성 완료" / "Diaries Completed"
+            'count_unit'.tr(args: [completedCount.toString()]),
+          ),
+          const SizedBox(height: 12),
+          // 3. 총 여행 일수
           _buildSummaryItem(
             'total_days_label'.tr(),
-            'day_unit'.tr(args: [travelDays.toString()]), // ✅ '일' 혹은 'Days' 대응
+            'day_unit'.tr(args: [travelDays.toString()]),
           ),
           const SizedBox(height: 12),
+          // 4. 최다 방문 지역
           _buildSummaryItem(
             'most_visited_format'.tr(args: [mostVisitedLabel]),
             mostVisited,

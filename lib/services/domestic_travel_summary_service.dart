@@ -32,20 +32,21 @@ class DomesticTravelSummaryService {
   static Future<int> getTravelCount({
     required String userId,
     required bool isDomestic,
-    required bool isCompleted,
+    bool? isCompleted, // ✅ 'required'를 지우고 '?'를 붙여서 선택사항으로 변경!
   }) async {
-    try {
-      final rows = await _supabase
-          .from('travels')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('is_completed', isCompleted)
-          .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
+    var query = Supabase.instance.client
+        .from('travels')
+        .select()
+        .eq('user_id', userId)
+        .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
 
-      return rows.length;
-    } catch (e) {
-      return 0;
+    // ✅ isCompleted가 null이 아닐 때만 필터를 적용합니다.
+    if (isCompleted != null) {
+      query = query.eq('is_completed', isCompleted);
     }
+
+    final response = await query;
+    return response.length;
   }
 
   // ✅ 여행 일수 조회 (안전하게 수정)

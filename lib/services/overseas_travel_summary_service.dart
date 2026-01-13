@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui'; // PlatformDispatcher 사용을 위해 필요
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,10 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class OverseasTravelSummaryService {
   static final _supabase = Supabase.instance.client;
 
-  /// 🌍 전체 국가 수 (REST Countries)
+  /// 🌍 전체 국가 수 (REST Countries API - 기존 로직 유지)
   static Future<int> getTotalCountryCount() async {
     final uri = Uri.parse('https://restcountries.com/v3.1/all?fields=cca2');
-
     final res = await http.get(uri);
 
     if (res.statusCode != 200) {
@@ -20,29 +20,29 @@ class OverseasTravelSummaryService {
     return list.length;
   }
 
-  /// ✈️ 방문한 국가 수 (중복 제거)
+  /// ✈️ 방문한 국가 수 (중복 제거 - 기존 'is_completed: true' 로직 유지)
   static Future<int> getVisitedCountryCount({required String userId}) async {
     final rows = await _supabase
-        .from('travels') // 'travels' 테이블에서
-        .select('country_code') // 국가 코드만 가져옵니다
-        .eq('travel_type', 'overseas') // 해외 여행 타입만
-        .eq('is_completed', true); // 완료된 여행만
+        .from('travels')
+        .select('country_code')
+        .eq('user_id', userId) // 유저 필터 추가
+        .eq('travel_type', 'overseas')
+        .eq('is_completed', true);
 
     final visited = <String>{};
-
     for (final row in rows) {
       final code = row['country_code'];
       if (code != null) {
         visited.add(code.toString());
       }
     }
-
     return visited.length;
   }
 
-  /// ✈️ 해외 여행 요약 정보
+  /// ✈️ 해외 여행 요약 정보 (기존 로직 유지)
   static Future<Map<String, dynamic>> getTravelSummary(String userId) async {
-    final travelCount = await _getTravelCount(userId);
+    // 내부적으로 완료된 것만 집계하던 기존 동작 유지를 위해 true 전달
+    final travelCount = await _getTravelCount(userId, true);
     final totalTravelDays = await _getTotalTravelDays(userId);
     final mostVisitedCountry = await _getMostVisitedCountry(userId);
 
@@ -53,19 +53,24 @@ class OverseasTravelSummaryService {
     };
   }
 
-  /// 해외 여행 횟수
-  static Future<int> _getTravelCount(String userId) async {
-    final rows = await _supabase
+  /// ✈️ [핵심 수정] 해외 여행 횟수 조회 (내부 로직)
+  static Future<int> _getTravelCount(String userId, bool? isCompleted) async {
+    var query = _supabase
         .from('travels')
         .select()
         .eq('user_id', userId)
-        .eq('travel_type', 'overseas')
-        .eq('is_completed', true);
+        .eq('travel_type', 'overseas');
 
+    // ✅ 선택적으로 필터 적용
+    if (isCompleted != null) {
+      query = query.eq('is_completed', isCompleted);
+    }
+
+    final rows = await query;
     return rows.length;
   }
 
-  // ✅ 여행 일수 조회 (최종 정답)
+  /// ✅ 여행 일수 조회 (유저님의 +1 계산 로직 그대로 복구)
   static Future<int> _getTotalTravelDays(String userId) async {
     final rows = await _supabase
         .from('travels')
@@ -75,7 +80,6 @@ class OverseasTravelSummaryService {
         .eq('travel_type', 'overseas');
 
     int totalDays = 0;
-
     for (final row in rows) {
       final startDateStr = row['start_date'];
       final endDateStr = row['end_date'];
@@ -85,22 +89,19 @@ class OverseasTravelSummaryService {
       try {
         final startDate = DateTime.parse(startDateStr.toString());
         final endDate = DateTime.parse(endDateStr.toString());
-
         final diff = endDate.difference(startDate).inDays;
 
-        // 🔥 핵심: 항상 +1
+        // 🔥 유저님의 핵심 로직: 항상 +1
         totalDays += diff + 1;
       } catch (e) {
         debugPrint('Error parsing dates: $e');
       }
     }
-
     return totalDays;
   }
 
-  /// 가장 많이 간 국가 (다국어 대응 및 코드 기준 집계)
+  /// ✅ 가장 많이 간 국가 (다국어 대응 및 코드 기준 집계 로직 그대로 복구)
   static Future<String> _getMostVisitedCountry(String userId) async {
-    // 1. 데이터 조회 (국가 코드와 다국어 이름을 모두 가져옵니다)
     final rows = await _supabase
         .from('travels')
         .select('country_code, country_name_ko, country_name_en')
@@ -108,56 +109,46 @@ class OverseasTravelSummaryService {
         .eq('travel_type', 'overseas')
         .eq('is_completed', true);
 
-    // 데이터가 없으면 바로 반환
-    if (rows.isEmpty) {
-      return '-';
-    }
+    if (rows.isEmpty) return '-';
 
     final Map<String, int> countryCount = {};
     final Map<String, Map<String, String>> countryNames = {};
 
-    // 2. 국가 코드(ISO Code)를 기준으로 개수 집계
     for (final row in rows) {
       final String? code = row['country_code']?.toString();
       if (code == null || code.isEmpty) continue;
 
-      // 빈도수 계산
       countryCount[code] = (countryCount[code] ?? 0) + 1;
-
-      // 나중에 출력할 이름을 위해 코드별로 이름 매핑 보관
       countryNames[code] = {
         'ko': row['country_name_ko']?.toString() ?? '',
         'en': row['country_name_en']?.toString() ?? '',
       };
     }
 
-    if (countryCount.isEmpty) {
-      return '-';
-    }
+    if (countryCount.isEmpty) return '-';
 
-    // 3. 가장 많이 나타난 국가 코드 추출
     final String mostVisitedCode = countryCount.entries
         .reduce((a, b) => a.value >= b.value ? a : b)
         .key;
 
-    // 4. 현재 디바이스 언어 설정 확인 (한국어 여부)
+    // 🌐 다국어 처리 로직 유지
     final bool isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
-
-    // 5. 언어 설정에 맞는 이름 선택 및 반환
-    // 5. 언어 설정에 맞는 이름 선택 및 반환
     final names = countryNames[mostVisitedCode];
-    // names가 null일 경우를 대비해 기본값을 지정하고, 확실한 String으로 추출합니다.
     final String resultName = isKo
         ? (names?['ko'] ?? '')
         : (names?['en'] ?? '');
 
-    // 최종 결과가 비어있지 않으면 이름 반환, 없으면 '-' 반환
     return resultName.isNotEmpty ? resultName : '-';
   }
 
-  /// ✈️ 해외 여행 횟수 (외부용)
-  static Future<int> getTravelCount({required String userId}) async {
-    return _getTravelCount(userId);
+  // --- 외부 노출용 메서드 (순서대로 복구) ---
+
+  /// ✈️ 해외 여행 횟수 (외부용 - 이제 isCompleted 가능)
+  static Future<int> getTravelCount({
+    required String userId,
+    bool? isCompleted,
+  }) async {
+    return _getTravelCount(userId, isCompleted);
   }
 
   /// ✈️ 해외 여행 총 일수 (외부용)

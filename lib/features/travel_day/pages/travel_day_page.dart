@@ -30,6 +30,8 @@ class TravelDayPage extends StatefulWidget {
   final DateTime startDate;
   final DateTime endDate;
   final DateTime date;
+  // ✨ [추가] 목록에서 넘겨주는 초기 데이터
+  final Map<String, dynamic>? initialDiary;
 
   const TravelDayPage({
     super.key,
@@ -38,6 +40,7 @@ class TravelDayPage extends StatefulWidget {
     required this.startDate,
     required this.endDate,
     required this.date,
+    this.initialDiary, // 파라미터 추가
   });
 
   @override
@@ -76,7 +79,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     super.dispose();
   }
 
-  // ✅ 광고 로드 (일기 작성 중 미리 로드)
   void _loadAds() {
     final String adId = Platform.isAndroid
         ? 'ca-app-pub-3890698783881393/3553280276'
@@ -97,24 +99,38 @@ class _TravelDayPageState extends State<TravelDayPage> {
     );
   }
 
-  // ✅ 기존 데이터 로드
+  // ✅ [핵심 수정] 기존 데이터 로드 로직 변경
   Future<void> _loadDiary() async {
+    // 1. 목록에서 넘겨받은 데이터가 있다면 먼저 사용 (데이터 꼬임 방지)
+    if (widget.initialDiary != null) {
+      _applyDiaryData(widget.initialDiary!);
+      return;
+    }
+
+    // 2. 넘겨받은 데이터가 없을 때만 DB에서 직접 가져오기
     final diary = await TravelDayService.getDiaryByDate(
       travelId: widget.travelId,
       date: widget.date,
     );
     if (!mounted || diary == null) return;
+    _applyDiaryData(diary);
+  }
+
+  // ✅ 데이터를 화면 변수들에 적용하는 공통 함수
+  void _applyDiaryData(Map<String, dynamic> diary) {
     setState(() {
-      _diaryId = diary['id'];
-      _contentController.text = diary['content'] ?? '';
+      _diaryId = diary['id']?.toString();
+      _contentController.text = diary['text'] ?? diary['content'] ?? '';
 
       if (diary['photo_urls'] != null) {
         _uploadedPhotoUrls.clear();
         _uploadedPhotoUrls.addAll(List<String>.from(diary['photo_urls']));
       }
 
-      if (diary['ai_summary'] != null &&
-          diary['ai_summary'].toString().isNotEmpty) {
+      // AI 요약이 있고 diaryId가 있는 경우 이미지 URL 생성
+      if (_diaryId != null &&
+          (diary['ai_summary'] != null &&
+              diary['ai_summary'].toString().isNotEmpty)) {
         _imageUrl = TravelDayService.getAiImageUrl(
           travelId: widget.travelId,
           diaryId: _diaryId!,
@@ -123,7 +139,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     });
   }
 
-  // ✅ 업로드된 사진 삭제
   Future<void> _deleteUploadedPhoto(String url) async {
     setState(() {
       _loading = true;
@@ -144,7 +159,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     }
   }
 
-  // ✅ 갤러리 사진 선택
   Future<void> _pickPhoto() async {
     if (_localPhotos.length + _uploadedPhotoUrls.length >= 3) return;
     final picker = ImagePicker();
@@ -152,7 +166,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     if (picked != null) setState(() => _localPhotos.add(File(picked.path)));
   }
 
-  // ✅ [병렬 처리] AI 생성 + 보상형 광고 동시 실행
   Future<void> _handleGenerateWithAd() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final content = _contentController.text.trim();
@@ -174,12 +187,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
           });
 
           try {
-            // 1. AI 작업 즉시 백그라운드에서 시작
             final Future<Map<String, dynamic>> aiTask = Future(
               () => _runAiGeneration(),
             );
 
-            // 2. 약간의 지연 후 광고 노출
             await Future.delayed(const Duration(milliseconds: 100));
 
             if (_isAdLoaded && _rewardedAd != null) {
@@ -198,13 +209,10 @@ class _TravelDayPageState extends State<TravelDayPage> {
                     },
                   );
 
-              debugPrint("📺 [AD] 광고 노출 시작");
               await _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
-              await adCompleter.future; // 광고 시청 대기
-              debugPrint("📺 [AD] 광고 종료");
+              await adCompleter.future;
             }
 
-            // 3. 광고 끝난 후 AI 결과 수확
             final aiData = await aiTask;
             _updateAiResult(aiData);
           } catch (e) {
@@ -241,7 +249,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     return {'summary': summary, 'image': imageBytes};
   }
 
-  // ✅ 일기 저장 버튼 로직
   Future<void> _saveDiary() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final text = _contentController.text.trim();
@@ -262,7 +269,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     if (!mounted) return;
 
     if (isCompleting) {
-      // 여행 완료 시: 완료 대기 페이지로 이동하며 백그라운드 저장 시작
       final Future<void> saveTask = Future(() => _performActualSaveLogic());
 
       Navigator.of(context).push(
@@ -274,7 +280,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
         ),
       );
     } else {
-      // 일반 저장
       setState(() {
         _loading = true;
         _loadingMessage = "saving_memory_loading".tr();
@@ -343,59 +348,69 @@ class _TravelDayPageState extends State<TravelDayPage> {
   Widget build(BuildContext context) {
     final themeColor = AppColors.travelingBlue;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        backgroundColor: themeColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'travel_day_title'.tr(
-            args: [
-              DateUtilsHelper.calculateDayNumber(
-                startDate: widget.startDate,
-                currentDate: widget.date,
-              ).toString().padLeft(2, '0'),
-            ],
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          backgroundColor: themeColor,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
           ),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                Container(height: 40, color: themeColor),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                  child: Column(
-                    children: [
-                      _buildDiaryCard(),
-                      const SizedBox(height: 20),
-                      _buildAiResultCard(),
-                      const SizedBox(height: 100),
-                    ],
-                  ),
-                ),
+          title: Text(
+            'travel_day_title'.tr(
+              args: [
+                DateUtilsHelper.calculateDayNumber(
+                  startDate: widget.startDate,
+                  currentDate: widget.date,
+                ).toString().padLeft(2, '0'),
               ],
             ),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          _buildBottomSaveButton(),
-          if (_loading) _buildLoadingOverlay(), // ✅ 수정된 로딩 화면
-        ],
+          centerTitle: true,
+        ),
+        body: Stack(
+          children: [
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(height: 40, color: themeColor),
+            ),
+            SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  const SizedBox(height: 40),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                    child: Column(
+                      children: [
+                        _buildDiaryCard(),
+                        const SizedBox(height: 20),
+                        _buildAiResultCard(),
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _buildBottomSaveButton(),
+            if (_loading) _buildLoadingOverlay(),
+          ],
+        ),
       ),
     );
   }
 
-  // ✅ [수정] 텍스트 대신 Lottie 애니메이션이 들어간 로딩 화면
   Widget _buildLoadingOverlay() {
     return Container(
       color: Colors.black.withOpacity(0.8),
@@ -404,7 +419,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Lottie.asset(
-              'assets/lottie/ai_magic_wand.json', // 👈 이 파일명인지 확인 필수!
+              'assets/lottie/ai_magic_wand.json',
               width: 200,
               height: 200,
               fit: BoxFit.contain,
@@ -429,7 +444,6 @@ class _TravelDayPageState extends State<TravelDayPage> {
     );
   }
 
-  // --- 기존 UI 컴포넌트들 (변경사항 없음) ---
   Widget _buildDiaryCard() {
     final dayNum = DateUtilsHelper.calculateDayNumber(
       startDate: widget.startDate,
@@ -481,7 +495,7 @@ class _TravelDayPageState extends State<TravelDayPage> {
           _buildSectionTitle(
             Icons.camera_alt,
             'todays_moments'.tr(),
-            subtitle: 'max_3_photos'.tr(), // 👈 다국어 키값 적용!
+            subtitle: 'max_3_photos'.tr(),
           ),
           _buildPhotoRow(),
           const SizedBox(height: 10),

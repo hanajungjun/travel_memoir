@@ -1,0 +1,83 @@
+Flutter crash report.
+Please report a bug at https://github.com/flutter/flutter/issues.
+
+## command
+
+flutter pub get --no-example
+
+## exception
+
+_TypeError: Null check operator used on a null value
+
+```
+#0      computeTransitiveDependencies (package:flutter_tools/src/package_graph.dart:69:29)
+#1      findPlugins (package:flutter_tools/src/flutter_plugins.dart:115:51)
+<asynchronous suspension>
+#2      injectPlugins (package:flutter_tools/src/flutter_plugins.dart:1256:32)
+<asynchronous suspension>
+#3      FlutterProject.ensureReadyForPlatformSpecificTooling (package:flutter_tools/src/project.dart:388:5)
+<asynchronous suspension>
+#4      PackagesGetCommand.runCommand (package:flutter_tools/src/commands/packages.dart:395:9)
+<asynchronous suspension>
+#5      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1559:27)
+<asynchronous suspension>
+#6      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#7      CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+<asynchronous suspension>
+#8      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:487:9)
+<asynchronous suspension>
+#9      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#10     FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:422:5)
+<asynchronous suspension>
+#11     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:101:11)
+<asynchronous suspension>
+#12     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+<asynchronous suspension>
+#13     main (package:flutter_tools/executable.dart:103:3)
+<asynchronous suspension>
+```
+
+## flutter doctor
+
+```
+[✓] Flutter (Channel stable, 3.38.1, on macOS 26.1 25B78 darwin-arm64, locale ko-GH) [1,272ms]
+    • Flutter version 3.38.1 on channel stable at /opt/homebrew/share/flutter
+    • Upstream repository https://github.com/flutter/flutter.git
+    • Framework revision b45fa18946 (9 weeks ago), 2025-11-12 22:09:06 -0600
+    • Engine revision b5990e5ccc
+    • Dart version 3.10.0
+    • DevTools version 2.51.1
+    • Feature flags: enable-web, enable-linux-desktop, enable-macos-desktop, enable-windows-desktop, enable-android, enable-ios, cli-animations, enable-native-assets, omit-legacy-version-file, enable-lldb-debugging
+
+[✓] Android toolchain - develop for Android devices (Android SDK version 36.1.0) [3.2s]
+    • Android SDK at /Users/jun/Library/Android/sdk
+    • Emulator version 36.2.12.0 (build_id 14214601) (CL:N/A)
+    • Platform android-36, build-tools 36.1.0
+    • Java binary at: /Applications/Android Studio.app/Contents/jbr/Contents/Home/bin/java
+      This is the JDK bundled with the latest Android Studio installation on this machine.
+      To manually set the JDK path, use: `flutter config --jdk-dir="path/to/jdk"`.
+    • Java version OpenJDK Runtime Environment (build 21.0.8+-14196175-b1038.72)
+    • All Android licenses accepted.
+
+[✓] Xcode - develop for iOS and macOS (Xcode 26.1.1) [2.6s]
+    • Xcode at /Applications/Xcode.app/Contents/Developer
+    • Build 17B100
+    • CocoaPods version 1.16.2
+
+[✓] Chrome - develop for the web [6ms]
+    • Chrome at /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+
+[✓] Connected device (4 available) [7.3s]
+    • iPhone (wireless) (mobile) • 00008140-001203582EEB001C            • ios            • iOS 26.1 23B85
+    • iPhone 15 Pro Max (mobile) • 892BEE64-AC26-41D0-A53D-BE9C6FB26F90 • ios            • com.apple.CoreSimulator.SimRuntime.iOS-26-0 (simulator)
+    • macOS (desktop)            • macos                                • darwin-arm64   • macOS 26.1 25B78 darwin-arm64
+    • Chrome (web)               • chrome                               • web-javascript • Google Chrome 143.0.7499.170
+    ! Error: JumgJun의 iPad is not available because it is unpaired. Pair with the device in the Xcode Devices Window, and respond to any pairing prompts on the device. (code -29)
+
+[✓] Network resources [840ms]
+    • All expected network resources are available.
+
+• No issues found!
+```

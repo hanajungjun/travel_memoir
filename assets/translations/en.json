@@ -180,5 +180,15 @@
   "weeks_ago": "{} week(s) ago",
   "months_ago": "{} month(s) ago",
   "period_format": "{}N {}D",
-  "max_3_photos": "(Max 3 photos)"
+  "max_3_photos": "(Max 3 photos)",
+  "diary_completed_label": "🌍 Memoirs Recorded", 
+  "save_reorder_button": "Save",
+  "onboarding_body_1": "Leave your precious memories on the map.",
+  "onboarding_title_2": "Write Diary",
+  "onboarding_body_2": "AI will turn your photos into beautiful paintings.",
+  "onboarding_title_3": "Share Memories",
+  "onboarding_body_3": "Share your travel album with your loved ones.",
+  "skip": "Skip",
+  "start": "Start",
+  "save_reorder_success": "Save Completed"
 }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:introduction_screen/introduction_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/app/app_shell.dart';
 

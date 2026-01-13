@@ -1,4 +1,4 @@
-import 'dart:io'; // ✅ Platform 확인을 위해 추가
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
@@ -8,7 +8,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:purchases_flutter/purchases_flutter.dart'; // 이미 있음!
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'firebase_options.dart';
 import 'services/prompt_cache.dart';
@@ -26,9 +26,11 @@ Future<void> main() async {
 
   EasyLocalization.logger.enableLevels = [];
 
-  // ✅ 0. 온보딩 완료 여부 확인
+  // ✅ 0. 설정값 로드 (온보딩 및 알림 설정)
   final prefs = await SharedPreferences.getInstance();
   final bool onboardingDone = prefs.getBool('onboarding_done') ?? false;
+  final bool notificationEnabled =
+      prefs.getBool('notification_enabled') ?? true;
 
   // ✅ 1. AdMob 초기화
   await MobileAds.instance.initialize();
@@ -36,15 +38,58 @@ Future<void> main() async {
   // ✅ 2. Firebase 초기화
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  // ⭐ [수정] FCM 토큰 출력 - iOS 시뮬레이터 에러 방지 로직
+  String? token;
+  try {
+    if (Platform.isIOS) {
+      // iOS일 경우 APNS 토큰이 먼저 확보되었는지 확인 (시뮬레이터는 여기서 null 반환)
+      String? apnsToken = await FirebaseMessaging.instance.getAPNSToken();
+      if (apnsToken != null) {
+        token = await FirebaseMessaging.instance.getToken();
+      } else {
+        debugPrint("🎯 알림: iOS 시뮬레이터 또는 APNS 설정 미비로 FCM 토큰 호출을 건너뜁니다.");
+      }
+    } else {
+      // 안드로이드는 바로 가져옴
+      token = await FirebaseMessaging.instance.getToken();
+    }
+  } catch (e) {
+    debugPrint("🎯 FCM 토큰 가져오기 중 오류 발생: $e");
+  }
+
+  if (token != null) {
+    print("🎯 내 FCM 토큰: $token");
+  }
+
   // ✅ 3. 백그라운드 메시지 핸들러 등록
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // ✅ 4. 🔔 알림 권한 요청
-  await FirebaseMessaging.instance.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
+  // ✅ 4. 🔔 알림 설정 (권한 요청 및 토글 상태 반영)
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  // 알림 권한 요청
+  await messaging.requestPermission(alert: true, badge: true, sound: true);
+
+  // [보강] iOS APNS 토큰 확보 시도 (에러 방지를 위해 try-catch 권장하나 원본 유지)
+  if (Platform.isIOS) {
+    await messaging.getAPNSToken();
+  }
+
+  // 설정 페이지의 토글 상태를 포그라운드 알림에 반영
+  await messaging.setForegroundNotificationPresentationOptions(
+    alert: notificationEnabled,
+    badge: notificationEnabled,
+    sound: notificationEnabled,
   );
+
+  // 포그라운드 리스너
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    if (notificationEnabled) {
+      print("🔔 포그라운드 메시지 수신: ${message.notification?.title}");
+    } else {
+      print("🔕 알림 차단 상태: 메시지를 받았지만 팝업을 띄우지 않습니다.");
+    }
+  });
 
   // ✅ 5. Supabase 초기화
   await Supabase.initialize(
@@ -64,7 +109,7 @@ Future<void> main() async {
     javaScriptAppKey: AppEnv.kakaoJavaScriptKey,
   );
 
-  // ✅ 9. 💰 RevenueCat 초기화 추가
+  // ✅ 9. 💰 RevenueCat 초기화
   await _initRevenueCat();
 
   // ✅ 10. TravelMemoirApp 실행
@@ -79,22 +124,16 @@ Future<void> main() async {
   );
 }
 
-// ✅ RevenueCat 초기화 함수 별도 분리 (가독성)
 Future<void> _initRevenueCat() async {
-  // 개발 중에는 로그를 상세히 봐서 결제 흐름을 파악하는 게 좋아요!
   await Purchases.setLogLevel(LogLevel.debug);
-
   PurchasesConfiguration configuration;
 
   if (Platform.isAndroid) {
-    // AppEnv에 구글 API 키가 등록되어 있다고 가정합니다.
     configuration = PurchasesConfiguration(AppEnv.revenueCatGoogleKey);
   } else if (Platform.isIOS) {
-    // AppEnv에 애플 API 키가 등록되어 있다고 가정합니다.
     configuration = PurchasesConfiguration(AppEnv.revenueCatAppleKey);
   } else {
-    return; // 다른 플랫폼은 결제 지원 안 함
+    return;
   }
-
   await Purchases.configure(configuration);
 }

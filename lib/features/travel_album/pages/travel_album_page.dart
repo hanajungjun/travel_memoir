@@ -1,7 +1,10 @@
+import 'dart:io'; // File 클래스 사용을 위해 추가
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:path_provider/path_provider.dart'; // 임시 디렉토리 경로 획득용
+import 'package:http/http.dart' as http; // 이미지 다운로드용
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
@@ -83,20 +86,21 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
       body: FutureBuilder<List<_AlbumItem>>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done)
+          if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
+          }
           final items = snapshot.data ?? [];
-          if (items.isEmpty)
+          if (items.isEmpty) {
             return Center(
               child: Text(
                 'no_diary_images_yet'.tr(),
                 style: AppTextStyles.bodyMuted,
               ),
             );
+          }
 
           return CustomScrollView(
             slivers: [
-              // ✨ 1. 요약 내용만 보여주는 섹션 (제목/아이콘 삭제)
               if (overallSummary.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Container(
@@ -106,7 +110,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                       vertical: 22,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.05), // 은은한 배경
+                      color: Colors.grey.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
@@ -115,14 +119,13 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                         fontSize: 15,
                         height: 1.6,
                         color: Colors.black87,
-                        fontStyle: FontStyle.italic, // 약간의 감성 추가
+                        fontStyle: FontStyle.italic,
                       ),
-                      textAlign: TextAlign.center, // 요약문이므로 가운데 정렬
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
 
-              // 2. "그림 앨범" 타이틀 섹션
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
@@ -144,7 +147,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                 ),
               ),
 
-              // 3. 사진 그리드 섹션
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 sliver: SliverGrid(
@@ -205,6 +207,7 @@ class _AlbumViewerPage extends StatefulWidget {
 class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   late final PageController _controller;
   late int _index;
+  bool _isSharing = false; // 공유 진행 중 상태 표시용
 
   @override
   void initState() {
@@ -222,6 +225,7 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   @override
   Widget build(BuildContext context) {
     final currentItem = widget.items[_index];
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -232,19 +236,81 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
           style: const TextStyle(color: Colors.white),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.ios_share, color: Colors.white),
-            onPressed: () {
-              final text = [
-                '${'share_location'.tr()} ${widget.title}',
-                '${'share_date'.tr()} ${DateUtilsHelper.formatYMD(currentItem.date)}',
-                if (widget.overallSummary.isNotEmpty)
-                  '${'share_memo'.tr()} ${widget.overallSummary}',
-                '',
-                currentItem.imageUrl,
-              ].join('\n');
-              Share.share(text);
-            },
+          // 🛠 수정된 공유 버튼 로직
+          Builder(
+            builder: (innerContext) => IconButton(
+              icon: _isSharing
+                  ? const SizedBox(
+                      // 공유 중일 때 로딩 표시
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.ios_share, color: Colors.white),
+              onPressed: _isSharing
+                  ? null
+                  : () async {
+                      // 공유 중 중복 클릭 방지
+                      setState(() => _isSharing = true); // 로딩 시작
+
+                      // 1. 공유할 텍스트 메시지 구성 (URL 제외)
+                      final String location = widget.title;
+                      final String date = DateUtilsHelper.formatYMD(
+                        currentItem.date,
+                      );
+                      final String memo = widget.overallSummary.isNotEmpty
+                          ? '\n${'share_memo'.tr()} ${widget.overallSummary}'
+                          : '';
+
+                      final String shareText =
+                          '${'share_location'.tr()} $location\n'
+                          '${'share_date'.tr()} $date'
+                          '$memo';
+
+                      try {
+                        // 2. 이미지 파일 준비 (다운로드 및 임시 파일 저장)
+                        final RenderBox? box =
+                            innerContext.findRenderObject() as RenderBox?;
+                        final tempDir = await getTemporaryDirectory();
+                        final fileName =
+                            '${currentItem.date.millisecondsSinceEpoch}.png'; // 고유한 파일명 생성
+                        final file = File('${tempDir.path}/$fileName');
+
+                        // http 패키지를 사용하여 이미지 다운로드
+                        final response = await http.get(
+                          Uri.parse(currentItem.imageUrl),
+                        );
+                        if (response.statusCode != 200) {
+                          throw Exception('Failed to download image');
+                        }
+                        await file.writeAsBytes(response.bodyBytes);
+
+                        // 3. 파일 공유 실행 (shareXFiles 사용)
+                        await Share.shareXFiles(
+                          [XFile(file.path)], // 공유할 파일 리스트
+                          text: shareText, // 함께 보낼 텍스트
+                          sharePositionOrigin: box != null
+                              ? box.localToGlobal(Offset.zero) & box.size
+                              : null, // iPad 크래시 방지
+                        );
+                      } catch (e) {
+                        debugPrint('Share Error: $e');
+                        // 에러 발생 시 사용자에게 알림 (선택 사항)
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('failed_to_share_image'.tr()),
+                          ), // 다국어 키 필요
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isSharing = false); // 로딩 종료
+                        }
+                      }
+                    },
+            ),
           ),
         ],
       ),
@@ -289,7 +355,7 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 16,
+                      fontSize: 15,
                       height: 1.6,
                     ),
                   ),

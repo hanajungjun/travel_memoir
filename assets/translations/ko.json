@@ -178,7 +178,17 @@
   "yesterday": "어제",
   "days_ago": "{}일 전",
   "weeks_ago": "{}주 전",
-  "months_ago": "{}달 전",
+  "months_ago": "{}달 전", 
   "period_format": "{}박 {}일",
-  "max_3_photos": "(최대 3장)"
+  "max_3_photos": "(최대 3장)",
+  "diary_completed_label": "🌍 완성된 추억",
+  "save_reorder_button": "수정완료",
+  "onboarding_body_1": "지도 위에 당신의 소중한 추억을 남겨보세요.",
+  "onboarding_title_2": "일기 작성",
+  "onboarding_body_2": "AI가 당신의 사진을 멋진 그림으로 그려드립니다.",
+  "onboarding_title_3": "추억 공유",
+  "onboarding_body_3": "소중한 사람들과 당신의 여행 앨범을 공유하세요.",
+  "skip": "건너뛰기",
+  "start": "시작하기",
+  "save_reorder_success": "저장완료"
 }

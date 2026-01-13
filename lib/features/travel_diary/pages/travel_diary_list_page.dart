@@ -245,6 +245,8 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                     Duration(days: _diaries.length - 1),
                                   ),
                                   date: displayDate,
+                                  // ✨ [핵심 수정] 현재 인덱스의 일기 데이터를 통째로 넘깁니다.
+                                  initialDiary: diary,
                                 ),
                               ),
                             );
