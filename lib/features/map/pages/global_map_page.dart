@@ -41,18 +41,30 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         center: Point(coordinates: Position(10.0, 20.0)),
         zoom: widget.isReadOnly ? 0.1 : 0.5,
       ),
+      // ✅ [제스처 인식기] ReadOnly일 때 터치 우선권을 가져와 좌우 이동이 가능하게 함
       gestureRecognizers: widget.isReadOnly
-          ? {}
+          ? {Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer())}
           : {
               Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
               Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
             },
       onMapCreated: (map) async {
         _map = map;
+
+        // ✅ [에러 수정 완료] Mapbox SDK 표준 속성명으로 교체
         await map.gestures.updateSettings(
-          GesturesSettings(pitchEnabled: false),
+          GesturesSettings(
+            pitchEnabled: false,
+            rotateEnabled: !widget.isReadOnly,
+            scrollEnabled: true, // 이동은 항상 허용
+            pinchToZoomEnabled: !widget.isReadOnly, // 요약 모드 시 핀치 줌 방지
+            doubleTapToZoomInEnabled: !widget.isReadOnly, // ✅ 더블탭 줌 방지
+            doubleTouchToZoomOutEnabled: !widget.isReadOnly, // ✅ 두 손가락 탭 줌 방지
+            quickZoomEnabled: !widget.isReadOnly, // ✅ 더블탭 후 드래그 줌 방지
+          ),
         );
-        if (!mounted) return; // ✨ 추가
+
+        if (!mounted) return;
         await map.setBounds(CameraBoundsOptions(minZoom: 0.0, maxZoom: 8.0));
       },
       onStyleLoadedListener: _onStyleLoaded,
@@ -65,13 +77,13 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     if (map == null) return;
     try {
       final screenCoordinate = await map.pixelForCoordinate(context.point);
-      if (!mounted) return; // ✨ 추가
+      if (!mounted) return;
 
       final features = await map.queryRenderedFeatures(
         RenderedQueryGeometry.fromScreenCoordinate(screenCoordinate),
         RenderedQueryOptions(layerIds: [_visitedCountryLayer]),
       );
-      if (!mounted) return; // ✨ 추가
+      if (!mounted) return;
 
       if (features.isNotEmpty) {
         final props =
@@ -107,7 +119,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
           .limit(1)
           .maybeSingle();
 
-      if (!mounted) return; // ✨ 추가
+      if (!mounted) return;
 
       if (response == null) return;
 
@@ -127,7 +139,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   }
 
   void _displayPopup(Map<String, dynamic> response, String countryName) {
-    if (!mounted) return; // ✨ 추가
+    if (!mounted) return;
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -172,11 +184,11 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       await style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
-      if (!mounted) return; // ✨ 추가
+      if (!mounted) return;
 
       final String lang = context.locale.languageCode;
       final layers = await style.getStyleLayers();
-      if (!mounted) return; // ✨ 추가
+      if (!mounted) return;
 
       for (var layer in layers) {
         final id = layer?.id;
@@ -203,7 +215,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         .eq('user_id', user.id)
         .eq('travel_type', 'overseas');
 
-    if (!mounted) return; // ✨ 추가
+    if (!mounted) return;
 
     final List<dynamic> travels = response;
     final Set<String> allCodes = {};
@@ -217,7 +229,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     }
 
     final layers = await style.getStyleLayers();
-    if (!mounted) return; // ✨ 추가
+    if (!mounted) return;
 
     String? targetBelowId;
     for (var l in layers) {
@@ -228,12 +240,12 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     }
 
     final worldGeoJson = await rootBundle.loadString(_worldGeoJson);
-    if (!mounted) return; // ✨ 추가
+    if (!mounted) return;
 
     await _rmLayer(style, _visitedCountryLayer);
     await _rmLayer(style, _borderCountryLayer);
     await _rmSource(style, _worldSourceId);
-    if (!mounted) return; // ✨ 추가
+    if (!mounted) return;
 
     await style.addSource(
       GeoJsonSource(id: _worldSourceId, data: worldGeoJson),
@@ -248,7 +260,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     } else {
       await style.addLayer(fillLayer);
     }
-    if (!mounted) return; // ✨ 추가
+    if (!mounted) return;
 
     await style.setStyleLayerProperty(
       _visitedCountryLayer,
@@ -308,7 +320,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     );
     await style.setStyleLayerProperty(_borderCountryLayer, 'line-width', 0.5);
 
-    if (!mounted) return; // ✨ 추가
+    if (!mounted) return;
 
     final pointManager = await _map!.annotations.createPointAnnotationManager();
     Map<String, double>? lastLocation;
@@ -322,7 +334,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       if (countryName == null) continue;
       try {
         final res = await OverseasTravelService.geocode(query: countryName);
-        if (!mounted) return; // ✨ 반복문 내 비동기 직후 체크
+        if (!mounted) return;
 
         if (res != null && res['found'] == true) {
           final lat = res['lat'] as double;
@@ -340,7 +352,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     }
 
     if (!widget.isReadOnly && lastLocation != null) {
-      if (!mounted) return; // ✨ 카메라 이동 전 최종 체크
+      if (!mounted) return;
       await _map!.easeTo(
         CameraOptions(
           center: Point(
