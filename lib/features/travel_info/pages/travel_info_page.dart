@@ -171,10 +171,11 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                                 _refresh();
                               }
                             } catch (e) {
-                              if (mounted)
+                              if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text('delete_error'.tr())),
                                 );
+                              }
                             }
                           },
                           onTap: () async {
@@ -271,15 +272,25 @@ class _TravelListItem extends StatelessWidget {
     final isDomestic = travel['travel_type'] == 'domestic';
     final bool isKo = context.locale.languageCode == 'ko';
 
-    // ✅ [번역 핵심] 한글 지역명(성남 등)을 .tr()로 감싸서 영어일 때 번역 파일 매핑을 타게 함
-    final String regionName = travel['region_name']?.toString().tr() ?? '';
-    final String countryName = isKo
-        ? (travel['country_name_ko'] ?? '')
-        : (travel['country_name_en'] ?? '');
-    final String title = regionName.isNotEmpty ? regionName : countryName;
+    // 🎯 [수정된 타이틀 로직]
+    String title = '';
+    if (isDomestic) {
+      if (isKo) {
+        title = travel['region_name'] ?? '';
+      } else {
+        // ✅ region_key가 있으면 '_'로 잘라서 마지막 단어(예: YEOJU)만 가져오고,
+        // 없으면(null이면) 한글 이름이라도 보여줍니다.
+        final String rawKey = travel['region_key'] ?? '';
+        title = rawKey.isNotEmpty
+            ? rawKey.split('_').last
+            : (travel['region_name'] ?? '');
+      }
+    } else {
+      title = isKo
+          ? (travel['country_name_ko'] ?? '')
+          : (travel['country_name_en'] ?? travel['country_code'] ?? '');
+    }
 
-    final String engTitle =
-        travel['region_eng'] ?? travel['country_code'] ?? '';
     final start = travel['start_date']?.toString().replaceAll('-', '.') ?? '';
     final end = travel['end_date']?.toString().replaceAll('-', '.') ?? '';
 
@@ -345,9 +356,7 @@ class _TravelListItem extends StatelessWidget {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                engTitle.isNotEmpty
-                                    ? '$title, $engTitle'
-                                    : title,
+                                title, // ✅ 여기 title 하나로 통합해서 에러 해결!
                                 style: AppTextStyles.sectionTitle.copyWith(
                                   fontSize: 18,
                                   color: completed

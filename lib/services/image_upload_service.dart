@@ -98,30 +98,30 @@ class ImageUploadService {
     return _supabase.storage.from('travel_images').getPublicUrl(path);
   }
 
-  // =====================================================
-  // 🗺 여행 지도 업로드 (travels/{id}/map.png)
-  // ✅ TravelCompleteService에서 쓰는 이름
-  // =====================================================
-  static Future<String> uploadTravelMap({
-    required String userId,
-    required String travelId,
-    required Uint8List imageBytes,
-  }) async {
-    final path = '${StoragePaths.travelRoot(userId, travelId)}/map.png';
+  // // =====================================================
+  // // 🗺 여행 지도 업로드 (travels/{id}/map.png)
+  // // ✅ TravelCompleteService에서 쓰는 이름
+  // // =====================================================
+  // static Future<String> uploadTravelMap({
+  //   required String userId,
+  //   required String travelId,
+  //   required Uint8List imageBytes,
+  // }) async {
+  //   final path = '${StoragePaths.travelRoot(userId, travelId)}/map.png';
 
-    await _supabase.storage
-        .from('travel_images')
-        .uploadBinary(
-          path,
-          imageBytes,
-          fileOptions: const FileOptions(
-            contentType: 'image/png',
-            upsert: true,
-          ),
-        );
+  //   await _supabase.storage
+  //       .from('travel_images')
+  //       .uploadBinary(
+  //         path,
+  //         imageBytes,
+  //         fileOptions: const FileOptions(
+  //           contentType: 'image/png',
+  //           upsert: true,
+  //         ),
+  //       );
 
-    return _supabase.storage.from('travel_images').getPublicUrl(path);
-  }
+  //   return _supabase.storage.from('travel_images').getPublicUrl(path);
+  // }
 
   // =====================================================
   // 🗑 publicUrl → storage path 변환

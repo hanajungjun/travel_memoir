@@ -4,6 +4,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_JONGNO",
     name: "종로",
+    nameEn: "JONGNO",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5729,
@@ -14,6 +15,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_JUNG",
     name: "중구",
+    nameEn: "JUNG",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5636,
@@ -24,6 +26,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_YONGSAN",
     name: "용산",
+    nameEn: "YONGSAN",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5326,
@@ -34,6 +37,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_SEONGDONG",
     name: "성동",
+    nameEn: "SEONGDONG",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5634,
@@ -44,6 +48,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_GWANGJIN",
     name: "광진",
+    nameEn: "GWANGJIN",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5385,
@@ -54,6 +59,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_DONGDAEMUN",
     name: "동대문",
+    nameEn: "DONGDAEMUN",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5744,
@@ -64,6 +70,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_JUNGNANG",
     name: "중랑",
+    nameEn: "JUNGNANG",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.6066,
@@ -74,6 +81,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_SEONGBUK",
     name: "성북",
+    nameEn: "SEONGBUK",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5894,
@@ -84,6 +92,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_GANGBUK",
     name: "강북",
+    nameEn: "GANGBUK",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.6396,
@@ -94,6 +103,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_DOBONG",
     name: "도봉",
+    nameEn: "DOBONG",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.6688,
@@ -104,6 +114,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_NOWON",
     name: "노원",
+    nameEn: "NOWON",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.6542,
@@ -114,6 +125,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_EUNPYEONG",
     name: "은평",
+    nameEn: "EUNPYEONG",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.6176,
@@ -124,6 +136,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_SEODAEMUN",
     name: "서대문",
+    nameEn: "SEODAEMUN",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5792,
@@ -134,6 +147,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_MAPO",
     name: "마포",
+    nameEn: "MAPO",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5663,
@@ -144,6 +158,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_YANGCHEON",
     name: "양천",
+    nameEn: "YANGCHEON",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5169,
@@ -154,6 +169,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_GANGSEO",
     name: "강서",
+    nameEn: "GANGSEO",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5509,
@@ -164,6 +180,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_GURO",
     name: "구로",
+    nameEn: "GURO",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.4955,
@@ -174,6 +191,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_GEUMCHEON",
     name: "금천",
+    nameEn: "GEUMCHEON",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.4569,
@@ -184,6 +202,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_YEONGDEUNGPO",
     name: "영등포",
+    nameEn: "YEONGDEUNGPO",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5264,
@@ -194,6 +213,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_DONGJAK",
     name: "동작",
+    nameEn: "DONGJAK",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5124,
@@ -204,6 +224,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_GWANAK",
     name: "관악",
+    nameEn: "GWANAK",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.4782,
@@ -214,6 +235,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_SEOCHO",
     name: "서초",
+    nameEn: "SEOCHO",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.4836,
@@ -224,6 +246,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_GANGNAM",
     name: "강남",
+    nameEn: "GANGNAM",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5172,
@@ -234,6 +257,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_SONGPA",
     name: "송파",
+    nameEn: "SONGPA",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5145,
@@ -244,6 +268,7 @@ const List<KoreaRegion> seoulRegions = [
   KoreaRegion(
     id: "KR_SEOUL_GANGDONG",
     name: "강동",
+    nameEn: "GANGDONG",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5301,

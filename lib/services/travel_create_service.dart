@@ -17,7 +17,16 @@ class TravelCreateService {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    // 1️⃣ 여행 기록 생성
+    // 1️⃣ region_key 추출 (예: KR_GG_YEOJU -> YEOJU)
+    // 우리 약속대로 마지막 언더바 뒷부분만 가져옵니다.
+    final String regionKey = region.id.split('_').last;
+
+    // 2️⃣ Storage 이미지 URL 자동 생성
+    // TODO: 아래 URL의 [YOUR_PROJECT_ID]를 실제 수파베이스 프로젝트 ID로 꼭 변경하세요!
+    final String mapImageUrl =
+        'https://[YOUR_PROJECT_ID].supabase.co/storage/v1/object/public/maps/$regionKey.png';
+
+    // 3️⃣ 여행 기록 인서트
     final travel = await _supabase
         .from('travels')
         .insert({
@@ -30,6 +39,8 @@ class TravelCreateService {
           'country_lng': 127.7669,
           'region_id': region.id,
           'region_name': region.name,
+          'region_key': regionKey, // ✅ 대문자 키 (YEOJU 등) 저장
+          'map_image_url': mapImageUrl, // ✅ 정규화된 이미지 경로 저장
           'province': region.province,
           'region_lat': region.lat,
           'region_lng': region.lng,
@@ -40,7 +51,7 @@ class TravelCreateService {
         .select()
         .single();
 
-    // 2️⃣ 🔥 지도용 방문 지역 즉시 upsert (미완료 = 빨강)
+    // 4️⃣ 🔥 지도용 방문 지역 즉시 upsert (미완료 = 빨강)
     final code = SggCodeMap.fromRegionId(region.id);
 
     await _supabase.from('domestic_travel_regions').upsert({
@@ -51,10 +62,10 @@ class TravelCreateService {
       'map_region_type': code.type,
       'sido_cd': code.sidoCd,
       'sgg_cd': code.sggCd,
-      'is_completed': false, // 🔴 여행 시작
+      'is_completed': false, // 여행 시작 시점
     }, onConflict: 'user_id,region_id');
 
-    // 3️⃣ 🔥 빈 일기 칸 선발행
+    // 5️⃣ 🔥 빈 일기 칸 선발행
     await _createEmptyDays(
       travelId: travel['id'],
       startDate: startDate,
@@ -65,7 +76,7 @@ class TravelCreateService {
   }
 
   // ============================
-  // 🌍 해외 여행 생성 (지도 로직 없음)
+  // 🌍 해외 여행 생성
   // ============================
   static Future<Map<String, dynamic>> createOverseasTravel({
     required String userId,
@@ -128,7 +139,7 @@ class TravelCreateService {
   }
 
   // ============================
-  // ❌ 여행 삭제 (기존 로직 유지)
+  // ❌ 여행 삭제
   // ============================
   static Future<void> deleteTravel(String travelId) async {
     final res = await _supabase.functions.invoke(

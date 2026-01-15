@@ -5,6 +5,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_CHUNCHEON",
     name: "춘천",
+    nameEn: "CHUNCHEON",
     province: "강원특별자치도",
     type: KoreaRegionType.city,
     lat: 37.8813,
@@ -15,6 +16,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_WONJU",
     name: "원주",
+    nameEn: "WONJU",
     province: "강원특별자치도",
     type: KoreaRegionType.city,
     lat: 37.3422,
@@ -25,6 +27,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_GANGNEUNG",
     name: "강릉",
+    nameEn: "GANGNEUNG",
     province: "강원특별자치도",
     type: KoreaRegionType.city,
     lat: 37.7519,
@@ -35,6 +38,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_DONGHAE",
     name: "동해",
+    nameEn: "DONGHAE",
     province: "강원특별자치도",
     type: KoreaRegionType.city,
     lat: 37.5247,
@@ -45,6 +49,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_TAEBAEK",
     name: "태백",
+    nameEn: "TAEBAEK",
     province: "강원특별자치도",
     type: KoreaRegionType.city,
     lat: 37.1641,
@@ -55,6 +60,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_SOKCHO",
     name: "속초",
+    nameEn: "SOKCHO",
     province: "강원특별자치도",
     type: KoreaRegionType.city,
     lat: 38.2070,
@@ -65,6 +71,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_SAMCHEOK",
     name: "삼척",
+    nameEn: "SAMCHEOK",
     province: "강원특별자치도",
     type: KoreaRegionType.city,
     lat: 37.4499,
@@ -77,6 +84,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_HONGCHEON",
     name: "홍천",
+    nameEn: "HONGCHEON",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 37.6911,
@@ -87,6 +95,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_HOENGSEONG",
     name: "횡성",
+    nameEn: "HOENGSEONG",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 37.4917,
@@ -97,6 +106,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_YEONGWOL",
     name: "영월",
+    nameEn: "YEONGWOL",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 37.1835,
@@ -107,6 +117,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_PYEONGCHANG",
     name: "평창",
+    nameEn: "PYEONGCHANG",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 37.3704,
@@ -117,6 +128,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_JEONGSEON",
     name: "정선",
+    nameEn: "JEONGSEON",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 37.3795,
@@ -127,6 +139,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_CHEORWON",
     name: "철원",
+    nameEn: "CHEORWON",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 38.1466,
@@ -137,6 +150,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_HWACHEON",
     name: "화천",
+    nameEn: "HWACHEON",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 38.1066,
@@ -147,6 +161,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_YANGGU",
     name: "양구",
+    nameEn: "YANGGU",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 38.1099,
@@ -157,6 +172,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_INJE",
     name: "인제",
+    nameEn: "INJE",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 38.0695,
@@ -167,6 +183,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_GOSEONG",
     name: "고성",
+    nameEn: "GOSEONG",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 38.3802,
@@ -177,6 +194,7 @@ const List<KoreaRegion> gangwonRegions = [
   KoreaRegion(
     id: "KR_GW_YANGYANG",
     name: "양양",
+    nameEn: "YANGYANG",
     province: "강원특별자치도",
     type: KoreaRegionType.county,
     lat: 38.0755,

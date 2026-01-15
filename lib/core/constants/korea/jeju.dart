@@ -4,6 +4,7 @@ const List<KoreaRegion> jejuRegions = [
   KoreaRegion(
     id: "KR_JEJU_JEJU",
     name: "제주",
+    nameEn: "JEJU",
     province: "제주특별자치도",
     type: KoreaRegionType.city,
     lat: 33.4996,
@@ -14,6 +15,7 @@ const List<KoreaRegion> jejuRegions = [
   KoreaRegion(
     id: "KR_JEJU_SEOGWIPO",
     name: "서귀포",
+    nameEn: "SEOGWIPO",
     province: "제주특별자치도",
     type: KoreaRegionType.city,
     lat: 33.2541,

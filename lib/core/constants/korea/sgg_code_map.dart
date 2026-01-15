@@ -221,4 +221,14 @@ class SggCodeMap {
   ) {
     return _map[regionId] ?? (type: 'city', sidoCd: null, sggCd: null);
   }
+
+  /// sgg_cd를 기반으로 regionId(Key)를 찾는 역조회 함수
+  static String getRegionIdFromSggCd(String sggCd) {
+    try {
+      // _map을 순회하면서 sggCd가 일치하는 첫 번째 key를 반환합니다.
+      return _map.entries.firstWhere((entry) => entry.value.sggCd == sggCd).key;
+    } catch (e) {
+      return ''; // 못 찾으면 빈 문자열
+    }
+  }
 }

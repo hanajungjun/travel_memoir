@@ -68,7 +68,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     try {
       final startDate = DateTime.parse(_travel['start_date']);
 
-      // 🚀 [1단계] 충돌 방지를 위한 대피 (인덱스 음수 & 미래 날짜)
       for (int i = 0; i < _diaries.length; i++) {
         final tempDate = startDate.add(Duration(days: i + 5000));
         await Supabase.instance.client
@@ -80,7 +79,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
             .eq('id', _diaries[i]['id']);
       }
 
-      // 🚀 [2단계] 실제 순서 주입
       for (int i = 0; i < _diaries.length; i++) {
         final newDate = startDate.add(Duration(days: i));
         await Supabase.instance.client
@@ -114,13 +112,26 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   Widget build(BuildContext context) {
     final startDate = DateTime.parse(_travel['start_date']);
     final isDomestic = _travel['travel_type'] == 'domestic';
+    final bool isKo = context.locale.languageCode == 'ko';
 
-    final title =
-        _travel['region_name'] ??
-        (context.locale.languageCode == 'ko'
-            ? _travel['country_name_ko']
-            : _travel['country_name_en']) ??
-        'travel'.tr();
+    // 🎯 [다국어 타이틀 로직]
+    String title = '';
+    if (isDomestic) {
+      if (isKo) {
+        title = _travel['region_name'] ?? 'travel'.tr();
+      } else {
+        final String rawKey = _travel['region_key'] ?? '';
+        title = rawKey.isNotEmpty
+            ? rawKey.split('_').last
+            : (_travel['region_name'] ?? 'travel'.tr());
+      }
+    } else {
+      title = isKo
+          ? (_travel['country_name_ko'] ?? 'travel'.tr())
+          : (_travel['country_name_en'] ??
+                _travel['country_code'] ??
+                'travel'.tr());
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -196,17 +207,14 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                 if (confirm != true || !mounted) return;
 
                                 setState(() => _loading = true);
-
                                 try {
                                   await TravelDayService.clearDiaryRecord(
                                     travelId: _travel['id'],
                                     date: diaryData['date'],
                                     photoUrls: diaryData['photo_urls'],
                                   );
-
                                   await _loadAllDiaries();
-
-                                  if (mounted) {
+                                  if (mounted)
                                     messenger.showSnackBar(
                                       SnackBar(
                                         content: Text(
@@ -214,7 +222,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                         ),
                                       ),
                                     );
-                                  }
                                 } catch (e) {
                                   messenger.showSnackBar(
                                     SnackBar(
@@ -245,7 +252,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                     Duration(days: _diaries.length - 1),
                                   ),
                                   date: displayDate,
-                                  // ✨ [핵심 수정] 현재 인덱스의 일기 데이터를 통째로 넘깁니다.
                                   initialDiary: diary,
                                 ),
                               ),
@@ -291,7 +297,16 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
-      color: isDomestic ? AppColors.travelingBlue : AppColors.decoPurple,
+      decoration: BoxDecoration(
+        color: isDomestic ? AppColors.travelingBlue : AppColors.decoPurple,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDomestic
+              ? [AppColors.travelingBlue, const Color(0xFF2980B9)]
+              : [AppColors.decoPurple, const Color(0xFF8E44AD)],
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -306,6 +321,20 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                     color: Colors.white,
                     fontSize: 22,
                   ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_travel['start_date'].toString().replaceAll('-', '.')} ~ ${_travel['end_date'].toString().replaceAll('-', '.')}',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14,
                 ),
               ),
               Text(
@@ -318,17 +347,13 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                     _diaries.length.toString(),
                   ],
                 ),
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '${_travel['start_date']} ~ ${_travel['end_date']}',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.8),
-              fontSize: 14,
-            ),
           ),
         ],
       ),

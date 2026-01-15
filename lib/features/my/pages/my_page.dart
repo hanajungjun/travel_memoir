@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
-// ✅ [추가] RevenueCat 패키지 임포트
 import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'package:travel_memoir/features/auth/login_page.dart';
@@ -47,8 +46,6 @@ class _MyPageState extends State<MyPage> {
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser!;
 
-    // ⭐ [추가] RevenueCat에 현재 수파베이스 유저 아이디를 동기화
-    // 이 한 줄이 있어야 '소금빵'님이 결제했을 때 누군지 알 수 있습니다.
     await Purchases.logIn(user.id);
 
     final profile = await supabase
@@ -68,7 +65,6 @@ class _MyPageState extends State<MyPage> {
     return {'profile': profile, 'travelCount': travelCount};
   }
 
-  // ✅ 구독 상태 확인 로직
   bool _checkPremium(Map<String, dynamic> profile) {
     final bool isPremium = profile['is_premium'] ?? false;
     final String? premiumUntil = profile['premium_until'];
@@ -84,7 +80,6 @@ class _MyPageState extends State<MyPage> {
     }
   }
 
-  // ✅ 프리미엄 전용 팝업 알림
   void _showPremiumAlert(BuildContext context) {
     showDialog(
       context: context,
@@ -133,6 +128,38 @@ class _MyPageState extends State<MyPage> {
     }
   }
 
+  // ✨ 코인 정보를 보여주는 미니 위젯 헬퍼 함수
+  Widget _buildStampMiniInfo({
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.toll_rounded, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          count.toString(),
+          style: TextStyle(
+            fontSize: 14,
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,6 +180,10 @@ class _MyPageState extends State<MyPage> {
             final nickname = profile['nickname'] ?? 'default_nickname'.tr();
 
             final bool isSubscribed = _checkPremium(profile);
+
+            // ✨ 프로필 데이터에서 코인 개수 가져오기
+            final int dailyStamps = (profile['daily_stamps'] ?? 0) as int;
+            final int paidStamps = (profile['paid_stamps'] ?? 0) as int;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
@@ -199,7 +230,26 @@ class _MyPageState extends State<MyPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
+
+                            // ✨ [추가] 코인(도장) 표시 섹션
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                _buildStampMiniInfo(
+                                  label: 'free'.tr(),
+                                  count: dailyStamps,
+                                  color: const Color(0xFF3498DB),
+                                ),
+                                const SizedBox(width: 12),
+                                _buildStampMiniInfo(
+                                  label: 'stored'.tr(),
+                                  count: paidStamps,
+                                  color: const Color(0xFFF39C12),
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 8),
                             Text(
                               profile['email'] ?? '',
                               style: AppTextStyles.caption.copyWith(
@@ -239,7 +289,7 @@ class _MyPageState extends State<MyPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 12),
 
                   // 메뉴 그리드
                   GridView.count(
@@ -321,7 +371,7 @@ class _MyPageState extends State<MyPage> {
                     ],
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
                     height: 48,

@@ -5,6 +5,7 @@ const List<KoreaRegion> metropolitanRegions = [
   KoreaRegion(
     id: "KR_SEOUL",
     name: "서울",
+    nameEn: "SEOUL",
     province: "서울특별시",
     type: KoreaRegionType.city,
     lat: 37.5665,
@@ -17,6 +18,7 @@ const List<KoreaRegion> metropolitanRegions = [
   KoreaRegion(
     id: "KR_BUSAN",
     name: "부산",
+    nameEn: "BUSAN",
     province: "부산광역시",
     type: KoreaRegionType.city,
     lat: 35.1796,
@@ -29,6 +31,7 @@ const List<KoreaRegion> metropolitanRegions = [
   KoreaRegion(
     id: "KR_DAEGU",
     name: "대구",
+    nameEn: "DAEGU",
     province: "대구광역시",
     type: KoreaRegionType.city,
     lat: 35.8714,
@@ -41,6 +44,7 @@ const List<KoreaRegion> metropolitanRegions = [
   KoreaRegion(
     id: "KR_INCHEON",
     name: "인천",
+    nameEn: "INCHEON",
     province: "인천광역시",
     type: KoreaRegionType.city,
     lat: 37.4563,
@@ -53,6 +57,7 @@ const List<KoreaRegion> metropolitanRegions = [
   KoreaRegion(
     id: "KR_GWANGJU",
     name: "광주",
+    nameEn: "GWANGJU",
     province: "광주광역시",
     type: KoreaRegionType.city,
     lat: 35.1595,
@@ -65,6 +70,7 @@ const List<KoreaRegion> metropolitanRegions = [
   KoreaRegion(
     id: "KR_DAEJEON",
     name: "대전",
+    nameEn: "DAEJEON",
     province: "대전광역시",
     type: KoreaRegionType.city,
     lat: 36.3504,
@@ -77,6 +83,7 @@ const List<KoreaRegion> metropolitanRegions = [
   KoreaRegion(
     id: "KR_ULSAN",
     name: "울산",
+    nameEn: "ULSAN",
     province: "울산광역시",
     type: KoreaRegionType.city,
     lat: 35.5384,
@@ -89,6 +96,7 @@ const List<KoreaRegion> metropolitanRegions = [
   KoreaRegion(
     id: "KR_SEJONG",
     name: "세종",
+    nameEn: "SEJONG",
     province: "세종특별자치시",
     type: KoreaRegionType.city,
     lat: 36.4800,

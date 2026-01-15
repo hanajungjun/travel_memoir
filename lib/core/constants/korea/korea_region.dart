@@ -21,6 +21,8 @@ class KoreaRegion {
   /// 예: 영양, 청도, 울릉도
   final String name;
 
+  final String nameEn;
+
   /// 광역단위
   /// 예: 경상북도
   final String province;
@@ -53,6 +55,7 @@ class KoreaRegion {
   const KoreaRegion({
     required this.id,
     required this.name,
+    required this.nameEn,
     required this.province,
     required this.type,
     required this.lat,

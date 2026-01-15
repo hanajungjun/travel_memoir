@@ -5,6 +5,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_CHEONAN",
     name: "천안",
+    nameEn: "CHEONAN",
     province: "충청남도",
     type: KoreaRegionType.city,
     lat: 36.8151,
@@ -15,6 +16,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_GONGJU",
     name: "공주",
+    nameEn: "GONGJU",
     province: "충청남도",
     type: KoreaRegionType.city,
     lat: 36.4556,
@@ -25,6 +27,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_BORYEONG",
     name: "보령",
+    nameEn: "BORYEONG",
     province: "충청남도",
     type: KoreaRegionType.city,
     lat: 36.3494,
@@ -35,6 +38,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_ASAN",
     name: "아산",
+    nameEn: "ASAN",
     province: "충청남도",
     type: KoreaRegionType.city,
     lat: 36.7899,
@@ -45,6 +49,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_SEOSAN",
     name: "서산",
+    nameEn: "SEOSAN",
     province: "충청남도",
     type: KoreaRegionType.city,
     lat: 36.7845,
@@ -55,6 +60,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_NONSAN",
     name: "논산",
+    nameEn: "NONSAN",
     province: "충청남도",
     type: KoreaRegionType.city,
     lat: 36.1872,
@@ -65,6 +71,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_GYERYONG",
     name: "계룡",
+    nameEn: "GYERYONG",
     province: "충청남도",
     type: KoreaRegionType.city,
     lat: 36.2746,
@@ -75,6 +82,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_DANGJIN",
     name: "당진",
+    nameEn: "DANGJIN",
     province: "충청남도",
     type: KoreaRegionType.city,
     lat: 36.8895,
@@ -87,6 +95,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_GEUMSAN",
     name: "금산",
+    nameEn: "GEUMSAN",
     province: "충청남도",
     type: KoreaRegionType.county,
     lat: 36.1036,
@@ -97,6 +106,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_BUYEO",
     name: "부여",
+    nameEn: "BUYEO",
     province: "충청남도",
     type: KoreaRegionType.county,
     lat: 36.2756,
@@ -107,6 +117,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_SEOCHEON",
     name: "서천",
+    nameEn: "SEOCHEON",
     province: "충청남도",
     type: KoreaRegionType.county,
     lat: 36.0803,
@@ -117,6 +128,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_CHEONGYANG",
     name: "청양",
+    nameEn: "CHEONGYANG",
     province: "충청남도",
     type: KoreaRegionType.county,
     lat: 36.4593,
@@ -127,6 +139,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_HONGSEONG",
     name: "홍성",
+    nameEn: "HONGSEONG",
     province: "충청남도",
     type: KoreaRegionType.county,
     lat: 36.6013,
@@ -137,6 +150,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_YESAN",
     name: "예산",
+    nameEn: "YESAN",
     province: "충청남도",
     type: KoreaRegionType.county,
     lat: 36.6823,
@@ -147,6 +161,7 @@ const List<KoreaRegion> chungnamRegions = [
   KoreaRegion(
     id: "KR_CN_TAEAN",
     name: "태안",
+    nameEn: "TAEAN",
     province: "충청남도",
     type: KoreaRegionType.county,
     lat: 36.7455,

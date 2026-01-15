@@ -5,6 +5,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_POHANG",
     name: "포항",
+    nameEn: "POHANG",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 36.0190,
@@ -15,6 +16,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_GYEONGJU",
     name: "경주",
+    nameEn: "GYEONGJU",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 35.8562,
@@ -25,6 +27,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_GUMI",
     name: "구미",
+    nameEn: "GUMI",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 36.1195,
@@ -35,6 +38,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_GIMCHEON",
     name: "김천",
+    nameEn: "GIMCHEON",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 36.1397,
@@ -45,6 +49,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_ANDONG",
     name: "안동",
+    nameEn: "ANDONG",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 36.5684,
@@ -55,6 +60,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_YEONGJU",
     name: "영주",
+    nameEn: "YEONGJU",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 36.8057,
@@ -65,6 +71,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_YEONGCHEON",
     name: "영천",
+    nameEn: "YEONGCHEON",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 35.9733,
@@ -75,6 +82,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_SANGJU",
     name: "상주",
+    nameEn: "SANGJU",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 36.4109,
@@ -85,6 +93,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_MUNGYEONG",
     name: "문경",
+    nameEn: "MUNGYEONG",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 36.5866,
@@ -95,6 +104,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_GYEONGSAN",
     name: "경산",
+    nameEn: "GYEONGSAN",
     province: "경상북도",
     type: KoreaRegionType.city,
     lat: 35.8251,
@@ -109,6 +119,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_ULLEUNG",
     name: "울릉도",
+    nameEn: "ULLEUNG",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 37.4844,
@@ -120,6 +131,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_YEONGYANG",
     name: "영양",
+    nameEn: "YEONGYANG",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 36.6666,
@@ -130,6 +142,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_CHEONGDO",
     name: "청도",
+    nameEn: "CHEONGDO",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 35.6473,
@@ -140,6 +153,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_GORYEONG",
     name: "고령",
+    nameEn: "GORYEONG",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 35.7266,
@@ -150,6 +164,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_SEONGJU",
     name: "성주",
+    nameEn: "SEONGJU",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 35.9196,
@@ -160,6 +175,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_CHILGOK",
     name: "칠곡",
+    nameEn: "CHILGOK",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 35.9956,
@@ -170,6 +186,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_YECHEON",
     name: "예천",
+    nameEn: "YECHEON",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 36.6540,
@@ -180,6 +197,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_BONGHWA",
     name: "봉화",
+    nameEn: "BONGHWA",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 36.8931,
@@ -190,6 +208,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_ULJIN",
     name: "울진",
+    nameEn: "ULJIN",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 36.9931,
@@ -200,6 +219,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_CHEONGSONG",
     name: "청송",
+    nameEn: "CHEONGSONG",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 36.4334,
@@ -210,6 +230,7 @@ const List<KoreaRegion> gyeongbukRegions = [
   KoreaRegion(
     id: "KR_GB_UISUNG",
     name: "의성",
+    nameEn: "UISUNG",
     province: "경상북도",
     type: KoreaRegionType.county,
     lat: 36.3526,

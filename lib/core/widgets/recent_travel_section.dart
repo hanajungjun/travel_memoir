@@ -75,6 +75,33 @@ class _RecentTravelCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final imageUrl = travel['map_image_url'] as String?;
 
+    // 🎯 [다국어 대응 핵심 로직]
+    final isDomestic = travel['travel_type'] == 'domestic';
+    final bool isKo = context.locale.languageCode == 'ko';
+
+    String destinationName = '';
+
+    if (isDomestic) {
+      if (isKo) {
+        destinationName = travel['region_name'] ?? 'unknown_destination'.tr();
+      } else {
+        // 영어 모드일 때 region_key에서 마지막 단어만 추출 (예: KR_GG_YEOJU -> YEOJU)
+        final String rawKey = travel['region_key'] ?? '';
+        destinationName = rawKey.isNotEmpty
+            ? rawKey.split('_').last
+            : (travel['region_name'] ?? 'unknown_destination'.tr());
+      }
+    } else {
+      // 해외 여행일 경우 국가명 처리
+      destinationName = isKo
+          ? (travel['country_name_ko'] ??
+                travel['display_country_name'] ??
+                'unknown_destination'.tr())
+          : (travel['country_name_en'] ??
+                travel['country_code'] ??
+                'unknown_destination'.tr());
+    }
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -92,7 +119,7 @@ class _RecentTravelCard extends StatelessWidget {
               aspectRatio: 1,
               child: imageUrl != null
                   ? Image.network(
-                      '$imageUrl?t=${travel['completed_at']}',
+                      imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
                           Container(color: AppColors.divider),
@@ -104,15 +131,21 @@ class _RecentTravelCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                '${travel['region_name'] ?? (context.locale.languageCode == 'ko' ? travel['country_name_ko'] : travel['country_name_en']) ?? 'unknown_destination'.tr()}',
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+              Flexible(
+                child: Text(
+                  destinationName,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               const SizedBox(width: 4),
               Text(
                 _periodText(context, travel),
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
+                  fontSize: 12, // 카드의 좁은 공간을 위해 살짝 줄였습니다.
                 ),
               ),
             ],

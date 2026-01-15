@@ -5,6 +5,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_MOKPO",
     name: "목포",
+    nameEn: "MOKPO",
     province: "전라남도",
     type: KoreaRegionType.city,
     lat: 34.8118,
@@ -15,6 +16,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_YEOSU",
     name: "여수",
+    nameEn: "YEOSU",
     province: "전라남도",
     type: KoreaRegionType.city,
     lat: 34.7604,
@@ -25,6 +27,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_SUNCHEON",
     name: "순천",
+    nameEn: "SUNCHEON",
     province: "전라남도",
     type: KoreaRegionType.city,
     lat: 34.9507,
@@ -35,6 +38,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_NAJU",
     name: "나주",
+    nameEn: "NAJU",
     province: "전라남도",
     type: KoreaRegionType.city,
     lat: 35.0159,
@@ -45,6 +49,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_GWANGYANG",
     name: "광양",
+    nameEn: "GWANGYANG",
     province: "전라남도",
     type: KoreaRegionType.city,
     lat: 34.9407,
@@ -57,6 +62,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_DAMYANG",
     name: "담양",
+    nameEn: "DAMYANG",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 35.3215,
@@ -67,6 +73,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_GOKSEONG",
     name: "곡성",
+    nameEn: "GOKSEONG",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 35.2816,
@@ -77,6 +84,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_GURYE",
     name: "구례",
+    nameEn: "GURYE",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 35.2020,
@@ -87,6 +95,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_GOHEUNG",
     name: "고흥",
+    nameEn: "GOHEUNG",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.6106,
@@ -97,6 +106,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_BOSEONG",
     name: "보성",
+    nameEn: "BOSEONG",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.7714,
@@ -107,6 +117,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_HWASUN",
     name: "화순",
+    nameEn: "HWASUN",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 35.0615,
@@ -117,6 +128,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_JANGHEUNG",
     name: "장흥",
+    nameEn: "JANGHEUNG",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.6814,
@@ -127,6 +139,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_GANGJIN",
     name: "강진",
+    nameEn: "GANGJIN",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.6421,
@@ -137,6 +150,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_HAENAM",
     name: "해남",
+    nameEn: "HAENAM",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.5733,
@@ -147,6 +161,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_YEONGAM",
     name: "영암",
+    nameEn: "YEONGAM",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.8002,
@@ -157,6 +172,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_MUAN",
     name: "무안",
+    nameEn: "MUAN",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.9904,
@@ -167,6 +183,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_HAMPYEONG",
     name: "함평",
+    nameEn: "HAMPYEONG",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 35.0658,
@@ -177,6 +194,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_YEONGGWANG",
     name: "영광",
+    nameEn: "YEONGGWANG",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 35.2771,
@@ -187,6 +205,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_JANGSEONG",
     name: "장성",
+    nameEn: "JANGSEONG",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 35.3019,
@@ -197,6 +216,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_WANDO",
     name: "완도",
+    nameEn: "WANDO",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.3119,
@@ -207,6 +227,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_JINDO",
     name: "진도",
+    nameEn: "JINDO",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.4869,
@@ -217,6 +238,7 @@ const List<KoreaRegion> jeonnamRegions = [
   KoreaRegion(
     id: "KR_JN_SINAN",
     name: "신안",
+    nameEn: "SINAN",
     province: "전라남도",
     type: KoreaRegionType.county,
     lat: 34.8336,

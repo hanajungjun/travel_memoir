@@ -5,6 +5,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_CHANGWON",
     name: "창원",
+    nameEn: "CHANGWON",
     province: "경상남도",
     type: KoreaRegionType.city,
     lat: 35.2285,
@@ -15,6 +16,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_JINJU",
     name: "진주",
+    nameEn: "JINJU",
     province: "경상남도",
     type: KoreaRegionType.city,
     lat: 35.1796,
@@ -25,6 +27,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_TONGYEONG",
     name: "통영",
+    nameEn: "TONGYEONG",
     province: "경상남도",
     type: KoreaRegionType.city,
     lat: 34.8544,
@@ -35,6 +38,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_SACHEON",
     name: "사천",
+    nameEn: "SACHEON",
     province: "경상남도",
     type: KoreaRegionType.city,
     lat: 35.0036,
@@ -45,6 +49,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_GIMHAE",
     name: "김해",
+    nameEn: "GIMHAE",
     province: "경상남도",
     type: KoreaRegionType.city,
     lat: 35.2284,
@@ -55,6 +60,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_MIRYANG",
     name: "밀양",
+    nameEn: "MIRYANG",
     province: "경상남도",
     type: KoreaRegionType.city,
     lat: 35.5037,
@@ -65,6 +71,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_GEOJE",
     name: "거제",
+    nameEn: "GEOJE",
     province: "경상남도",
     type: KoreaRegionType.city,
     lat: 34.8805,
@@ -75,6 +82,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_YANGSAN",
     name: "양산",
+    nameEn: "YANGSAN",
     province: "경상남도",
     type: KoreaRegionType.city,
     lat: 35.3350,
@@ -87,6 +95,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_UIRYEONG",
     name: "의령",
+    nameEn: "UIRYEONG",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 35.3197,
@@ -97,6 +106,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_HAMAN",
     name: "함안",
+    nameEn: "HAMAN",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 35.2726,
@@ -107,6 +117,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_CHANGNYEONG",
     name: "창녕",
+    nameEn: "CHANGNYEONG",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 35.5446,
@@ -117,6 +128,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_GOSEONG",
     name: "고성",
+    nameEn: "GOSEONG",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 34.9730,
@@ -127,6 +139,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_NAMHAE",
     name: "남해",
+    nameEn: "NAMHAE",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 34.8370,
@@ -137,6 +150,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_HADONG",
     name: "하동",
+    nameEn: "HADONG",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 35.0673,
@@ -147,6 +161,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_SANCHEONG",
     name: "산청",
+    nameEn: "SANCHEONG",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 35.4154,
@@ -157,6 +172,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_HAMYANG",
     name: "함양",
+    nameEn: "HAMYANG",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 35.5204,
@@ -167,6 +183,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_GEOCHANG",
     name: "거창",
+    nameEn: "GEOCHANG",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 35.6866,
@@ -177,6 +194,7 @@ const List<KoreaRegion> gyeongnamRegions = [
   KoreaRegion(
     id: "KR_GN_HAPCHEON",
     name: "합천",
+    nameEn: "HAPCHEON",
     province: "경상남도",
     type: KoreaRegionType.county,
     lat: 35.5666,

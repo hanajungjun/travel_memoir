@@ -5,6 +5,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_JEONJU",
     name: "전주",
+    nameEn: "JEONJU",
     province: "전라북도",
     type: KoreaRegionType.city,
     lat: 35.8242,
@@ -15,6 +16,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_GUNSAN",
     name: "군산",
+    nameEn: "GUNSAN",
     province: "전라북도",
     type: KoreaRegionType.city,
     lat: 35.9677,
@@ -25,6 +27,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_IKSAN",
     name: "익산",
+    nameEn: "IKSAN",
     province: "전라북도",
     type: KoreaRegionType.city,
     lat: 35.9483,
@@ -35,6 +38,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_JEONGEUP",
     name: "정읍",
+    nameEn: "JEONGEUP",
     province: "전라북도",
     type: KoreaRegionType.city,
     lat: 35.5699,
@@ -45,6 +49,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_NAMWON",
     name: "남원",
+    nameEn: "NAMWON",
     province: "전라북도",
     type: KoreaRegionType.city,
     lat: 35.4164,
@@ -55,6 +60,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_GIMJE",
     name: "김제",
+    nameEn: "GIMJE",
     province: "전라북도",
     type: KoreaRegionType.city,
     lat: 35.8036,
@@ -67,6 +73,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_WANJU",
     name: "완주",
+    nameEn: "WANJU",
     province: "전라북도",
     type: KoreaRegionType.county,
     lat: 35.9053,
@@ -77,6 +84,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_JINAN",
     name: "진안",
+    nameEn: "JINAN",
     province: "전라북도",
     type: KoreaRegionType.county,
     lat: 35.7916,
@@ -87,6 +95,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_MUJU",
     name: "무주",
+    nameEn: "MUJU",
     province: "전라북도",
     type: KoreaRegionType.county,
     lat: 36.0074,
@@ -97,6 +106,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_JANGSU",
     name: "장수",
+    nameEn: "JANGSU",
     province: "전라북도",
     type: KoreaRegionType.county,
     lat: 35.6443,
@@ -107,6 +117,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_IMSIL",
     name: "임실",
+    nameEn: "IMSIL",
     province: "전라북도",
     type: KoreaRegionType.county,
     lat: 35.6178,
@@ -117,6 +128,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_SUNCHANG",
     name: "순창",
+    nameEn: "SUNCHANG",
     province: "전라북도",
     type: KoreaRegionType.county,
     lat: 35.3745,
@@ -127,6 +139,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_GOCHANG",
     name: "고창",
+    nameEn: "GOCHANG",
     province: "전라북도",
     type: KoreaRegionType.county,
     lat: 35.4358,
@@ -137,6 +150,7 @@ const List<KoreaRegion> jeonbukRegions = [
   KoreaRegion(
     id: "KR_JB_BUAN",
     name: "부안",
+    nameEn: "BUAN",
     province: "전라북도",
     type: KoreaRegionType.county,
     lat: 35.7318,

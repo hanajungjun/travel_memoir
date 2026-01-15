@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
 import 'package:travel_memoir/services/travel_create_service.dart';
@@ -15,10 +15,8 @@ import 'package:travel_memoir/shared/styles/text_styles.dart';
 class DomesticTravelDatePage extends StatefulWidget {
   const DomesticTravelDatePage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return const DomesticTravelDatePage();
-  }
+  // ❌ [주의] StatefulWidget 클래스 내부의 build 메서드는 삭제해야 합니다.
+  // 여기서 자기 자신을 return하면 무한 루프가 발생해서 앱이 터집니다.
 
   @override
   State<DomesticTravelDatePage> createState() => _DomesticTravelDatePageState();
@@ -32,9 +30,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
   bool get _canNext =>
       _startDate != null && _endDate != null && _region != null;
 
-  // =====================================================
   // 📅 날짜 선택 (커스텀 달력 페이지 연결)
-  // =====================================================
   Future<void> _pickDateRange() async {
     final DateTimeRange? range = await Navigator.push(
       context,
@@ -52,9 +48,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
     });
   }
 
-  // =========================
   // 📍 도시 선택 (BottomSheet)
-  // =========================
   Future<void> _pickCity() async {
     await showModalBottomSheet(
       context: context,
@@ -73,13 +67,13 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
     );
   }
 
-  // =========================
   // 🚀 여행 생성 및 이동
-  // =========================
   Future<void> _createTravel() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
+    // TravelCreateService 내부에서 이제 region_key(YEOJU 등)를
+    // 자동으로 추출해서 DB와 Storage 경로를 만듭니다.
     final travel = await TravelCreateService.createDomesticTravel(
       userId: user.id,
       region: _region!,
@@ -89,6 +83,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
 
     if (!mounted) return;
 
+    // 메인으로 돌아갔다가 일기 목록으로 이동
     Navigator.of(context).popUntil((route) => route.isFirst);
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => TravelDiaryListPage(travel: travel)),
@@ -98,6 +93,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
   @override
   Widget build(BuildContext context) {
     const themeColor = Color(0xFF3498DB);
+    final bool isKo = context.locale.languageCode == 'ko';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -126,7 +122,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'domestic_travel'.tr(), // ✅ 번역 적용
+                        'domestic_travel'.tr(),
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
@@ -156,7 +152,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'when_is_trip'.tr(), // ✅ 번역 적용
+                          'when_is_trip'.tr(),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -165,8 +161,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                         const SizedBox(height: 12),
                         _buildInputField(
                           text: _startDate == null || _endDate == null
-                              ? 'select_date_hint'
-                                    .tr() // ✅ 번역 적용
+                              ? 'select_date_hint'.tr()
                               : '${DateFormat('yyyy.MM.dd').format(_startDate!)} - ${DateFormat('yyyy.MM.dd').format(_endDate!)}',
                           isSelected: _startDate != null,
                           onTap: _pickDateRange,
@@ -175,7 +170,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                         const SizedBox(height: 24),
 
                         Text(
-                          'where_did_you_go'.tr(), // ✅ 번역 적용
+                          'where_did_you_go'.tr(),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -183,9 +178,10 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                         ),
                         const SizedBox(height: 12),
                         _buildInputField(
-                          text:
-                              _region?.name ??
-                              'select_city_hint'.tr(), // ✅ 번역 적용
+                          // ✅ [다국어 대응] 한국어면 name, 영어면 nameEn(대문자) 표시
+                          text: _region == null
+                              ? 'select_city_hint'.tr()
+                              : (isKo ? _region!.name : _region!.nameEn),
                           isSelected: _region != null,
                           onTap: _pickCity,
                         ),
@@ -205,7 +201,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
               color: _canNext ? themeColor : themeColor.withOpacity(0.4),
               child: Center(
                 child: Text(
-                  'save_as_memory'.tr(), // ✅ 번역 적용
+                  'save_as_memory'.tr(),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,

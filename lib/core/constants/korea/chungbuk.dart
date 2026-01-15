@@ -5,6 +5,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_CHEONGJU",
     name: "청주",
+    nameEn: "CHEONGJU", // ✅ KR_CB_CHEONGJU -> CHEONGJU
     province: "충청북도",
     type: KoreaRegionType.city,
     lat: 36.6424,
@@ -15,6 +16,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_CHUNGJU",
     name: "충주",
+    nameEn: "CHUNGJU", // ✅ KR_CB_CHUNGJU -> CHUNGJU
     province: "충청북도",
     type: KoreaRegionType.city,
     lat: 36.9910,
@@ -25,6 +27,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_JECHEON",
     name: "제천",
+    nameEn: "JECHEON", // ✅ KR_CB_JECHEON -> JECHEON
     province: "충청북도",
     type: KoreaRegionType.city,
     lat: 37.1326,
@@ -37,6 +40,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_BOEUN",
     name: "보은",
+    nameEn: "BOEUN", // ✅ KR_CB_BOEUN -> BOEUN
     province: "충청북도",
     type: KoreaRegionType.county,
     lat: 36.4895,
@@ -47,6 +51,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_OKCHEON",
     name: "옥천",
+    nameEn: "OKCHEON", // ✅ KR_CB_OKCHEON -> OKCHEON
     province: "충청북도",
     type: KoreaRegionType.county,
     lat: 36.3065,
@@ -57,6 +62,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_YEONGDONG",
     name: "영동",
+    nameEn: "YEONGDONG", // ✅ KR_CB_YEONGDONG -> YEONGDONG
     province: "충청북도",
     type: KoreaRegionType.county,
     lat: 36.1751,
@@ -67,6 +73,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_JEUNGPYEONG",
     name: "증평",
+    nameEn: "JEUNGPYEONG", // ✅ KR_CB_JEUNGPYEONG -> JEUNGPYEONG
     province: "충청북도",
     type: KoreaRegionType.county,
     lat: 36.7847,
@@ -77,6 +84,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_JINCHEON",
     name: "진천",
+    nameEn: "JINCHEON", // ✅ KR_CB_JINCHEON -> JINCHEON
     province: "충청북도",
     type: KoreaRegionType.county,
     lat: 36.8561,
@@ -87,6 +95,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_GOESAN",
     name: "괴산",
+    nameEn: "GOESAN", // ✅ KR_CB_GOESAN -> GOESAN
     province: "충청북도",
     type: KoreaRegionType.county,
     lat: 36.8121,
@@ -97,6 +106,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_EUMSEONG",
     name: "음성",
+    nameEn: "EUMSEONG", // ✅ KR_CB_EUMSEONG -> EUMSEONG
     province: "충청북도",
     type: KoreaRegionType.county,
     lat: 36.9397,
@@ -107,6 +117,7 @@ const List<KoreaRegion> chungbukRegions = [
   KoreaRegion(
     id: "KR_CB_DANYANG",
     name: "단양",
+    nameEn: "DANYANG", // ✅ KR_CB_DANYANG -> DANYANG
     province: "충청북도",
     type: KoreaRegionType.county,
     lat: 36.9846,

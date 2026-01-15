@@ -7,6 +7,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_SEOUL',
     name: '서울',
+    nameEn: 'SEOUL',
     province: '서울특별시',
     type: KoreaRegionType.city,
     lat: 37.5665,
@@ -17,6 +18,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_BUSAN',
     name: '부산',
+    nameEn: 'BUSAN',
     province: '부산광역시',
     type: KoreaRegionType.city,
     lat: 35.1796,
@@ -27,6 +29,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_DAEGU',
     name: '대구',
+    nameEn: 'DAEGU',
     province: '대구광역시',
     type: KoreaRegionType.city,
     lat: 35.8714,
@@ -37,6 +40,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_INCHEON',
     name: '인천',
+    nameEn: 'INCHEON',
     province: '인천광역시',
     type: KoreaRegionType.city,
     lat: 37.4563,
@@ -47,6 +51,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GWANGJU',
     name: '광주',
+    nameEn: 'GWANGJU',
     province: '광주광역시',
     type: KoreaRegionType.city,
     lat: 35.1595,
@@ -57,6 +62,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_DAEJEON',
     name: '대전',
+    nameEn: 'DAEJEON',
     province: '대전광역시',
     type: KoreaRegionType.city,
     lat: 36.3504,
@@ -67,6 +73,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_ULSAN',
     name: '울산',
+    nameEn: 'ULSAN',
     province: '울산광역시',
     type: KoreaRegionType.city,
     lat: 35.5384,
@@ -77,6 +84,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_SEJONG',
     name: '세종',
+    nameEn: 'SEJONG',
     province: '세종특별자치시',
     type: KoreaRegionType.city,
     lat: 36.4801,
@@ -91,6 +99,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GYEONGGI',
     name: '경기',
+    nameEn: 'GYEONGGI',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.4138,
@@ -101,6 +110,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GANGWON',
     name: '강원',
+    nameEn: 'GANGWON',
     province: '강원특별자치도',
     type: KoreaRegionType.city,
     lat: 37.8228,
@@ -111,6 +121,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CHUNGBUK',
     name: '충북',
+    nameEn: 'CHUNGBUK',
     province: '충청북도',
     type: KoreaRegionType.city,
     lat: 36.6357,
@@ -121,6 +132,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CHUNGNAM',
     name: '충남',
+    nameEn: 'CHUNGNAM',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.5184,
@@ -131,6 +143,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JEONBUK',
     name: '전북',
+    nameEn: 'JEONBUK',
     province: '전북특별자치도',
     type: KoreaRegionType.city,
     lat: 35.7175,
@@ -141,6 +154,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JEONNAM',
     name: '전남',
+    nameEn: 'JEONNAM',
     province: '전라남도',
     type: KoreaRegionType.city,
     lat: 34.8679,
@@ -151,6 +165,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GYEONGBUK',
     name: '경북',
+    nameEn: 'GYEONGBUK',
     province: '경상북도',
     type: KoreaRegionType.city,
     lat: 36.4919,
@@ -161,6 +176,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GYEONGNAM',
     name: '경남',
+    nameEn: 'GYEONGNAM',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 35.4606,
@@ -171,6 +187,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JEJU',
     name: '제주',
+    nameEn: 'JEJU',
     province: '제주특별자치도',
     type: KoreaRegionType.city,
     lat: 33.4996,
@@ -178,12 +195,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_JEJU',
     mapRegionType: MapRegionType.city,
   ),
+
   // =========================
   // 경기도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_GG_SUWON',
     name: '수원',
+    nameEn: 'SUWON',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.2636,
@@ -194,6 +213,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_SEONGNAM',
     name: '성남',
+    nameEn: 'SEONGNAM',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.4200,
@@ -204,6 +224,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_GOYANG',
     name: '고양',
+    nameEn: 'GOYANG',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.6584,
@@ -214,6 +235,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_YONGIN',
     name: '용인',
+    nameEn: 'YONGIN',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.2411,
@@ -224,6 +246,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_BUCHEON',
     name: '부천',
+    nameEn: 'BUCHEON',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.5036,
@@ -234,6 +257,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_ANSAN',
     name: '안산',
+    nameEn: 'ANSAN',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.3219,
@@ -244,6 +268,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_ANYANG',
     name: '안양',
+    nameEn: 'ANYANG',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.3943,
@@ -254,6 +279,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_NAMYANGJU',
     name: '남양주',
+    nameEn: 'NAMYANGJU',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.6360,
@@ -264,6 +290,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_HWASEONG',
     name: '화성',
+    nameEn: 'HWASEONG',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 37.1995,
@@ -274,6 +301,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_PYEONGTAEK',
     name: '평택',
+    nameEn: 'PYEONGTAEK',
     province: '경기도',
     type: KoreaRegionType.city,
     lat: 36.9923,
@@ -288,6 +316,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_YEONCHEON',
     name: '연천',
+    nameEn: 'YEONCHEON',
     province: '경기도',
     type: KoreaRegionType.county,
     lat: 38.0964,
@@ -298,6 +327,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_GAPYEONG',
     name: '가평',
+    nameEn: 'GAPYEONG',
     province: '경기도',
     type: KoreaRegionType.county,
     lat: 37.8315,
@@ -308,6 +338,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GG_YANGPYEONG',
     name: '양평',
+    nameEn: 'YANGPYEONG',
     province: '경기도',
     type: KoreaRegionType.county,
     lat: 37.4916,
@@ -315,12 +346,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_GG_YANGPYEONG',
     mapRegionType: MapRegionType.city,
   ),
+
   // =========================
   // 경상북도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_GB_POHANG',
     name: '포항',
+    nameEn: 'POHANG',
     province: '경상북도',
     type: KoreaRegionType.city,
     lat: 36.0190,
@@ -331,6 +364,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_GYEONGJU',
     name: '경주',
+    nameEn: 'GYEONGJU',
     province: '경상북도',
     type: KoreaRegionType.city,
     lat: 35.8562,
@@ -341,6 +375,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_GUMI',
     name: '구미',
+    nameEn: 'GUMI',
     province: '경상북도',
     type: KoreaRegionType.city,
     lat: 36.1195,
@@ -351,6 +386,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_ANDONG',
     name: '안동',
+    nameEn: 'ANDONG',
     province: '경상북도',
     type: KoreaRegionType.city,
     lat: 36.5684,
@@ -361,6 +397,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_YEONGJU',
     name: '영주',
+    nameEn: 'YEONGJU',
     province: '경상북도',
     type: KoreaRegionType.city,
     lat: 36.8057,
@@ -371,6 +408,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_SANGJU',
     name: '상주',
+    nameEn: 'SANGJU',
     province: '경상북도',
     type: KoreaRegionType.city,
     lat: 36.4109,
@@ -381,6 +419,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_MUNGYEONG',
     name: '문경',
+    nameEn: 'MUNGYEONG',
     province: '경상북도',
     type: KoreaRegionType.city,
     lat: 36.5864,
@@ -395,6 +434,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_YEONGYANG',
     name: '영양',
+    nameEn: 'YEONGYANG',
     province: '경상북도',
     type: KoreaRegionType.county,
     lat: 36.6667,
@@ -405,6 +445,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_CHEONGSONG',
     name: '청송',
+    nameEn: 'CHEONGSONG',
     province: '경상북도',
     type: KoreaRegionType.county,
     lat: 36.4356,
@@ -415,6 +456,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_BONGHWA',
     name: '봉화',
+    nameEn: 'BONGHWA',
     province: '경상북도',
     type: KoreaRegionType.county,
     lat: 36.8932,
@@ -425,6 +467,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_ULJIN',
     name: '울진',
+    nameEn: 'ULJIN',
     province: '경상북도',
     type: KoreaRegionType.county,
     lat: 36.9931,
@@ -435,6 +478,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GB_ULLEUNG',
     name: '울릉',
+    nameEn: 'ULLEUNG',
     province: '경상북도',
     type: KoreaRegionType.county,
     lat: 37.4844,
@@ -442,12 +486,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_SPECIAL_ULLEUNG',
     mapRegionType: MapRegionType.special,
   ),
+
   // =========================
   // 경상남도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_GN_CHANGWON',
     name: '창원',
+    nameEn: 'CHANGWON',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 35.2286,
@@ -458,6 +504,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_JINJU',
     name: '진주',
+    nameEn: 'JINJU',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 35.1803,
@@ -468,6 +515,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_TONGYEONG',
     name: '통영',
+    nameEn: 'TONGYEONG',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 34.8544,
@@ -478,6 +526,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_SACHEON',
     name: '사천',
+    nameEn: 'SACHEON',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 35.0037,
@@ -488,6 +537,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_GIMHAE',
     name: '김해',
+    nameEn: 'GIMHAE',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 35.2280,
@@ -498,6 +548,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_MIRYANG',
     name: '밀양',
+    nameEn: 'MIRYANG',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 35.5039,
@@ -508,6 +559,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_GEOJE',
     name: '거제',
+    nameEn: 'GEOJE',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 34.8806,
@@ -518,6 +570,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_YANGSAN',
     name: '양산',
+    nameEn: 'YANGSAN',
     province: '경상남도',
     type: KoreaRegionType.city,
     lat: 35.3350,
@@ -532,6 +585,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_UIRYEONG',
     name: '의령',
+    nameEn: 'UIRYEONG',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 35.3222,
@@ -542,6 +596,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_HAMAN',
     name: '함안',
+    nameEn: 'HAMAN',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 35.2726,
@@ -552,6 +607,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_CHANGNYEONG',
     name: '창녕',
+    nameEn: 'CHANGNYEONG',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 35.5446,
@@ -562,6 +618,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_GOSEONG',
     name: '고성',
+    nameEn: 'GOSEONG',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 34.9731,
@@ -572,6 +629,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_NAMHAE',
     name: '남해',
+    nameEn: 'NAMHAE',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 34.8376,
@@ -582,6 +640,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_HADONG',
     name: '하동',
+    nameEn: 'HADONG',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 35.0673,
@@ -592,6 +651,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_SANCHEONG',
     name: '산청',
+    nameEn: 'SANCHEONG',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 35.4156,
@@ -602,6 +662,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_HAMYANG',
     name: '함양',
+    nameEn: 'HAMYANG',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 35.5204,
@@ -612,6 +673,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_GEOCHANG',
     name: '거창',
+    nameEn: 'GEOCHANG',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 35.6867,
@@ -622,6 +684,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GN_HAPCHEON',
     name: '합천',
+    nameEn: 'HAPCHEON',
     province: '경상남도',
     type: KoreaRegionType.county,
     lat: 35.5667,
@@ -629,12 +692,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_GN_HAPCHEON',
     mapRegionType: MapRegionType.city,
   ),
+
   // =========================
   // 충청북도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_CB_CHEONGJU',
     name: '청주',
+    nameEn: 'CHEONGJU',
     province: '충청북도',
     type: KoreaRegionType.city,
     lat: 36.6424,
@@ -645,6 +710,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_CHUNGJU',
     name: '충주',
+    nameEn: 'CHUNGJU',
     province: '충청북도',
     type: KoreaRegionType.city,
     lat: 36.9910,
@@ -655,6 +721,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_JECHEON',
     name: '제천',
+    nameEn: 'JECHEON',
     province: '충청북도',
     type: KoreaRegionType.city,
     lat: 37.1326,
@@ -669,6 +736,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_BOEUN',
     name: '보은',
+    nameEn: 'BOEUN',
     province: '충청북도',
     type: KoreaRegionType.county,
     lat: 36.4890,
@@ -679,6 +747,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_OKCHEON',
     name: '옥천',
+    nameEn: 'OKCHEON',
     province: '충청북도',
     type: KoreaRegionType.county,
     lat: 36.3063,
@@ -689,6 +758,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_YEONGDONG',
     name: '영동',
+    nameEn: 'YEONGDONG',
     province: '충청북도',
     type: KoreaRegionType.county,
     lat: 36.1750,
@@ -699,6 +769,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_JINCHEON',
     name: '진천',
+    nameEn: 'JINCHEON',
     province: '충청북도',
     type: KoreaRegionType.county,
     lat: 36.8557,
@@ -709,6 +780,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_GOESEONG',
     name: '괴산',
+    nameEn: 'GOESEONG',
     province: '충청북도',
     type: KoreaRegionType.county,
     lat: 36.8153,
@@ -719,6 +791,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_EUMSEONG',
     name: '음성',
+    nameEn: 'EUMSEONG',
     province: '충청북도',
     type: KoreaRegionType.county,
     lat: 36.9404,
@@ -729,6 +802,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CB_DANYANG',
     name: '단양',
+    nameEn: 'DANYANG',
     province: '충청북도',
     type: KoreaRegionType.county,
     lat: 36.9845,
@@ -736,12 +810,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_CB_DANYANG',
     mapRegionType: MapRegionType.city,
   ),
+
   // =========================
   // 충청남도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_CN_CHEONAN',
     name: '천안',
+    nameEn: 'CHEONAN',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.8151,
@@ -752,6 +828,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_GONGJU',
     name: '공주',
+    nameEn: 'GONGJU',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.4466,
@@ -762,6 +839,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_BORYEONG',
     name: '보령',
+    nameEn: 'BORYEONG',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.3333,
@@ -772,6 +850,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_ASAN',
     name: '아산',
+    nameEn: 'ASAN',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.7898,
@@ -782,6 +861,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_SEOSAN',
     name: '서산',
+    nameEn: 'SEOSAN',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.7847,
@@ -792,6 +872,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_NONSAN',
     name: '논산',
+    nameEn: 'NONSAN',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.1872,
@@ -802,6 +883,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_GYERYONG',
     name: '계룡',
+    nameEn: 'GYERYONG',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.2744,
@@ -812,6 +894,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_DANGJIN',
     name: '당진',
+    nameEn: 'DANGJIN',
     province: '충청남도',
     type: KoreaRegionType.city,
     lat: 36.8890,
@@ -826,6 +909,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_GEUMSAN',
     name: '금산',
+    nameEn: 'GEUMSAN',
     province: '충청남도',
     type: KoreaRegionType.county,
     lat: 36.1080,
@@ -836,6 +920,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_BUYEO',
     name: '부여',
+    nameEn: 'BUYEO',
     province: '충청남도',
     type: KoreaRegionType.county,
     lat: 36.2759,
@@ -846,6 +931,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_SEOCHEON',
     name: '서천',
+    nameEn: 'SEOCHEON',
     province: '충청남도',
     type: KoreaRegionType.county,
     lat: 36.0801,
@@ -856,6 +942,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_CHEONGYANG',
     name: '청양',
+    nameEn: 'CHEONGYANG',
     province: '충청남도',
     type: KoreaRegionType.county,
     lat: 36.4593,
@@ -866,6 +953,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_HONGSEONG',
     name: '홍성',
+    nameEn: 'HONGSEONG',
     province: '충청남도',
     type: KoreaRegionType.county,
     lat: 36.6010,
@@ -876,6 +964,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_YESAN',
     name: '예산',
+    nameEn: 'YESAN',
     province: '충청남도',
     type: KoreaRegionType.county,
     lat: 36.6826,
@@ -886,6 +975,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_CN_TAEAN',
     name: '태안',
+    nameEn: 'TAEAN',
     province: '충청남도',
     type: KoreaRegionType.county,
     lat: 36.7456,
@@ -893,12 +983,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_CN_TAEAN',
     mapRegionType: MapRegionType.city,
   ),
+
   // =========================
   // 전라북도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_JB_JEONJU',
     name: '전주',
+    nameEn: 'JEONJU',
     province: '전북특별자치도',
     type: KoreaRegionType.city,
     lat: 35.8242,
@@ -909,6 +1001,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_GUNSAN',
     name: '군산',
+    nameEn: 'GUNSAN',
     province: '전북특별자치도',
     type: KoreaRegionType.city,
     lat: 35.9677,
@@ -919,6 +1012,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_IKSAN',
     name: '익산',
+    nameEn: 'IKSAN',
     province: '전북특별자치도',
     type: KoreaRegionType.city,
     lat: 35.9483,
@@ -929,6 +1023,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_JEONGEUP',
     name: '정읍',
+    nameEn: 'JEONGEUP',
     province: '전북특별자치도',
     type: KoreaRegionType.city,
     lat: 35.5699,
@@ -939,6 +1034,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_NAMWON',
     name: '남원',
+    nameEn: 'NAMWON',
     province: '전북특별자치도',
     type: KoreaRegionType.city,
     lat: 35.4164,
@@ -949,6 +1045,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_GIMJE',
     name: '김제',
+    nameEn: 'GIMJE',
     province: '전북특별자치도',
     type: KoreaRegionType.city,
     lat: 35.8036,
@@ -963,6 +1060,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_WANJU',
     name: '완주',
+    nameEn: 'WANJU',
     province: '전북특별자치도',
     type: KoreaRegionType.county,
     lat: 35.9040,
@@ -973,6 +1071,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_JINAN',
     name: '진안',
+    nameEn: 'JINAN',
     province: '전북특별자치도',
     type: KoreaRegionType.county,
     lat: 35.7917,
@@ -983,6 +1082,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_MUJU',
     name: '무주',
+    nameEn: 'MUJU',
     province: '전북특별자치도',
     type: KoreaRegionType.county,
     lat: 36.0070,
@@ -993,6 +1093,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_JANGSU',
     name: '장수',
+    nameEn: 'JANGSU',
     province: '전북특별자치도',
     type: KoreaRegionType.county,
     lat: 35.6446,
@@ -1003,6 +1104,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_IMSIL',
     name: '임실',
+    nameEn: 'IMSIL',
     province: '전북특별자치도',
     type: KoreaRegionType.county,
     lat: 35.6179,
@@ -1013,6 +1115,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_SUNCHANG',
     name: '순창',
+    nameEn: 'SUNCHANG',
     province: '전북특별자치도',
     type: KoreaRegionType.county,
     lat: 35.3745,
@@ -1023,6 +1126,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_GOCHANG',
     name: '고창',
+    nameEn: 'GOCHANG',
     province: '전북특별자치도',
     type: KoreaRegionType.county,
     lat: 35.4358,
@@ -1033,6 +1137,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JB_BUAN',
     name: '부안',
+    nameEn: 'BUAN',
     province: '전북특별자치도',
     type: KoreaRegionType.county,
     lat: 35.7318,
@@ -1040,12 +1145,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_JB_BUAN',
     mapRegionType: MapRegionType.city,
   ),
+
   // =========================
   // 전라남도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_JN_MOKPO',
     name: '목포',
+    nameEn: 'MOKPO',
     province: '전라남도',
     type: KoreaRegionType.city,
     lat: 34.8118,
@@ -1056,6 +1163,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_YEOSU',
     name: '여수',
+    nameEn: 'YEOSU',
     province: '전라남도',
     type: KoreaRegionType.city,
     lat: 34.7604,
@@ -1066,6 +1174,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_SUNCHEON',
     name: '순천',
+    nameEn: 'SUNCHEON',
     province: '전라남도',
     type: KoreaRegionType.city,
     lat: 34.9506,
@@ -1076,6 +1185,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_NAJU',
     name: '나주',
+    nameEn: 'NAJU',
     province: '전라남도',
     type: KoreaRegionType.city,
     lat: 35.0158,
@@ -1086,6 +1196,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_GWANGYANG',
     name: '광양',
+    nameEn: 'GWANGYANG',
     province: '전라남도',
     type: KoreaRegionType.city,
     lat: 34.9407,
@@ -1100,6 +1211,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_DAMYANG',
     name: '담양',
+    nameEn: 'DAMYANG',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 35.3215,
@@ -1110,6 +1222,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_GOKSEONG',
     name: '곡성',
+    nameEn: 'GOKSEONG',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 35.2820,
@@ -1120,6 +1233,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_GURYE',
     name: '구례',
+    nameEn: 'GURYE',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 35.2026,
@@ -1130,6 +1244,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_GOHEUNG',
     name: '고흥',
+    nameEn: 'GOHEUNG',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.6113,
@@ -1140,6 +1255,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_BOSEONG',
     name: '보성',
+    nameEn: 'BOSEONG',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.7714,
@@ -1150,6 +1266,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_HWASUN',
     name: '화순',
+    nameEn: 'HWASUN',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 35.0626,
@@ -1160,6 +1277,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_JANGHEUNG',
     name: '장흥',
+    nameEn: 'JANGHEUNG',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.6816,
@@ -1170,6 +1288,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_GANGJIN',
     name: '강진',
+    nameEn: 'GANGJIN',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.6421,
@@ -1180,6 +1299,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_HAENAM',
     name: '해남',
+    nameEn: 'HAENAM',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.5734,
@@ -1190,6 +1310,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_YEONGAM',
     name: '영암',
+    nameEn: 'YEONGAM',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.8002,
@@ -1200,6 +1321,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_MUAN',
     name: '무안',
+    nameEn: 'MUAN',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.9904,
@@ -1210,6 +1332,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_HAMPYEONG',
     name: '함평',
+    nameEn: 'HAMPYEONG',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 35.0659,
@@ -1220,6 +1343,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_YEONGGWANG',
     name: '영광',
+    nameEn: 'YEONGGWANG',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 35.2772,
@@ -1230,6 +1354,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_JANGSEONG',
     name: '장성',
+    nameEn: 'JANGSEONG',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 35.3019,
@@ -1240,6 +1365,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_WANDO',
     name: '완도',
+    nameEn: 'WANDO',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.3119,
@@ -1250,6 +1376,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_JINDO',
     name: '진도',
+    nameEn: 'JINDO',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.4868,
@@ -1260,6 +1387,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JN_SINAN',
     name: '신안',
+    nameEn: 'SINAN',
     province: '전라남도',
     type: KoreaRegionType.county,
     lat: 34.8270,
@@ -1267,12 +1395,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_JN_SINAN',
     mapRegionType: MapRegionType.city,
   ),
+
   // =========================
   // 강원특별자치도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_GW_CHUNCHEON',
     name: '춘천',
+    nameEn: 'CHUNCHEON',
     province: '강원특별자치도',
     type: KoreaRegionType.city,
     lat: 37.8813,
@@ -1283,6 +1413,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_WONJU',
     name: '원주',
+    nameEn: 'WONJU',
     province: '강원특별자치도',
     type: KoreaRegionType.city,
     lat: 37.3422,
@@ -1293,6 +1424,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_GANGNEUNG',
     name: '강릉',
+    nameEn: 'GANGNEUNG',
     province: '강원특별자치도',
     type: KoreaRegionType.city,
     lat: 37.7519,
@@ -1303,6 +1435,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_DONGHAE',
     name: '동해',
+    nameEn: 'DONGHAE',
     province: '강원특별자치도',
     type: KoreaRegionType.city,
     lat: 37.5247,
@@ -1313,6 +1446,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_TAEBAEK',
     name: '태백',
+    nameEn: 'TAEBAEK',
     province: '강원특별자치도',
     type: KoreaRegionType.city,
     lat: 37.1641,
@@ -1323,6 +1457,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_SOKCHO',
     name: '속초',
+    nameEn: 'SOKCHO',
     province: '강원특별자치도',
     type: KoreaRegionType.city,
     lat: 38.2070,
@@ -1333,6 +1468,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_SAMCHEOK',
     name: '삼척',
+    nameEn: 'SAMCHEOK',
     province: '강원특별자치도',
     type: KoreaRegionType.city,
     lat: 37.4499,
@@ -1347,6 +1483,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_HONGCHEON',
     name: '홍천',
+    nameEn: 'HONGCHEON',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 37.6973,
@@ -1357,6 +1494,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_HOENGSEONG',
     name: '횡성',
+    nameEn: 'HOENGSEONG',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 37.4914,
@@ -1367,6 +1505,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_YEONGWOL',
     name: '영월',
+    nameEn: 'YEONGWOL',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 37.1834,
@@ -1377,6 +1516,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_PYEONGCHANG',
     name: '평창',
+    nameEn: 'PYEONGCHANG',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 37.3703,
@@ -1387,6 +1527,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_JEONGSEON',
     name: '정선',
+    nameEn: 'JEONGSEON',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 37.3806,
@@ -1397,6 +1538,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_CHEORWON',
     name: '철원',
+    nameEn: 'CHEORWON',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 38.1466,
@@ -1407,6 +1549,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_HWACHEON',
     name: '화천',
+    nameEn: 'HWACHEON',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 38.1060,
@@ -1417,6 +1560,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_YANGGU',
     name: '양구',
+    nameEn: 'YANGGU',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 38.1099,
@@ -1427,6 +1571,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_INJE',
     name: '인제',
+    nameEn: 'INJE',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 38.0690,
@@ -1437,6 +1582,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_GOSEONG',
     name: '고성',
+    nameEn: 'GOSEONG',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 38.3806,
@@ -1447,6 +1593,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_GW_YANGYANG',
     name: '양양',
+    nameEn: 'YANGYANG',
     province: '강원특별자치도',
     type: KoreaRegionType.county,
     lat: 38.0750,
@@ -1454,12 +1601,14 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_GW_YANGYANG',
     mapRegionType: MapRegionType.city,
   ),
+
   // =========================
   // 제주특별자치도 - 시
   // =========================
   KoreaRegion(
     id: 'KR_JEJU_JEJU',
     name: '제주',
+    nameEn: 'JEJU',
     province: '제주특별자치도',
     type: KoreaRegionType.city,
     lat: 33.4996,
@@ -1470,6 +1619,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_JEJU_SEOGWIPO',
     name: '서귀포',
+    nameEn: 'SEOGWIPO',
     province: '제주특별자치도',
     type: KoreaRegionType.city,
     lat: 33.2541,
@@ -1484,6 +1634,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_SPECIAL_ULLEUNG',
     name: '울릉도',
+    nameEn: 'ULLEUNG',
     province: '경상북도',
     type: KoreaRegionType.county,
     lat: 37.4844,
@@ -1494,6 +1645,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   KoreaRegion(
     id: 'KR_SPECIAL_DOKDO',
     name: '독도',
+    nameEn: 'DOKDO',
     province: '경상북도',
     type: KoreaRegionType.county,
     lat: 37.2429,

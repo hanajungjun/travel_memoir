@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/korea/korea_all.dart';
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
 
@@ -15,7 +15,6 @@ class DomesticCitySelectSheet extends StatefulWidget {
 class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
   String _query = '';
 
-  // ✅ 행정구역 명칭 기반 로직은 데이터 구조(koreaRegions)에 종속되므로 그대로 유지합니다.
   bool _isRepresentativeCity(KoreaRegion region) {
     if (region.province.endsWith('광역시') || region.province.endsWith('특별시')) {
       final provinceName = region.province
@@ -23,17 +22,28 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
           .replaceAll('특별시', '');
       return region.name == provinceName;
     }
-    return region.type == KoreaRegionType.city;
+    // city와 county(군) 모두 포함
+    return region.type == KoreaRegionType.city ||
+        region.type == KoreaRegionType.county;
   }
 
   @override
   Widget build(BuildContext context) {
+    // 현재 앱의 언어 설정 확인
+    final bool isKo = context.locale.languageCode == 'ko';
+
     final regions =
-        koreaRegions
-            .where(_isRepresentativeCity)
-            .where((e) => e.name.contains(_query))
-            .toList()
-          ..sort((a, b) => a.name.compareTo(b.name));
+        koreaRegions.where(_isRepresentativeCity).where((e) {
+            final searchTarget = _query.toLowerCase();
+            // 한국어 이름이나 영어 이름 중 하나라도 포함되면 검색 결과에 표시
+            return e.name.contains(searchTarget) ||
+                e.nameEn.toLowerCase().contains(searchTarget);
+          }).toList()
+          // 언어 설정에 따라 가나다순 혹은 ABC순 정렬
+          ..sort(
+            (a, b) =>
+                isKo ? a.name.compareTo(b.name) : a.nameEn.compareTo(b.nameEn),
+          );
 
     return Container(
       height: MediaQuery.of(context).size.height,
@@ -72,7 +82,7 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
                 autofocus: true,
                 onChanged: (value) => setState(() => _query = value),
                 decoration: InputDecoration(
-                  hintText: 'search_city_hint'.tr(), // ✅ 번역 적용
+                  hintText: 'search_city_hint'.tr(),
                   hintStyle: const TextStyle(color: Colors.black26),
                   prefixIcon: const Icon(Icons.search, color: Colors.black26),
                   border: InputBorder.none,
@@ -98,7 +108,8 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
                     horizontal: 8,
                   ),
                   title: Text(
-                    region.name,
+                    // 언어 설정에 따라 이름 표시 (한국어/대문자 영어)
+                    isKo ? region.name : region.nameEn,
                     style: const TextStyle(
                       color: Colors.black87,
                       fontSize: 18,

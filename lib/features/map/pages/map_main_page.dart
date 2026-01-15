@@ -21,23 +21,17 @@ class _MapMainPageState extends State<MapMainPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // ✅ 위젯이 생성될 때 딱 한 번 실행
     if (_index == null) {
       final String lang = context.locale.languageCode;
-
-      // 1. 인덱스 결정 (한국어면 0, 영어 등 그 외엔 1)
       _index = widget.initialIndex ?? (lang == 'ko' ? 0 : 1);
-
-      // 2. 결정된 인덱스로 컨트롤러를 생성 (초기 페이지 고정)
       _controller = PageController(initialPage: _index!);
-
-      debugPrint("🏁 [MapMainPage] 초기 설정 완료: 언어($lang) -> 인덱스($_index)");
     }
   }
 
   void _move(int i) {
-    if (_index == i) return;
+    // 🎯 [방어] 이미 화면이 꺼졌거나 인덱스가 같으면 실행 안 함
+    if (!mounted || _index == i) return;
+
     setState(() => _index = i);
     _controller.animateToPage(
       i,
@@ -48,7 +42,7 @@ class _MapMainPageState extends State<MapMainPage> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _controller.dispose(); // 컨트롤러 먼저 닫고
     super.dispose();
   }
 
@@ -81,7 +75,10 @@ class _MapMainPageState extends State<MapMainPage> {
           Expanded(
             child: PageView(
               controller: _controller,
-              onPageChanged: (i) => setState(() => _index = i),
+              // 🎯 [방어] 페이지가 바뀌었을 때도 화면이 살아있는지 확인
+              onPageChanged: (i) {
+                if (mounted) setState(() => _index = i);
+              },
               children: const [DomesticMapPage(), GlobalMapPage()],
             ),
           ),
@@ -91,11 +88,11 @@ class _MapMainPageState extends State<MapMainPage> {
   }
 }
 
+// _Tab 위젯은 기존과 동일 (생략 가능하나 구조 유지를 위해 포함)
 class _Tab extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-
   const _Tab({
     required this.label,
     required this.selected,

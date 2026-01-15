@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/gestures.dart';
-import 'package:flutter/foundation.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/core/widgets/ai_map_popup.dart';
+import 'package:travel_memoir/core/constants/korea/sgg_code_map.dart';
 
 class DomesticMapPage extends StatefulWidget {
   const DomesticMapPage({super.key});
@@ -24,6 +23,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
   static const _visitedSigLayer = 'visited-sig-layer';
   static const _sigGeoJson = 'assets/geo/processed/korea_sig.geojson';
 
+  // 통합시 매핑 (수원, 포항, 창원 등)
   static const Map<String, List<String>> majorCityMapping = {
     "41110": ["41111", "41113", "41115", "41117"],
     "41130": ["41131", "41133", "41135"],
@@ -36,13 +36,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     "45110": ["45111", "45113"],
     "47110": ["47111", "47113"],
     "48120": ["48121", "48123", "48125", "48127", "48129"],
-  };
-
-  static const Map<String, String> idToCode = {
-    'KR_GG_SEONGNAM': '41130',
-    'KR_GB_POHANG': '47110',
-    'KR_GB_GYEONGSAN': '47290',
-    'KR_GW_SOKCHO': '42210',
   };
 
   String _toHex(Color color) =>
@@ -69,16 +62,14 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     final lang = context.locale.languageCode;
     try {
       final layers = await style.getStyleLayers();
-      if (!mounted) return; // ✨ 추가: 레이어 목록 가져온 후 상태 체크
-
+      if (!mounted) return;
       for (var l in layers) {
         if (l != null && (l.id.contains('label') || l.id.contains('place'))) {
           try {
-            await style.setStyleLayerProperty(
-              l.id,
-              'text-field',
-              '["get", "name_$lang"]',
-            );
+            await style.setStyleLayerProperty(l.id, 'text-field', [
+              'get',
+              'name_$lang',
+            ]);
           } catch (_) {}
         }
       }
@@ -93,71 +84,68 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
       await style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
-      if (!mounted) return; // ✨ 추가
+      if (!mounted) return; // 🎯 스타일 설정 후 체크
 
       await _localizeLabels(style);
-      if (!mounted) return; // ✨ 추가
+      if (!mounted) return; // 🎯 라벨 현지화 후 체크
 
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
+      // Supabase 데이터 조회
       final travels = await Supabase.instance.client
           .from('travels')
           .select('region_id, is_completed')
           .eq('user_id', user.id)
           .eq('travel_type', 'domestic');
 
-      if (!mounted) return; // ✨ 추가: DB 조회 후 위젯이 사라졌으면 중단
+      if (!mounted) return; // 🎯 데이터 조회 후 체크
 
       final Set<String> allSgg = {};
       final Set<String> completedSgg = {};
 
       for (var t in travels) {
         String regId = t['region_id']?.toString() ?? '';
-        String? code = idToCode[regId];
-        if (code == null) continue;
+        final codeInfo = SggCodeMap.fromRegionId(regId);
+        final String? sggCd = codeInfo.sggCd;
 
-        bool done = t['is_completed'] == true;
-        allSgg.add(code);
-        if (done) completedSgg.add(code);
+        if (sggCd != null) {
+          bool done = t['is_completed'] == true;
+          allSgg.add(sggCd);
+          if (done) completedSgg.add(sggCd);
 
-        if (majorCityMapping.containsKey(code)) {
-          allSgg.addAll(majorCityMapping[code]!);
-          if (done) completedSgg.addAll(majorCityMapping[code]!);
+          if (majorCityMapping.containsKey(sggCd)) {
+            allSgg.addAll(majorCityMapping[sggCd]!);
+            if (done) completedSgg.addAll(majorCityMapping[sggCd]!);
+          }
         }
       }
 
       final String rawSig = await rootBundle.loadString(_sigGeoJson);
-      if (!mounted) return;
+      if (!mounted) return; // 🎯 파일 로딩 후 체크
 
       await _rmLayer(style, _visitedSigLayer);
       await _rmSource(style, _sigSourceId);
-      if (!mounted) return; // ✨ 추가
 
       await style.addSource(GeoJsonSource(id: _sigSourceId, data: rawSig));
-
-      final fillLayer = FillLayer(id: _visitedSigLayer, sourceId: _sigSourceId);
-      await style.addLayer(fillLayer);
-      if (!mounted) return; // ✨ 추가
+      await style.addLayer(
+        FillLayer(id: _visitedSigLayer, sourceId: _sigSourceId),
+      );
 
       final String doneColor = _toHex(AppColors.mapVisitedFill);
       final String activeColor = _toHex(
-        const Color.fromARGB(244, 227, 12, 26).withOpacity(0.3),
+        const Color(0xFFE30C1A).withOpacity(0.4),
       );
 
-      await style.setStyleLayerProperty(
-        _visitedSigLayer,
-        'filter',
-        jsonEncode([
-          'in',
-          ['get', 'SGG_CD'],
-          ['literal', allSgg.toList()],
-        ]),
-      );
+      await style.setStyleLayerProperty(_visitedSigLayer, 'filter', [
+        'in',
+        ['get', 'SGG_CD'],
+        ['literal', allSgg.toList()],
+      ]);
 
       final dynamic colorExpr = completedSgg.isEmpty
-          ? jsonEncode(activeColor)
-          : jsonEncode([
+          ? activeColor
+          : [
               'case',
               [
                 'in',
@@ -166,7 +154,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
               ],
               doneColor,
               activeColor,
-            ]);
+            ];
 
       await style.setStyleLayerProperty(
         _visitedSigLayer,
@@ -174,8 +162,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         colorExpr,
       );
       await style.setStyleLayerProperty(_visitedSigLayer, 'fill-opacity', 0.8);
-
-      debugPrint("🚀 국내지도 색상 구분 완료!");
     } catch (e) {
       debugPrint('❌ 에러: $e');
     }
@@ -190,7 +176,8 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         RenderedQueryGeometry.fromScreenCoordinate(screenCoordinate),
         RenderedQueryOptions(layerIds: [_visitedSigLayer]),
       );
-      if (!mounted) return; // ✨ 추가: 맵 쿼리 후 체크
+
+      if (!mounted) return; // 🎯 탭 처리 후 체크
 
       if (features.isNotEmpty) {
         final props =
@@ -202,10 +189,11 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
             if (children.contains(sggCode)) lookup = parent;
           });
 
-          final codeToId = idToCode.map((k, v) => MapEntry(v, k));
-          String? regId = codeToId[lookup];
-
-          if (regId != null) _handlePopup(regId);
+          // ✅ 역조회 함수 사용
+          final String regId = SggCodeMap.getRegionIdFromSggCd(lookup);
+          if (regId.isNotEmpty) {
+            _handlePopup(regId);
+          }
         }
       }
     } catch (_) {}
@@ -222,7 +210,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         .eq('region_id', regId)
         .maybeSingle();
 
-    if (!mounted) return; // ✨ 기존 유지
+    if (!mounted) return; // 🎯 DB 결과 대기 후 체크
 
     if (res != null && res['is_completed'] == true) {
       showGeneralDialog(
