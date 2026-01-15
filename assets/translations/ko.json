@@ -190,5 +190,9 @@
   "onboarding_body_3": "소중한 사람들과 당신의 여행 앨범을 공유하세요.",
   "skip": "건너뛰기",
   "start": "시작하기",
-  "save_reorder_success": "저장완료"
+  "save_reorder_success": "저장완료",
+  "premium_only_title": "구독자 전용 기능",
+  "premium_sticker_desc": "AI 스티커 북은 구독 중인 유저만 이용 가능합니다.",
+  "view_plans": "플랜 보기",
+  "failed_to_share_image": "이미지 공유에 실패했습니다."
 }

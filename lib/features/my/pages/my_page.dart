@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+// ✅ [추가] RevenueCat 패키지 임포트
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
@@ -23,21 +25,18 @@ class MyPage extends StatefulWidget {
 
 class _MyPageState extends State<MyPage> {
   late Future<Map<String, dynamic>> _future;
-  Locale? _lastLocale; // ✅ 언어 변경 감지를 위한 변수 추가
+  Locale? _lastLocale;
 
   @override
   void initState() {
     super.initState();
-    // 초기 로딩은 didChangeDependencies에서 처리되므로 비워둠
   }
 
-  // ✅ 언어(Locale)가 변경되면 Flutter가 이 함수를 호출합니다.
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final currentLocale = EasyLocalization.of(context)?.locale;
 
-    // 언어가 처음 설정되거나 변경되었을 때만 데이터를 다시 불러옴
     if (_lastLocale != currentLocale) {
       _lastLocale = currentLocale;
       _future = _fetchMyProfileWithStats();
@@ -47,6 +46,10 @@ class _MyPageState extends State<MyPage> {
   Future<Map<String, dynamic>> _fetchMyProfileWithStats() async {
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser!;
+
+    // ⭐ [추가] RevenueCat에 현재 수파베이스 유저 아이디를 동기화
+    // 이 한 줄이 있어야 '소금빵'님이 결제했을 때 누군지 알 수 있습니다.
+    await Purchases.logIn(user.id);
 
     final profile = await supabase
         .from('users')
@@ -63,6 +66,59 @@ class _MyPageState extends State<MyPage> {
     final travelCount = travels.length;
 
     return {'profile': profile, 'travelCount': travelCount};
+  }
+
+  // ✅ 구독 상태 확인 로직
+  bool _checkPremium(Map<String, dynamic> profile) {
+    final bool isPremium = profile['is_premium'] ?? false;
+    final String? premiumUntil = profile['premium_until'];
+
+    if (!isPremium) return false;
+    if (premiumUntil == null) return false;
+
+    try {
+      final DateTime untilDate = DateTime.parse(premiumUntil);
+      return untilDate.isAfter(DateTime.now());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // ✅ 프리미엄 전용 팝업 알림
+  void _showPremiumAlert(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('premium_only_title'.tr()),
+        content: Text('premium_sticker_desc'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'cancel'.tr(),
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.textPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: 나중에 만들 결제 페이지로 이동
+            },
+            child: Text(
+              'view_plans'.tr(),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Map<String, dynamic> _getBadge(int count) {
@@ -96,12 +152,14 @@ class _MyPageState extends State<MyPage> {
             final imageUrl = profile['profile_image_url'];
             final nickname = profile['nickname'] ?? 'default_nickname'.tr();
 
+            final bool isSubscribed = _checkPremium(profile);
+
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- 상단 프로필 섹션 (동일) ---
+                  // 프로필 섹션
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -183,7 +241,7 @@ class _MyPageState extends State<MyPage> {
                   ),
                   const SizedBox(height: 32),
 
-                  // ✅ 2x3 그리드로 변경 (총 6개 칸)
+                  // 메뉴 그리드
                   GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
@@ -211,18 +269,21 @@ class _MyPageState extends State<MyPage> {
                           ),
                         ),
                       ),
-                      // ✅ 신규 추가: AI 스티커 북
                       _MenuTile(
                         title: 'my_stickers'.tr(),
                         icon: Icons.portrait_rounded,
+                        isLocked: !isSubscribed,
                         onTap: () {
-                          // ✅ 내 스티커 북 페이지로 이동!
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MyStickerPage(),
-                            ),
-                          );
+                          if (isSubscribed) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MyStickerPage(),
+                              ),
+                            );
+                          } else {
+                            _showPremiumAlert(context);
+                          }
                         },
                       ),
                       _MenuTile(
@@ -245,11 +306,9 @@ class _MyPageState extends State<MyPage> {
                           ),
                         ),
                       ),
-
-                      // ✅ 6번째 칸: 고양이 애니메이션 (메뉴 타일과 크기를 맞춤)
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.transparent, // 투명하게 해서 고양이만 돋보이게
+                          color: Colors.transparent,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Center(
@@ -262,8 +321,7 @@ class _MyPageState extends State<MyPage> {
                     ],
                   ),
 
-                  const SizedBox(height: 40), // 그리드와 버튼 사이 간격
-                  // --- 로그아웃 버튼 (동일) ---
+                  const SizedBox(height: 40),
                   SizedBox(
                     width: double.infinity,
                     height: 48,
@@ -300,11 +358,13 @@ class _MenuTile extends StatelessWidget {
   final String title;
   final IconData icon;
   final VoidCallback onTap;
+  final bool isLocked;
 
   const _MenuTile({
     required this.title,
     required this.icon,
     required this.onTap,
+    this.isLocked = false,
   });
 
   @override
@@ -315,17 +375,37 @@ class _MenuTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.lightSurface,
+          color: isLocked
+              ? AppColors.lightSurface.withOpacity(0.5)
+              : AppColors.lightSurface,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 40, color: AppColors.textPrimary),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(
+                  icon,
+                  size: 40,
+                  color: isLocked
+                      ? AppColors.textDisabled
+                      : AppColors.textPrimary,
+                ),
+                if (isLocked)
+                  const Icon(Icons.lock_outline, size: 20, color: Colors.amber),
+              ],
+            ),
             const Spacer(),
             Text(
               title,
-              style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w600),
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isLocked
+                    ? AppColors.textDisabled
+                    : AppColors.textPrimary,
+              ),
             ),
           ],
         ),

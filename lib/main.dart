@@ -26,7 +26,7 @@ Future<void> main() async {
 
   EasyLocalization.logger.enableLevels = [];
 
-  // ✅ 0. 설정값 로드 (온보딩 및 알림 설정)
+  // ✅ 0. 설정값 로드
   final prefs = await SharedPreferences.getInstance();
   final bool onboardingDone = prefs.getBool('onboarding_done') ?? false;
   final bool notificationEnabled =
@@ -38,11 +38,10 @@ Future<void> main() async {
   // ✅ 2. Firebase 초기화
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // ⭐ [수정] FCM 토큰 출력 - iOS 시뮬레이터 에러 방지 로직
+  // FCM 토큰 처리 (iOS 시뮬레이터 대응)
   String? token;
   try {
     if (Platform.isIOS) {
-      // iOS일 경우 APNS 토큰이 먼저 확보되었는지 확인 (시뮬레이터는 여기서 null 반환)
       String? apnsToken = await FirebaseMessaging.instance.getAPNSToken();
       if (apnsToken != null) {
         token = await FirebaseMessaging.instance.getToken();
@@ -50,7 +49,6 @@ Future<void> main() async {
         debugPrint("🎯 알림: iOS 시뮬레이터 또는 APNS 설정 미비로 FCM 토큰 호출을 건너뜁니다.");
       }
     } else {
-      // 안드로이드는 바로 가져옴
       token = await FirebaseMessaging.instance.getToken();
     }
   } catch (e) {
@@ -64,30 +62,23 @@ Future<void> main() async {
   // ✅ 3. 백그라운드 메시지 핸들러 등록
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // ✅ 4. 🔔 알림 설정 (권한 요청 및 토글 상태 반영)
+  // ✅ 4. 🔔 알림 권한 및 설정
   FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-  // 알림 권한 요청
   await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-  // [보강] iOS APNS 토큰 확보 시도 (에러 방지를 위해 try-catch 권장하나 원본 유지)
   if (Platform.isIOS) {
     await messaging.getAPNSToken();
   }
 
-  // 설정 페이지의 토글 상태를 포그라운드 알림에 반영
   await messaging.setForegroundNotificationPresentationOptions(
     alert: notificationEnabled,
     badge: notificationEnabled,
     sound: notificationEnabled,
   );
 
-  // 포그라운드 리스너
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     if (notificationEnabled) {
       print("🔔 포그라운드 메시지 수신: ${message.notification?.title}");
-    } else {
-      print("🔕 알림 차단 상태: 메시지를 받았지만 팝업을 띄우지 않습니다.");
     }
   });
 
@@ -109,7 +100,7 @@ Future<void> main() async {
     javaScriptAppKey: AppEnv.kakaoJavaScriptKey,
   );
 
-  // ✅ 9. 💰 RevenueCat 초기화
+  // ✅ 9. 💰 RevenueCat 초기화 (사용자님이 주신 키 적용)
   await _initRevenueCat();
 
   // ✅ 10. TravelMemoirApp 실행
@@ -124,14 +115,17 @@ Future<void> main() async {
   );
 }
 
+// 💰 RevenueCat 초기화 함수
 Future<void> _initRevenueCat() async {
   await Purchases.setLogLevel(LogLevel.debug);
   PurchasesConfiguration configuration;
 
   if (Platform.isAndroid) {
+    // 안드로이드 키는 기존처럼 Env에서 가져오거나 나중에 채우시면 됩니다.
     configuration = PurchasesConfiguration(AppEnv.revenueCatGoogleKey);
   } else if (Platform.isIOS) {
-    configuration = PurchasesConfiguration(AppEnv.revenueCatAppleKey);
+    // ✅ 사용자님이 주신 Apple SDK Key 적용 완료!
+    configuration = PurchasesConfiguration("appl_GOvqLsLAoeTPEMVnmhUHjGJFGCY");
   } else {
     return;
   }

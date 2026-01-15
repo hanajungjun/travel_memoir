@@ -190,5 +190,9 @@
   "onboarding_body_3": "Share your travel album with your loved ones.",
   "skip": "Skip",
   "start": "Start",
-  "save_reorder_success": "Save Completed"
+  "save_reorder_success": "Save Completed",
+  "premium_only_title": "Premium Feature",
+  "premium_sticker_desc": "The AI Sticker Book is only available for subscribers.",
+  "view_plans": "View Plans",
+  "failed_to_share_image": "Failed to share image."
 }

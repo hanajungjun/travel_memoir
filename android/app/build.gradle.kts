@@ -21,23 +21,28 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // ✅ 코어 라이브러리 디슈가링 활성화
+        isCoreLibraryDesugaringEnabled = true
+        
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        // ✅ 에러 났던 부분: 최신 방식으로 수정
+        jvmTarget = "17"
     }
 
     defaultConfig {
         applicationId = "com.hanajungjun.travelmemoir"
-        minSdk = flutter.minSdkVersion
+        minSdk = 24 // ✅ notifications 때문에 24로 고정하는 게 안전합니다
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        multiDexEnabled = true
     }
 
-    // 2. 서명 설정 (도장 정보 입력)
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
@@ -49,10 +54,7 @@ android {
 
     buildTypes {
         release {
-            // 3. 디버그용 도장 대신, 위에서 만든 릴리스용 도장을 찍도록 변경
             signingConfig = signingConfigs.getByName("release")
-            
-            // 앱 최적화 설정 (선택 사항)
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(
@@ -65,4 +67,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // ✅ 에러에서 요구한 2.1.4보다 높은 버전으로 설정
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }
