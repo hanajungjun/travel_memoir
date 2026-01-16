@@ -52,7 +52,7 @@ class TravelDayService {
   }
 
   // =====================================================
-  // 💾 일기 저장 (없으면 insert, 있으면 update)
+  // 💾 일기 저장 (에러 박멸용 최종 버전)
   // =====================================================
   static Future<Map<String, dynamic>> upsertDiary({
     required String travelId,
@@ -61,11 +61,10 @@ class TravelDayService {
     required String text,
     String? aiSummary,
     String? aiStyle,
+    String? aiImageUrl, // ✅ AI 이미지 URL을 받도록 추가됨
   }) async {
     final user = _supabase.auth.currentUser;
-    if (user == null) {
-      throw Exception('need login');
-    }
+    if (user == null) throw Exception('need login');
 
     final res = await _supabase
         .from('travel_days')
@@ -76,6 +75,7 @@ class TravelDayService {
           'text': text.trim(),
           'ai_summary': aiSummary?.trim(),
           'ai_style': aiStyle?.trim() ?? 'default',
+          'ai_image_url': aiImageUrl, // ✅ DB 컬럼에 URL 저장
         }, onConflict: 'travel_id,date')
         .select()
         .single();

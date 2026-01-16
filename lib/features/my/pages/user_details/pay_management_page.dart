@@ -17,6 +17,9 @@ class _PayManagementPageState extends State<PayManagementPage> {
   Offerings? _offerings;
   bool _isLoading = true;
 
+  // ✅ 아까 PaymentService에서 정한 이름과 반드시 똑같아야 합니다!
+  static const String _entitlementId = "TravelMemoir Pro";
+
   @override
   void initState() {
     super.initState();
@@ -26,46 +29,50 @@ class _PayManagementPageState extends State<PayManagementPage> {
   // ✅ 구독 상태 및 판매 상품 정보 가져오기
   Future<void> _loadSubscriptionStatus() async {
     try {
-      // 직접 Purchases 부르는 대신 서비스 경유
+      // 🎯 PaymentService의 정적 메서드를 호출합니다.
       final offerings = await PaymentService.getOfferings();
       final customerInfo = await Purchases.getCustomerInfo();
 
-      setState(() {
-        _customerInfo = customerInfo;
-        _offerings = offerings;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _offerings = offerings;
+          _customerInfo = customerInfo;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
+      debugPrint("❌ 정보 로드 실패: $e");
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   // ✅ 결제 로직
   Future<void> _purchase() async {
-    if (_offerings?.current?.monthly == null) return;
+    // 현재 활성화된 월간 구독 패키지가 있는지 확인
+    final package = _offerings?.current?.monthly;
+    if (package == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('no_available_product'.tr())));
+      return;
+    }
 
-    // 1. 로딩 시작
     setState(() => _isLoading = true);
 
     try {
-      final package = _offerings!.current!.monthly!;
-
-      // 2. 우리가 만든 PaymentService 호출 (이 안에서 결제 + DB업데이트가 다 일어남!)
+      // 🎯 PaymentService를 통해 결제 + DB 업데이트까지 한방에!
       bool success = await PaymentService.purchasePackage(package);
 
       if (success) {
-        // 3. 성공했다면 구독 상태 다시 불러와서 화면 갱신
-        await _loadSubscriptionStatus();
-
-        // 기분 좋은 알림 하나 띄워주기
+        await _loadSubscriptionStatus(); // 성공 후 화면 갱신
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('upgrade_success_msg'.tr())), // 번역에 추가 필요
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('upgrade_success_msg'.tr())));
         }
       }
     } catch (e) {
-      // 에러 처리
+      debugPrint("❌ 결제 과정 오류: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -73,70 +80,102 @@ class _PayManagementPageState extends State<PayManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 유료 유저 여부 확인 (Entitlement ID: 'premium' 기준)
+    // ✅ 'premium'이 아니라 설정한 '_entitlementId'를 사용합니다.
     final bool isPremium =
-        _customerInfo?.entitlements.all['premium']?.isActive ?? false;
+        _customerInfo?.entitlements.all[_entitlementId]?.isActive ?? false;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('payment_management'.tr()),
         backgroundColor: AppColors.primary,
+        centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(20),
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 10),
                   Text(
                     'subscription_info'.tr(),
                     style: AppTextStyles.pageTitle,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                  // ✅ 상태값: 유료(Active) vs 무료(None)
-                  Text(
-                    'current_subscription_status'.tr(
-                      args: [
-                        isPremium ? 'status_paid'.tr() : 'status_free'.tr(),
+                  // 카드 형태의 상태 표시창
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: isPremium
+                          ? AppColors.primary.withOpacity(0.1)
+                          : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isPremium
+                            ? AppColors.primary
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'current_subscription_status'.tr(
+                            args: [
+                              isPremium
+                                  ? 'status_paid'.tr()
+                                  : 'status_free'.tr(),
+                            ],
+                          ),
+                          style: AppTextStyles.body.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (isPremium) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'next_billing_date'.tr(
+                              args: [
+                                _customerInfo
+                                        ?.entitlements
+                                        .all[_entitlementId]
+                                        ?.expirationDate
+                                        ?.substring(0, 10) ??
+                                    '-',
+                              ],
+                            ),
+                            style: AppTextStyles.body,
+                          ),
+                        ],
                       ],
                     ),
-                    style: AppTextStyles.body,
                   ),
-                  const SizedBox(height: 32),
 
-                  // ✅ 유료 유저일 경우: 다음 결제일 표시
-                  if (isPremium) ...[
-                    Text(
-                      'next_billing_date'.tr(
-                        args: [
-                          _customerInfo
-                                  ?.entitlements
-                                  .all['premium']
-                                  ?.expirationDate
-                                  ?.substring(0, 10) ??
-                              '-',
-                        ],
-                      ),
-                      style: AppTextStyles.body,
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+                  const SizedBox(height: 40),
 
-                  // ✅ 무료 유저일 경우: 결제 버튼 표시
+                  // 무료 유저에게만 결제 버튼 표시
                   if (!isPremium) ...[
                     Text(
                       'premium_benefit_desc'.tr(),
-                      style: AppTextStyles.body,
-                    ), // 혜택 설명
-                    const SizedBox(height: 16),
+                      style: AppTextStyles.body.copyWith(
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity,
+                      height: 56,
                       child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                         onPressed: _purchase,
-                        // RevenueCat에서 가져온 현지 통화 가격 표시 (예: ₩4,900)
                         child: Text(
                           'upgrade_to_premium'.tr(
                             args: [
@@ -148,21 +187,45 @@ class _PayManagementPageState extends State<PayManagementPage> {
                                   '',
                             ],
                           ),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ],
 
-                  const Spacer(),
+                  const SizedBox(height: 30),
 
-                  // ✅ 구매 복원 버튼 (애플 심사 필수)
+                  // 구매 복원 버튼 (애플 심사 필수)
                   Center(
                     child: TextButton(
                       onPressed: () async {
-                        final restoredInfo = await Purchases.restorePurchases();
-                        setState(() => _customerInfo = restoredInfo);
+                        setState(() => _isLoading = true);
+                        // 🎯 서비스의 복원 기능을 사용하여 DB까지 동기화합니다.
+                        bool success = await PaymentService.restorePurchases();
+                        await _loadSubscriptionStatus();
+                        if (mounted) {
+                          setState(() => _isLoading = false);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                success
+                                    ? 'restore_success_msg'.tr()
+                                    : 'restore_fail_msg'.tr(),
+                              ),
+                            ),
+                          );
+                        }
                       },
-                      child: Text('restore_purchase'.tr()),
+                      child: Text(
+                        'restore_purchase'.tr(),
+                        style: const TextStyle(
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
                     ),
                   ),
                 ],

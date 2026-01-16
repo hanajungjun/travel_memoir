@@ -212,5 +212,18 @@
   "trip_completed_title": "Trip Recorded!",
   "trip_completed_subtitle": "Your precious memories are now on the map.",
   "saving_memories": "Organizing your memories...",
-  "back_to_main": "Back to Home"
+  "back_to_main": "Back to Home",
+  "coin_shop_title": "Stamp Shop",
+  "coin_shop_desc": "Charge stamps to draw more pictures!",
+  "no_products": "No products available for purchase.",
+  "coin_empty_title": "Out of Stamps",
+  "coin_empty_desc": "You've used all free stamps.\nWatch an ad or visit the shop?",
+  "watch_ad_btn": "Watch Ad for Free",
+  "go_to_shop_btn": "Visit Shop",
+  "ad_reward_msg": "1 free stamp has been charged!",
+  "free_charging_station": "Free Charging Station",
+  "go_to_mission_page": "Complete missions to get stamps",
+  "mission_watch_ad": "Watch a video ad",
+  "mission_reward_desc": "Get 1 free stamp upon completion",
+  "mission_complete_btn": "Go"
 }

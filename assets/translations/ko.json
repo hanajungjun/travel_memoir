@@ -205,6 +205,13 @@
   "write_diary": "기록하기",
   "generate_ai_image": "AI 이미지 생성하기",
   "save_diary_button": "기록 저장하기",
+  "coin_shop_title": "스탬프 상점",
+  "coin_shop_desc": "더 많은 그림을 그리려면 스탬프를 충전하세요!",
+  "no_products": "현재 구매 가능한 상품이 없습니다.",
+  "coin_empty_title": "스탬프가 부족해요",
+  "coin_empty_desc": "무료 스탬프를 모두 사용하셨습니다.\n광고를 보거나 충전하시겠어요?",
+  "watch_ad_btn": "광고 보고 무료 충전",
+  "go_to_shop_btn": "상점 방문하기",
   "ai_drawing_after_ad": "AI가 광고 뒤에서 그림을 그리고 있어요...",
   "ai_drawing_memories": "AI가 추억을 그리고 있어요...",
   "saving_diary": "일기를 저장 중입니다...",
@@ -212,5 +219,9 @@
   "trip_completed_title": "여행 기록 완료!",
   "trip_completed_subtitle": "소중한 추억이 지도에 기록되었습니다.",
   "saving_memories": "추억을 정리하고 있어요...",
-  "back_to_main": "홈으로 돌아가기"
+  "back_to_main": "홈으로 돌아가기",
+  "ad_reward_msg": "무료 스탬프 1개가 충전되었습니다!",
+  "free_charging_station": "무료충전소",
+  "ai_drawing_loading": "AI가 광고 시청 후 그림을 그립니다...",
+  "go_to_mission_page": "미션 수행하고 스탬프 받기"
 }
