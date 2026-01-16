@@ -25,6 +25,9 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   bool _styleInitialized = false;
   bool _isReadyToDisplay = false;
 
+  // ✅ PlatformView 에러 방지용 키
+  final GlobalKey _mapKey = GlobalKey();
+
   static const _worldSourceId = 'world-country-source';
   static const _visitedCountryLayer = 'visited-country-layer';
   static const _borderCountryLayer = 'border-country-layer';
@@ -43,10 +46,11 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     return Stack(
       children: [
         MapWidget(
+          key: _mapKey,
           styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
           cameraOptions: CameraOptions(
             center: Point(coordinates: Position(10.0, 20.0)),
-            zoom: 1.2, // ✅ 지도 크기 복구
+            zoom: 1.2,
           ),
           gestureRecognizers: widget.isReadOnly
               ? {
@@ -84,7 +88,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
           onStyleLoadedListener: _onStyleLoaded,
           onTapListener: widget.isReadOnly ? null : _onMapTap,
         ),
-
         if (!_isReadyToDisplay)
           Container(
             color: Colors.white,
@@ -94,27 +97,15 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     );
   }
 
-  // =========================
-  // STYLE LOADED
-  // =========================
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
     if (_styleInitialized || _map == null) return;
-
     _styleInitialized = true;
-
-    // ✅ 지도 먼저 표시
     _safeSetState(() => _isReadyToDisplay = true);
-
-    // ✅ 무거운 작업은 뒤에서
     Future.microtask(() => _drawWorldLayers());
   }
 
-  // =========================
-  // WORLD LAYERS
-  // =========================
   Future<void> _drawWorldLayers() async {
     if (!mounted || _map == null) return;
-
     final style = _map!.style;
 
     Future<void> safeAction(Future<void> Function() action) async {
@@ -134,39 +125,21 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     }
 
     try {
-      // 1. projection
       await safeAction(
         () => style.setProjection(
           StyleProjection(name: StyleProjectionName.mercator),
         ),
       );
 
-      // 2. label language
-      try {
-        final lang = context.locale.languageCode;
-        final layers = await style.getStyleLayers();
-        for (var l in layers) {
-          final id = l?.id;
-          if (id != null && (id.contains('label') || id.contains('place'))) {
-            if (await style.styleLayerExists(id)) {
-              await style.setStyleLayerProperty(
-                id,
-                'text-field',
-                '["get", "name_$lang"]',
-              );
-            }
-          }
-        }
-      } catch (_) {}
-
-      // 3. supabase
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
+      // ✅ [데이터 로드] country_code 대신 region_key를 써도 되지만,
+      // 지도의 필터링을 위해 country_code를 메인으로 유지합니다.
       final travels = await Supabase.instance.client
           .from('travels')
           .select(
-            'country_code, is_completed, country_name_ko, country_name_en',
+            'country_code, is_completed, country_name_ko, country_name_en, country_lat, country_lng',
           )
           .eq('user_id', user.id)
           .eq('travel_type', 'overseas');
@@ -177,14 +150,16 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       final Set<String> completedCodes = {};
 
       for (var t in travels) {
-        final code = t['country_code']?.toString();
+        final code = t['country_code']?.toString().toUpperCase();
         if (code != null && code.isNotEmpty) {
           allCodes.add(code);
           if (t['is_completed'] == true) completedCodes.add(code);
+          debugPrint(
+            '📍 [좌표체크] ${t['country_name_ko']}($code): Lat ${t['country_lat']}, Lng ${t['country_lng']}',
+          );
         }
       }
 
-      // 4. geojson + layers
       final worldGeoJson = await rootBundle.loadString(_worldGeoJson);
 
       await safeAction(() async {
@@ -196,20 +171,35 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
           GeoJsonSource(id: _worldSourceId, data: worldGeoJson),
         );
 
+        // ✅ 괌/사이판 색칠 (ISO_A2_EH와 iso_a2 둘 다 체크)
+        final filterExpr = [
+          'any',
+          [
+            'in',
+            ['get', 'ISO_A2_EH'],
+            ['literal', allCodes.toList()],
+          ],
+          [
+            'in',
+            ['get', 'iso_a2'],
+            ['literal', allCodes.toList()],
+          ],
+          [
+            'in',
+            ['get', 'ISO_A2'],
+            ['literal', allCodes.toList()],
+          ],
+        ];
+
         final fillLayer = FillLayer(
           id: _visitedCountryLayer,
           sourceId: _worldSourceId,
         );
         await style.addLayer(fillLayer);
-
         await style.setStyleLayerProperty(
           _visitedCountryLayer,
           'filter',
-          jsonEncode([
-            'in',
-            ['get', 'ISO_A2_EH'],
-            ['literal', allCodes.toList()],
-          ]),
+          filterExpr,
         );
 
         final doneHex = _toHex(AppColors.mapOverseaVisitedFill);
@@ -217,18 +207,26 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
           const Color.fromARGB(255, 211, 28, 34).withOpacity(0.25),
         );
 
-        final colorExpr = completedCodes.isEmpty
-            ? jsonEncode(activeHex)
-            : jsonEncode([
+        final dynamic colorExpr = completedCodes.isEmpty
+            ? activeHex
+            : [
                 'case',
                 [
-                  'in',
-                  ['get', 'ISO_A2_EH'],
-                  ['literal', completedCodes.toList()],
+                  'any',
+                  [
+                    'in',
+                    ['get', 'ISO_A2_EH'],
+                    ['literal', completedCodes.toList()],
+                  ],
+                  [
+                    'in',
+                    ['get', 'iso_a2'],
+                    ['literal', completedCodes.toList()],
+                  ],
                 ],
                 doneHex,
                 activeHex,
-              ]);
+              ];
 
         await style.setStyleLayerProperty(
           _visitedCountryLayer,
@@ -258,53 +256,38 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         );
       });
 
-      // 5. marker + 자동 포커스 복구
+      // 마커 표시
       final pointManager = await _map!.annotations
           .createPointAnnotationManager();
-
-      Map<String, dynamic>? lastTravel;
-
       for (final t in travels) {
-        final name = context.locale.languageCode == 'ko'
-            ? t['country_name_ko']
-            : t['country_name_en'];
+        double? lat = (t['country_lat'] as num?)?.toDouble();
+        double? lng = (t['country_lng'] as num?)?.toDouble();
 
-        if (name == null) continue;
-        lastTravel ??= t;
-
-        try {
-          final geo = await OverseasTravelService.geocode(query: name);
-          if (geo != null) {
-            await pointManager.create(
-              PointAnnotationOptions(
-                geometry: Point(coordinates: Position(geo['lng'], geo['lat'])),
-                iconImage: 'marker-15',
-                iconSize: 1.6,
-              ),
-            );
-          }
-        } catch (_) {}
+        if (lat != null && lng != null) {
+          await pointManager.create(
+            PointAnnotationOptions(
+              geometry: Point(coordinates: Position(lng, lat)),
+              iconImage: 'marker-15',
+              iconSize: 1.6,
+            ),
+          );
+        }
       }
 
-      // ✅ 자동 포커스 (원래 동작 복구)
-      if (!widget.isReadOnly && lastTravel != null && mounted) {
-        final focusName = context.locale.languageCode == 'ko'
-            ? lastTravel['country_name_ko']
-            : lastTravel['country_name_en'];
+      // 🚀 카메라 자동 포커스
+      if (!widget.isReadOnly && mounted && travels.isNotEmpty) {
+        final lastTravel = travels.last;
+        double? targetLat = (lastTravel['country_lat'] as num?)?.toDouble();
+        double? targetLng = (lastTravel['country_lng'] as num?)?.toDouble();
 
-        if (focusName != null) {
-          try {
-            final geo = await OverseasTravelService.geocode(query: focusName);
-            if (geo != null && mounted) {
-              await _map!.easeTo(
-                CameraOptions(
-                  center: Point(coordinates: Position(geo['lng'], geo['lat'])),
-                  zoom: 1.5,
-                ),
-                MapAnimationOptions(duration: 1200),
-              );
-            }
-          } catch (_) {}
+        if (targetLat != null && targetLng != null && mounted) {
+          await _map!.easeTo(
+            CameraOptions(
+              center: Point(coordinates: Position(targetLng, targetLat)),
+              zoom: 1.5,
+            ),
+            MapAnimationOptions(duration: 1200),
+          );
         }
       }
     } catch (e) {
@@ -313,27 +296,27 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   }
 
   // =========================
-  // TAP
+  // TAP & POPUP (최적화 반영)
   // =========================
   Future<void> _onMapTap(MapContentGestureContext context) async {
     if (_map == null) return;
-
     final screen = await _map!.pixelForCoordinate(context.point);
     final features = await _map!.queryRenderedFeatures(
       RenderedQueryGeometry.fromScreenCoordinate(screen),
       RenderedQueryOptions(layerIds: [_visitedCountryLayer]),
     );
-
     if (features.isEmpty) return;
 
     final props = features.first?.queriedFeature.feature['properties'] as Map?;
     if (props == null) return;
 
-    final code = props['ISO_A2_EH'] ?? props['iso_a2'];
-    final name = props['NAME'] ?? props['name'];
+    // ✅ GeoJSON에서 코드와 이름을 가져옵니다.
+    // 어제 추가한 NAME_KO를 최우선으로 사용합니다.
+    final code = props['ISO_A2_EH'] ?? props['iso_a2'] ?? props['ISO_A2'];
+    final name = props['NAME_KO'] ?? props['NAME'] ?? props['name'];
 
     if (code != null && name != null) {
-      _showOverseasAiPopup(code, name);
+      _showOverseasAiPopup(code.toString(), name.toString());
     }
   }
 
@@ -341,13 +324,18 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
+    // ✅ TravelCreateService에서 저장한 데이터를 불러옵니다.
+    // region_key가 countryCode와 동일하게 저장되므로 두 컬럼 중 무엇을 써도 무방합니다.
     final res = await Supabase.instance.client
         .from('travels')
         .select(
           'map_image_url, country_name_ko, country_name_en, ai_cover_summary, is_completed',
         )
         .eq('user_id', user.id)
-        .eq('country_code', countryCode)
+        .eq(
+          'country_code',
+          countryCode.toUpperCase(),
+        ) // 혹은 .eq('region_key', countryCode)
         .eq('travel_type', 'overseas')
         .order('completed_at', ascending: false)
         .limit(1)
@@ -359,35 +347,29 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         ? res['country_name_ko']
         : res['country_name_en'];
 
+    // 팝업 표시
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Global AI Map',
       transitionDuration: const Duration(milliseconds: 500),
       pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-      transitionBuilder: (_, anim, __, ___) {
-        return Opacity(
-          opacity: anim.value,
-          child: AiMapPopup(
-            imageUrl: res['map_image_url'],
-            regionName: displayName ?? countryName,
-            summary:
-                res['ai_cover_summary'] ?? 'remote_memory_placeholder'.tr(),
-          ),
-        );
-      },
+      transitionBuilder: (_, anim, __, ___) => Opacity(
+        opacity: anim.value,
+        child: AiMapPopup(
+          imageUrl: res['map_image_url'], // 🎨 통합된 map_images 버킷의 이미지가 뜹니다!
+          regionName: displayName ?? countryName,
+          summary: res['ai_cover_summary'] ?? 'remote_memory_placeholder'.tr(),
+        ),
+      ),
     );
   }
 
   Future<void> _rmLayer(StyleManager style, String id) async {
-    if (await style.styleLayerExists(id)) {
-      await style.removeStyleLayer(id);
-    }
+    if (await style.styleLayerExists(id)) await style.removeStyleLayer(id);
   }
 
   Future<void> _rmSource(StyleManager style, String id) async {
-    if (await style.styleSourceExists(id)) {
-      await style.removeStyleSource(id);
-    }
+    if (await style.styleSourceExists(id)) await style.removeStyleSource(id);
   }
 }

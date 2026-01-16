@@ -20,6 +20,8 @@ import 'package:travel_memoir/models/image_style_model.dart';
 import 'package:travel_memoir/core/widgets/image_style_picker.dart';
 import 'package:travel_memoir/core/widgets/coin_paywall_bottom_sheet.dart';
 import 'package:travel_memoir/features/mission/pages/ad_mission_page.dart';
+import 'package:travel_memoir/features/travel_day/pages/travel_completion_page.dart';
+import 'package:travel_memoir/services/travel_complete_service.dart';
 
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
@@ -679,16 +681,19 @@ class _TravelDayPageState extends State<TravelDayPage>
         _imageUrl == null &&
         _contentController.text.trim().isEmpty)
       return;
+
     setState(() {
       _loading = true;
       _loadingMessage = "saving_diary".tr();
     });
+
     try {
       final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
       );
-      // 1. DB 저장 (id 확보)
+
+      // 1️⃣ [DB 저장] 일기 내용 먼저 저장
       final diaryData = await TravelDayService.upsertDiary(
         travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
@@ -697,11 +702,13 @@ class _TravelDayPageState extends State<TravelDayPage>
         aiSummary: _summaryText,
         aiStyle: _selectedStyle?.id ?? 'default',
       );
+
       final String diaryId = diaryData['id'].toString().replaceAll(
         RegExp(r'[\s\n\r\t]+'),
         '',
       );
-      // 2. Storage 업로드 (ID 기반 확정 저장)
+
+      // 2️⃣ [Storage 업로드] 생성된 AI 이미지가 있으면 업로드
       if (_generatedImage != null) {
         final String rawPath = StoragePaths.travelDayImage(
           _userId,
@@ -714,11 +721,42 @@ class _TravelDayPageState extends State<TravelDayPage>
           imageBytes: _generatedImage!,
         );
       }
+
+      // 🎯 [끊어졌던 연결고리] 이번 저장이 마지막 일기인지 체크
+      final writtenDays = await TravelDayService.getWrittenDayCount(
+        travelId: _cleanTravelId,
+      );
+      final totalDays = widget.endDate.difference(widget.startDate).inDays + 1;
+
+      debugPrint('📊 [체크] 작성일수: $writtenDays / 전체일수: $totalDays');
+
       if (mounted) {
         setState(() => _loading = false);
-        Navigator.pop(context, true);
+
+        // ✅ 모든 일기를 다 썼다면? 대망의 '여행 완료 페이지'로 점프!
+        if (writtenDays >= totalDays) {
+          debugPrint('🎊 마지막 조각 발견! 여행 완료 페이지를 호출합니다.');
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TravelCompletionPage(
+                rewardedAd: _rewardedAd, // 로드해둔 광고 전달
+                processingTask: TravelCompleteService.tryCompleteTravel(
+                  travelId: _cleanTravelId,
+                  startDate: widget.startDate,
+                  endDate: widget.endDate,
+                ),
+              ),
+            ),
+          );
+        } else {
+          // 일기가 더 남았다면 평소처럼 이전 화면으로
+          Navigator.pop(context, true);
+        }
       }
     } catch (e) {
+      debugPrint('❌ 저장 실패: $e');
       setState(() => _loading = false);
     }
   }

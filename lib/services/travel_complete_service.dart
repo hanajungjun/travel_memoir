@@ -18,142 +18,153 @@ class TravelCompleteService {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    debugPrint('==============================');
-    debugPrint('🔥 [COMPLETE] tryCompleteTravel START');
-    debugPrint('🔥 travelId=$travelId');
-    debugPrint('==============================');
+    debugPrint('==================================================');
+    debugPrint('🚀 [COMPLETE_SERVICE] 작업 시작: $travelId');
+    debugPrint(
+      '📅 기간: ${startDate.toIso8601String().substring(0, 10)} ~ ${endDate.toIso8601String().substring(0, 10)}',
+    );
 
     final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint('❌ [ERROR] 유저 정보가 없습니다. 함수 종료.');
+      return;
+    }
     final userId = user.id;
 
-    // 1️⃣ 여행 조회 (region_id 포함)
-    final travel = await _supabase
-        .from('travels')
-        .select()
-        .eq('id', travelId)
-        .single();
+    try {
+      // 1️⃣ 여행 데이터 조회
+      final travel = await _supabase
+          .from('travels')
+          .select()
+          .eq('id', travelId)
+          .single();
 
-    if (travel['is_completed'] == true) return;
+      if (travel['is_completed'] == true) {
+        debugPrint('ℹ️ [SKIP] 이미 완료 처리된 여행입니다.');
+        return;
+      }
 
-    // 2️⃣ 일기 개수 체크
-    final writtenDays = await TravelDayService.getWrittenDayCount(
-      travelId: travelId,
-    );
-    final totalDays = endDate.difference(startDate).inDays + 1;
-    if (writtenDays < totalDays) return;
+      // 2️⃣ 일기 작성 여부 체크 (가장 유력한 중단 지점)
+      final writtenDays = await TravelDayService.getWrittenDayCount(
+        travelId: travelId,
+      );
+      final totalDays = endDate.difference(startDate).inDays + 1;
 
-    // 🎯 [수정] 국내 여행인 경우 region_id를 region_key로 활용
-    final String? regionId = travel['region_id'];
+      debugPrint('📊 [CHECK] 일기 작성 현황: $writtenDays / $totalDays');
 
-    // 3️⃣ 여행 완료 처리 (region_key도 함께 업데이트)
-    await _supabase
-        .from('travels')
-        .update({
-          'is_completed': true,
-          'completed_at': DateTime.now().toIso8601String(),
-          'region_key': regionId, // ✅ DB에 region_key 저장
-        })
-        .eq('id', travelId);
+      if (writtenDays < totalDays) {
+        debugPrint('⚠️ [STOP] 일기 개수가 부족합니다. (완료 조건 미충족)');
+        debugPrint('==================================================');
+        return;
+      }
 
-    // 4️⃣ 국내 지역 upsert
-    if (travel['travel_type'] == 'domestic' && regionId != null) {
-      final code = SggCodeMap.fromRegionId(regionId);
-      await _supabase.from('domestic_travel_regions').upsert({
-        'travel_id': travelId,
-        'user_id': userId,
-        'region_id': regionId,
-        'map_region_id': regionId,
-        'map_region_type': code.type,
-        'sido_cd': code.sidoCd,
-        'sgg_cd': code.sggCd,
+      debugPrint('✅ [PASS] 모든 일기 작성 확인. 완료 처리 진행...');
+
+      final String travelType = travel['travel_type'] ?? 'domestic';
+      final String? regionId = travel['region_id'];
+      final bool isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
+
+      // 3️⃣ 1차 업데이트: 여행 완료 상태 변경
+      debugPrint('📝 [DB_UPDATE] 1차: is_completed -> true');
+      Map<String, dynamic> updateData = {
         'is_completed': true,
-      }, onConflict: 'user_id,region_id');
-    }
+        'completed_at': DateTime.now().toIso8601String(),
+      };
 
-    final gemini = GeminiService();
-    final bool isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
+      if (travelType == 'domestic' && regionId != null) {
+        updateData['region_key'] = regionId.split('_').last;
+      }
 
-    final String placeName =
-        (travel['travel_type'] == 'domestic'
-                ? travel['region_name']
-                : (isKo
-                      ? travel['country_name_ko']
-                      : travel['country_name_en']))
-            ?.toString() ??
-        '여행';
+      await _supabase.from('travels').update(updateData).eq('id', travelId);
 
-    // 5️⃣ cover 이미지 (이건 AI가 여행 요약을 그려주는 거라 유지합니다)
-    try {
-      final row = await _supabase
-          .from('ai_cover_map_prompts')
-          .select('content')
-          .eq('type', 'cover')
-          .eq('is_active', true)
-          .maybeSingle();
+      // 4️⃣ 국내 지역 전용 데이터 처리
+      if (travelType == 'domestic' && regionId != null) {
+        debugPrint('🇰🇷 [DOMESTIC] 국내 지역 데이터(upsert) 처리 중...');
+        final code = SggCodeMap.fromRegionId(regionId);
+        await _supabase.from('domestic_travel_regions').upsert({
+          'travel_id': travelId,
+          'user_id': userId,
+          'region_id': regionId,
+          'map_region_id': regionId,
+          'map_region_type': code.type,
+          'sido_cd': code.sidoCd,
+          'sgg_cd': code.sggCd,
+          'is_completed': true,
+        }, onConflict: 'user_id,region_id');
+      }
 
-      if (row?['content'] != null) {
-        final bytes = await gemini.generateImage(
-          finalPrompt: '${row!['content']}\nPlace: $placeName',
-        );
-        if (bytes.isNotEmpty) {
-          await ImageUploadService.uploadTravelCover(
-            userId: userId,
-            travelId: travelId,
-            imageBytes: bytes,
+      final String placeName =
+          (travelType == 'domestic'
+                  ? travel['region_name']
+                  : (isKo
+                        ? travel['country_name_ko']
+                        : travel['country_name_en']))
+              ?.toString() ??
+          '여행';
+
+      // 5️⃣ AI Cover 이미지 생성 (Gemini-Imagen)
+      debugPrint('🎨 [AI_GEN] 커버 이미지 생성 시작 (장소: $placeName)...');
+      try {
+        final promptRow = await _supabase
+            .from('ai_cover_map_prompts')
+            .select('content')
+            .eq('type', 'cover')
+            .eq('is_active', true)
+            .maybeSingle();
+        if (promptRow?['content'] != null) {
+          final bytes = await GeminiService().generateImage(
+            finalPrompt: '${promptRow!['content']}\nPlace: $placeName',
           );
+          if (bytes.isNotEmpty) {
+            await ImageUploadService.uploadTravelCover(
+              userId: userId,
+              travelId: travelId,
+              imageBytes: bytes,
+            );
+            debugPrint('✅ [AI_GEN] 커버 이미지 업로드 완료');
+          }
         }
+      } catch (e) {
+        debugPrint('❌ [AI_GEN_ERROR] 커버 이미지 생성 실패: $e');
       }
-    } catch (_) {}
 
-    // 🚫 [삭제] 6️⃣ map 이미지 생성 로직 (이제 AI 호출 안 함!)
-    // -------------------------------------------------------
-    // 더 이상 Gemini에게 지도를 그리라고 하지 않고,
-    // 우리가 map_images 버킷에 올린 걸 씁니다.
-    // -------------------------------------------------------
-
-    // 7️⃣ cover URL 업데이트 (map_url은 TravelListService에서 동적 처리하므로 생략 가능하나 명시적 업데이트)
-    final coverPath = StoragePaths.travelCover(userId, travelId);
-    final coverUrl = _supabase.storage
-        .from('travel_images')
-        .getPublicUrl(coverPath);
-
-    // ✅ [수정] map_url은 국내 여행이면 map_images 버킷 경로로 지정
-    String mapUrl;
-    if (regionId != null && travel['travel_type'] == 'domestic') {
-      mapUrl = _supabase.storage
-          .from('map_images')
-          .getPublicUrl('$regionId.png');
-    } else {
-      mapUrl = _supabase.storage
+      // 6️⃣ 2차 업데이트: 이미지 URL 세팅
+      debugPrint('🔗 [DB_UPDATE] 2차: 이미지 URL 및 요약 정보 업데이트...');
+      final coverPath = StoragePaths.travelCover(userId, travelId);
+      final coverUrl = _supabase.storage
           .from('travel_images')
-          .getPublicUrl('${StoragePaths.travelRoot(userId, travelId)}/map.png');
-    }
+          .getPublicUrl(coverPath);
 
-    await _supabase
-        .from('travels')
-        .update({
-          'cover_image_url': coverUrl,
-          'map_image_url': mapUrl, // ✅ 완성된 URL 저장
-        })
-        .eq('id', travelId);
+      Map<String, dynamic> finalUpdate = {'cover_image_url': coverUrl};
 
-    // 8️⃣ 여행 요약
-    try {
-      final highlight =
-          await TravelHighlightService.generateHighlight(
-            travelId: travelId,
-            placeName: placeName,
-          ) ??
-          '';
-      if (highlight.isNotEmpty) {
-        await _supabase
-            .from('travels')
-            .update({'ai_cover_summary': highlight})
-            .eq('id', travelId);
+      // 🎯 [해외/국내 분기] 해외는 기존 map_image_url(미니어처)을 절대 건드리지 않음
+      if (travelType == 'domestic' && regionId != null) {
+        final String regionKey = regionId.split('_').last;
+        finalUpdate['map_image_url'] = _supabase.storage
+            .from('map_images')
+            .getPublicUrl('$regionKey.png');
       }
-    } catch (_) {}
 
-    debugPrint('✅ [COMPLETE] tryCompleteTravel END');
+      // 7️⃣ 여행 하이라이트 요약 (Gemini)
+      try {
+        debugPrint('✍️ [AI_SUMMARY] 여행 요약 생성 중...');
+        final summary = await TravelHighlightService.generateHighlight(
+          travelId: travelId,
+          placeName: placeName,
+        );
+        if (summary != null) {
+          finalUpdate['ai_cover_summary'] = summary;
+          debugPrint('✅ [AI_SUMMARY] 요약 완료');
+        }
+      } catch (e) {
+        debugPrint('❌ [AI_SUMMARY_ERROR] 요약 생성 실패: $e');
+      }
+
+      await _supabase.from('travels').update(finalUpdate).eq('id', travelId);
+      debugPrint('🏁 [COMPLETE_SERVICE] 모든 작업 성공적으로 완료!');
+    } catch (e) {
+      debugPrint('❌ [CRITICAL_ERROR] 완료 처리 중 심각한 오류 발생: $e');
+    }
+    debugPrint('==================================================');
   }
 }

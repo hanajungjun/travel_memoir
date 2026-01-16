@@ -74,8 +74,6 @@
 		<string>생성된 이미지를 앨범에 저장하기 위해 필요한 권한입니다.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
 		<string>여행 사진을 일기에 등록하기 위해 사진첩 접근 권한이 필요합니다.</string>
-		<key>NSUserTrackingUsageDescription</key>
-		<string>사용자에게 최적화된 광고를 제공하기 위해 기기 정보를 사용합니다.</string>
 		<key>UIApplicationSupportsIndirectInputEvents</key>
 		<true/>
 		<key>UIBackgroundModes</key>
