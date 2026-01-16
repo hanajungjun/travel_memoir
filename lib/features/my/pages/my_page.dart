@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
 
-import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/my_travel_summary_page.dart';
 import 'package:travel_memoir/features/my/pages/settings/my_settings_page.dart';
 import 'package:travel_memoir/features/my/pages/supports/my_support_page.dart';
 import 'package:travel_memoir/features/my/pages/user_details/user_details.dart';
 import 'package:travel_memoir/features/my/pages/sticker/my_sticker_page.dart';
+import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
-import 'package:lottie/lottie.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -23,59 +21,42 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
-  late Future<Map<String, dynamic>> _future;
-  Locale? _lastLocale;
+  final String _userId = Supabase.instance.client.auth.currentUser!.id;
+
+  // 실시간으로 유저 데이터를 지켜보는 스트림
+  late Stream<Map<String, dynamic>> _userStream;
 
   @override
   void initState() {
     super.initState();
+    _initUserStream();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final currentLocale = EasyLocalization.of(context)?.locale;
-
-    if (_lastLocale != currentLocale) {
-      _lastLocale = currentLocale;
-      _future = _fetchMyProfileWithStats();
-    }
-  }
-
-  Future<Map<String, dynamic>> _fetchMyProfileWithStats() async {
-    final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser!;
-
-    await Purchases.logIn(user.id);
-
-    final profile = await supabase
+  void _initUserStream() {
+    // 수파베이스 DB의 변화를 실시간으로 감지합니다. (코인 결제 즉시 반영)
+    _userStream = Supabase.instance.client
         .from('users')
-        .select()
-        .eq('auth_uid', user.id)
-        .single();
+        .stream(primaryKey: ['id'])
+        .eq('auth_uid', _userId)
+        .map((data) => data.first);
+  }
 
-    final List<dynamic> travels = await supabase
+  Future<int> _fetchTravelCount() async {
+    final res = await Supabase.instance.client
         .from('travels')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', _userId)
         .eq('is_completed', true);
-
-    final travelCount = travels.length;
-
-    return {'profile': profile, 'travelCount': travelCount};
+    return res.length;
   }
 
   bool _checkPremium(Map<String, dynamic> profile) {
     final bool isPremium = profile['is_premium'] ?? false;
     final String? premiumUntil = profile['premium_until'];
-
-    if (!isPremium) return false;
-    if (premiumUntil == null) return false;
-
+    if (!isPremium || premiumUntil == null) return false;
     try {
-      final DateTime untilDate = DateTime.parse(premiumUntil);
-      return untilDate.isAfter(DateTime.now());
-    } catch (e) {
+      return DateTime.parse(premiumUntil).isAfter(DateTime.now());
+    } catch (_) {
       return false;
     }
   }
@@ -98,14 +79,8 @@ class _MyPageState extends State<MyPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.textPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: 나중에 만들 결제 페이지로 이동
-            },
+            onPressed: () => Navigator.pop(context),
             child: Text(
               'view_plans'.tr(),
               style: const TextStyle(color: Colors.white),
@@ -117,18 +92,15 @@ class _MyPageState extends State<MyPage> {
   }
 
   Map<String, dynamic> _getBadge(int count) {
-    if (count >= 16) {
+    if (count >= 16)
       return {'title_key': 'badge_earth_conqueror', 'color': Colors.deepPurple};
-    } else if (count >= 6) {
+    if (count >= 6)
       return {'title_key': 'badge_pro_wanderer', 'color': Colors.blueAccent};
-    } else if (count >= 1) {
+    if (count >= 1)
       return {'title_key': 'badge_newbie_traveler', 'color': Colors.green};
-    } else {
-      return {'title_key': 'badge_preparing_adventure', 'color': Colors.grey};
-    }
+    return {'title_key': 'badge_preparing_adventure', 'color': Colors.grey};
   }
 
-  // ✨ 코인 정보를 보여주는 미니 위젯 헬퍼 함수
   Widget _buildStampMiniInfo({
     required String label,
     required int count,
@@ -165,237 +137,203 @@ class _MyPageState extends State<MyPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _future,
+        child: StreamBuilder<Map<String, dynamic>>(
+          stream: _userStream,
           builder: (context, snapshot) {
-            if (!snapshot.hasData) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
+            if (!snapshot.hasData) return const SizedBox.shrink();
 
-            final data = snapshot.data!;
-            final profile = data['profile'];
-            final travelCount = data['travelCount'] as int;
-            final badge = _getBadge(travelCount);
-            final imageUrl = profile['profile_image_url'];
+            final profile = snapshot.data!;
             final nickname = profile['nickname'] ?? 'default_nickname'.tr();
+            final dailyStamps = (profile['daily_stamps'] ?? 0) as int;
+            final paidStamps = (profile['paid_stamps'] ?? 0) as int;
+            final imageUrl = profile['profile_image_url'];
+            final isSubscribed = _checkPremium(profile);
 
-            final bool isSubscribed = _checkPremium(profile);
+            return FutureBuilder<int>(
+              future: _fetchTravelCount(),
+              builder: (context, travelSnapshot) {
+                final travelCount = travelSnapshot.data ?? 0;
+                final badge = _getBadge(travelCount);
 
-            // ✨ 프로필 데이터에서 코인 개수 가져오기
-            final int dailyStamps = (profile['daily_stamps'] ?? 0) as int;
-            final int paidStamps = (profile['paid_stamps'] ?? 0) as int;
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 프로필 섹션
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
+                      // 1. 프로필 섹션
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      nickname,
+                                      style: AppTextStyles.pageTitle.copyWith(
+                                        fontSize: 24,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: badge['color'].withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: badge['color'].withOpacity(
+                                            0.3,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        (badge['title_key'] as String).tr(),
+                                        style: TextStyle(
+                                          color: badge['color'],
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    _buildStampMiniInfo(
+                                      label: 'free'.tr(),
+                                      count: dailyStamps,
+                                      color: const Color(0xFF3498DB),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    _buildStampMiniInfo(
+                                      label: 'stored'.tr(),
+                                      count: paidStamps,
+                                      color: const Color(0xFFF39C12),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
                                 Text(
-                                  nickname,
-                                  style: AppTextStyles.pageTitle.copyWith(
-                                    fontSize: 24,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: badge['color'].withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: badge['color'].withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    (badge['title_key'] as String).tr(),
-                                    style: TextStyle(
-                                      color: badge['color'],
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11,
-                                    ),
+                                  profile['email'] ?? '',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.textSecondary,
                                   ),
                                 ),
                               ],
                             ),
-
-                            // ✨ [추가] 코인(도장) 표시 섹션
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                _buildStampMiniInfo(
-                                  label: 'free'.tr(),
-                                  count: dailyStamps,
-                                  color: const Color(0xFF3498DB),
-                                ),
-                                const SizedBox(width: 12),
-                                _buildStampMiniInfo(
-                                  label: 'stored'.tr(),
-                                  count: paidStamps,
-                                  color: const Color(0xFFF39C12),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 8),
-                            Text(
-                              profile['email'] ?? '',
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () async {
-                          final updated = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ProfileEditPage(),
-                            ),
-                          );
-                          if (updated == true)
-                            setState(() {
-                              _future = _fetchMyProfileWithStats();
-                            });
-                        },
-                        child: CircleAvatar(
-                          radius: 36,
-                          backgroundColor: AppColors.surface,
-                          backgroundImage: imageUrl != null
-                              ? NetworkImage(imageUrl)
-                              : null,
-                          child: imageUrl == null
-                              ? Icon(
-                                  Icons.person,
-                                  size: 36,
-                                  color: AppColors.textDisabled,
-                                )
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 메뉴 그리드
-                  GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _MenuTile(
-                        title: 'user_detail_title'.tr(),
-                        icon: Icons.manage_accounts_outlined,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MyUserDetailPage(),
                           ),
-                        ),
-                      ),
-                      _MenuTile(
-                        title: 'my_travels'.tr(),
-                        icon: Icons.public,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MyTravelSummaryPage(),
-                          ),
-                        ),
-                      ),
-                      _MenuTile(
-                        title: 'my_stickers'.tr(),
-                        icon: Icons.portrait_rounded,
-                        isLocked: !isSubscribed,
-                        onTap: () {
-                          if (isSubscribed) {
-                            Navigator.push(
+                          GestureDetector(
+                            onTap: () => Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const MyStickerPage(),
+                                builder: (_) => const ProfileEditPage(),
                               ),
-                            );
-                          } else {
-                            _showPremiumAlert(context);
-                          }
-                        },
-                      ),
-                      _MenuTile(
-                        title: 'settings'.tr(),
-                        icon: Icons.settings_outlined,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MySettingsPage(),
+                            ),
+                            child: CircleAvatar(
+                              radius: 36,
+                              backgroundColor: AppColors.surface,
+                              backgroundImage: imageUrl != null
+                                  ? NetworkImage(imageUrl)
+                                  : null,
+                              child: imageUrl == null
+                                  ? Icon(
+                                      Icons.person,
+                                      size: 36,
+                                      color: AppColors.textDisabled,
+                                    )
+                                  : null,
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                      _MenuTile(
-                        title: 'support'.tr(),
-                        icon: Icons.menu_book_outlined,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MySupportPage(),
+                      const SizedBox(height: 30),
+
+                      // 2. 메뉴 그리드 (순서 조정됨)
+                      GridView.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _MenuTile(
+                            title: 'my_travels'.tr(),
+                            icon: Icons.public,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MyTravelSummaryPage(),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Center(
-                          child: Lottie.asset(
-                            'assets/lottie/Happy New Year Cat Jumping.json',
-                            fit: BoxFit.contain,
+                          _MenuTile(
+                            title: 'coin_shop'.tr(),
+                            icon: Icons.shopping_bag_outlined,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const CoinShopPage(),
+                              ),
+                            ),
                           ),
-                        ),
+                          _MenuTile(
+                            title: 'my_stickers'.tr(),
+                            icon: Icons.portrait_rounded,
+                            isLocked: !isSubscribed,
+                            onTap: () => isSubscribed
+                                ? Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MyStickerPage(),
+                                    ),
+                                  )
+                                : _showPremiumAlert(context),
+                          ),
+                          _MenuTile(
+                            title: 'user_detail_title'.tr(),
+                            icon: Icons.manage_accounts_outlined,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MyUserDetailPage(),
+                              ),
+                            ),
+                          ),
+                          _MenuTile(
+                            title: 'support'.tr(),
+                            icon: Icons.menu_book_outlined,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MySupportPage(),
+                              ),
+                            ),
+                          ),
+                          _MenuTile(
+                            title: 'settings'.tr(),
+                            icon: Icons.settings_outlined,
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MySettingsPage(),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
+                      // 하단 로그아웃 버튼 영역 삭제됨
                     ],
                   ),
-
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.divider),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      onPressed: () async {
-                        await Supabase.instance.client.auth.signOut();
-                        if (!context.mounted) return;
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (_) => const LoginPage()),
-                          (_) => false,
-                        );
-                      },
-                      child: Text('logout'.tr(), style: AppTextStyles.body),
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         ),
@@ -421,37 +359,48 @@ class _MenuTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: isLocked
               ? AppColors.lightSurface.withOpacity(0.5)
-              : AppColors.lightSurface,
-          borderRadius: BorderRadius.circular(16),
+              : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+          border: Border.all(
+            color: isLocked ? Colors.transparent : const Color(0xFFF0F0F0),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Icon(
                   icon,
-                  size: 40,
+                  size: 32,
                   color: isLocked
                       ? AppColors.textDisabled
-                      : AppColors.textPrimary,
+                      : AppColors.travelingBlue,
                 ),
                 if (isLocked)
                   const Icon(Icons.lock_outline, size: 20, color: Colors.amber),
               ],
             ),
-            const Spacer(),
             Text(
               title,
               style: AppTextStyles.body.copyWith(
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
                 color: isLocked
                     ? AppColors.textDisabled
                     : AppColors.textPrimary,

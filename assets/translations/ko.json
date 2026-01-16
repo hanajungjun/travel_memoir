@@ -223,5 +223,18 @@
   "ad_reward_msg": "무료 스탬프 5개가 충전되었습니다!",
   "free_charging_station": "무료충전소",
   "ai_drawing_loading": "AI가 광고 시청 후 그림을 그립니다...",
-  "go_to_mission_page": "미션 수행하고 스탬프 받기"
+  "go_to_mission_page": "미션 수행하고 스탬프 받기",
+  "coin_shop": "코인 상점",
+  "membership_plan": "멤버십 플랜",
+  "charge_coins": "코인 충전하기",
+  "my_coins": "나의 보유 코인",
+  "please_wait_moment": "잠시만 기다려 주세요.",
+  "most_popular": "가장 인기",
+  "premium_title": "Travel Memoir 프리미엄",
+  "benefit_stickers": "모든 프리미엄 스티커 무제한 사용",
+  "benefit_no_ads": "광고 없이 즉시 AI 이미지 생성",
+  "benefit_monthly_coins": "매달 유료 코인 100개 즉시 지급",
+  "benefit_gold_badge": "프리미엄 전용 골드 뱃지 부여",
+  "coin_count": "코인 {}개",
+  "shop_item_desc": "AI 이미지 생성 및 요약에 사용"
 }
