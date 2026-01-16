@@ -25,7 +25,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   bool _styleInitialized = false;
   bool _isReadyToDisplay = false;
 
-  // ✅ PlatformView 에러 방지용 키
   final GlobalKey _mapKey = GlobalKey();
 
   static const _worldSourceId = 'world-country-source';
@@ -100,8 +99,44 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   Future<void> _onStyleLoaded(StyleLoadedEventData data) async {
     if (_styleInitialized || _map == null) return;
     _styleInitialized = true;
+
+    // 🎯 [에러 수정] 직접 localizeLabels를 호출하는 대신,
+    // 우리가 성공했던 '레이어 속성 직접 수정' 방식으로 현지화를 처리합니다.
+    await _localizeMapLabels();
+
     _safeSetState(() => _isReadyToDisplay = true);
     Future.microtask(() => _drawWorldLayers());
+  }
+
+  // ✅ [복구] 다른 페이지에서 성공했던 라벨 현지화 로직
+  Future<void> _localizeMapLabels() async {
+    if (_map == null) return;
+    try {
+      final String lang = context.locale.languageCode; // 'ko' 또는 'en'
+      // 맵박스 기본 스타일의 텍스트 필드를 현재 언어 설정으로 강제 전환
+      final String textFieldValue = lang == 'ko' ? '{name_ko}' : '{name_en}';
+
+      // 주요 텍스트 레이어 ID 리스트 (국가명, 도시명 등)
+      final labelLayers = [
+        'country-label',
+        'settlement-label',
+        'state-label',
+        'water-point-label',
+        'poi-label',
+      ];
+
+      for (var layerId in labelLayers) {
+        if (await _map!.style.styleLayerExists(layerId)) {
+          await _map!.style.setStyleLayerProperty(
+            layerId,
+            'text-field',
+            lang == 'ko' ? ['get', 'name_ko'] : ['get', 'name_en'],
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Label localization failed: $e');
+    }
   }
 
   Future<void> _drawWorldLayers() async {
@@ -134,8 +169,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
-      // ✅ [데이터 로드] country_code 대신 region_key를 써도 되지만,
-      // 지도의 필터링을 위해 country_code를 메인으로 유지합니다.
       final travels = await Supabase.instance.client
           .from('travels')
           .select(
@@ -154,9 +187,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         if (code != null && code.isNotEmpty) {
           allCodes.add(code);
           if (t['is_completed'] == true) completedCodes.add(code);
-          debugPrint(
-            '📍 [좌표체크] ${t['country_name_ko']}($code): Lat ${t['country_lat']}, Lng ${t['country_lng']}',
-          );
         }
       }
 
@@ -171,7 +201,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
           GeoJsonSource(id: _worldSourceId, data: worldGeoJson),
         );
 
-        // ✅ 괌/사이판 색칠 (ISO_A2_EH와 iso_a2 둘 다 체크)
         final filterExpr = [
           'any',
           [
@@ -256,13 +285,11 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         );
       });
 
-      // 마커 표시
       final pointManager = await _map!.annotations
           .createPointAnnotationManager();
       for (final t in travels) {
         double? lat = (t['country_lat'] as num?)?.toDouble();
         double? lng = (t['country_lng'] as num?)?.toDouble();
-
         if (lat != null && lng != null) {
           await pointManager.create(
             PointAnnotationOptions(
@@ -274,12 +301,10 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         }
       }
 
-      // 🚀 카메라 자동 포커스
       if (!widget.isReadOnly && mounted && travels.isNotEmpty) {
         final lastTravel = travels.last;
         double? targetLat = (lastTravel['country_lat'] as num?)?.toDouble();
         double? targetLng = (lastTravel['country_lng'] as num?)?.toDouble();
-
         if (targetLat != null && targetLng != null && mounted) {
           await _map!.easeTo(
             CameraOptions(
@@ -295,12 +320,9 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     }
   }
 
-  // =========================
-  // TAP & POPUP (최적화 반영)
-  // =========================
-  Future<void> _onMapTap(MapContentGestureContext context) async {
+  Future<void> _onMapTap(MapContentGestureContext mapContext) async {
     if (_map == null) return;
-    final screen = await _map!.pixelForCoordinate(context.point);
+    final screen = await _map!.pixelForCoordinate(mapContext.point);
     final features = await _map!.queryRenderedFeatures(
       RenderedQueryGeometry.fromScreenCoordinate(screen),
       RenderedQueryOptions(layerIds: [_visitedCountryLayer]),
@@ -310,10 +332,11 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     final props = features.first?.queriedFeature.feature['properties'] as Map?;
     if (props == null) return;
 
-    // ✅ GeoJSON에서 코드와 이름을 가져옵니다.
-    // 어제 추가한 NAME_KO를 최우선으로 사용합니다.
+    final bool isKo = context.locale.languageCode == 'ko';
     final code = props['ISO_A2_EH'] ?? props['iso_a2'] ?? props['ISO_A2'];
-    final name = props['NAME_KO'] ?? props['NAME'] ?? props['name'];
+    final name = isKo
+        ? (props['NAME_KO'] ?? props['NAME'] ?? props['name'])
+        : (props['NAME'] ?? props['name'] ?? props['NAME_KO']);
 
     if (code != null && name != null) {
       _showOverseasAiPopup(code.toString(), name.toString());
@@ -324,18 +347,13 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    // ✅ TravelCreateService에서 저장한 데이터를 불러옵니다.
-    // region_key가 countryCode와 동일하게 저장되므로 두 컬럼 중 무엇을 써도 무방합니다.
     final res = await Supabase.instance.client
         .from('travels')
         .select(
           'map_image_url, country_name_ko, country_name_en, ai_cover_summary, is_completed',
         )
         .eq('user_id', user.id)
-        .eq(
-          'country_code',
-          countryCode.toUpperCase(),
-        ) // 혹은 .eq('region_key', countryCode)
+        .eq('country_code', countryCode.toUpperCase())
         .eq('travel_type', 'overseas')
         .order('completed_at', ascending: false)
         .limit(1)
@@ -343,11 +361,10 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
 
     if (res == null || res['is_completed'] != true) return;
 
-    final displayName = context.locale.languageCode == 'ko'
+    final String? dbName = context.locale.languageCode == 'ko'
         ? res['country_name_ko']
         : res['country_name_en'];
 
-    // 팝업 표시
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -357,8 +374,8 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       transitionBuilder: (_, anim, __, ___) => Opacity(
         opacity: anim.value,
         child: AiMapPopup(
-          imageUrl: res['map_image_url'], // 🎨 통합된 map_images 버킷의 이미지가 뜹니다!
-          regionName: displayName ?? countryName,
+          imageUrl: res['map_image_url'],
+          regionName: dbName ?? countryName,
           summary: res['ai_cover_summary'] ?? 'remote_memory_placeholder'.tr(),
         ),
       ),

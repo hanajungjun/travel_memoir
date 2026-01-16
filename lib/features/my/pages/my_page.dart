@@ -134,6 +134,9 @@ class _MyPageState extends State<MyPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 🔥 [해결사] 이 코드가 있어야 앱의 언어가 바뀔 때 이 페이지도 같이 다시 그려집니다.
+    context.locale;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -256,7 +259,7 @@ class _MyPageState extends State<MyPage> {
                       ),
                       const SizedBox(height: 30),
 
-                      // 2. 메뉴 그리드 (순서 조정됨)
+                      // 2. 메뉴 그리드
                       GridView.count(
                         crossAxisCount: 2,
                         mainAxisSpacing: 16,
@@ -329,7 +332,6 @@ class _MyPageState extends State<MyPage> {
                           ),
                         ],
                       ),
-                      // 하단 로그아웃 버튼 영역 삭제됨
                     ],
                   ),
                 );
