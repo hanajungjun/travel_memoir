@@ -23,6 +23,7 @@ import 'package:travel_memoir/features/mission/pages/ad_mission_page.dart';
 
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/storage_paths.dart';
 
 class TravelDayPage extends StatefulWidget {
   final String travelId;
@@ -72,7 +73,10 @@ class _TravelDayPageState extends State<TravelDayPage>
   late AnimationController _cardController;
   late Animation<Offset> _cardOffset;
 
-  String get _userId => Supabase.instance.client.auth.currentUser!.id;
+  String get _userId => Supabase.instance.client.auth.currentUser!.id
+      .replaceAll(RegExp(r'[\s\n\r\t]+'), '');
+  String get _cleanTravelId =>
+      widget.travelId.replaceAll(RegExp(r'[\s\n\r\t]+'), '');
 
   @override
   void initState() {
@@ -116,7 +120,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     final tripData = await Supabase.instance.client
         .from('travels')
         .select('travel_type')
-        .eq('id', widget.travelId)
+        .eq('id', _cleanTravelId)
         .maybeSingle();
     if (!mounted || tripData == null) return;
     setState(() => _travelType = tripData['travel_type'] ?? 'domestic');
@@ -124,15 +128,41 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
-      travelId: widget.travelId,
+      travelId: _cleanTravelId,
       date: widget.date,
     );
+
     if (!mounted || diary == null) return;
+
     setState(() {
       _contentController.text = diary['text'] ?? '';
-      if (diary['ai_image_url'] != null) {
-        _imageUrl = diary['ai_image_url'];
-        _cardController.forward();
+
+      final String? diaryId = diary['id']?.toString().replaceAll(
+        RegExp(r'[\s\n\r\t]+'),
+        '',
+      );
+
+      final bool hasAiSummary = (diary['ai_summary'] ?? '')
+          .toString()
+          .trim()
+          .isNotEmpty;
+
+      // ✅ AI 요약이 있는 경우에만 이미지 URL 생성
+      if (diaryId != null && hasAiSummary) {
+        final String? rawUrl = TravelDayService.getAiImageUrl(
+          travelId: _cleanTravelId,
+          diaryId: diaryId,
+        );
+
+        _imageUrl = rawUrl != null && rawUrl.isNotEmpty ? rawUrl : null;
+
+        if (_imageUrl != null) {
+          _cardController.forward();
+        }
+      } else {
+        // ✅ 새 일기 / 이미지 없는 경우 강제 초기화
+        _imageUrl = null;
+        _generatedImage = null;
       }
     });
   }
@@ -176,8 +206,9 @@ class _TravelDayPageState extends State<TravelDayPage>
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: TapRegion(
-        onTapOutside: (_) => FocusScope.of(context).unfocus(),
+      body: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        behavior: HitTestBehavior.opaque,
         child: Stack(
           children: [
             CustomScrollView(
@@ -244,8 +275,6 @@ class _TravelDayPageState extends State<TravelDayPage>
       ),
     );
   }
-
-  // ========================= UI 컴포넌트 =========================
 
   Widget _buildAppBarStampToggle() {
     return GestureDetector(
@@ -467,7 +496,24 @@ class _TravelDayPageState extends State<TravelDayPage>
           ClipRRect(
             borderRadius: BorderRadius.circular(25),
             child: _imageUrl != null
-                ? Image.network(_imageUrl!, fit: BoxFit.cover)
+                ? Image.network(
+                    _imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint("ℹ️ 이미지 로드 실패(404 등): $error");
+                      return Container(
+                        height: 250,
+                        color: Colors.grey[100],
+                        child: const Center(
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey,
+                            size: 40,
+                          ),
+                        ),
+                      );
+                    },
+                  )
                 : Image.memory(_generatedImage!, fit: BoxFit.cover),
           ),
           Positioned(
@@ -495,16 +541,27 @@ class _TravelDayPageState extends State<TravelDayPage>
     return Align(
       alignment: Alignment.bottomCenter,
       child: GestureDetector(
-        onTap: _loading ? null : _saveDiary,
+        onTap: () {
+          if (!_loading) _saveDiary();
+        },
         child: Container(
           width: double.infinity,
           height: 70,
-          color: const Color(0xFF454B54),
+          color: _loading ? Colors.grey : const Color(0xFF454B54),
           child: Center(
-            child: Text(
-              '기록 저장하기'.tr(),
-              style: const TextStyle(color: Colors.white, fontSize: 18),
-            ),
+            child: _loading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    '기록 저장하기'.tr(),
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
           ),
         ),
       ),
@@ -530,40 +587,27 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  // ========================= 로직 (동시 실행 버전) =========================
-
   Future<void> _handleGenerateWithStamp() async {
     FocusScope.of(context).unfocus();
     if (_selectedStyle == null || _contentController.text.trim().isEmpty)
       return;
-
     int currentCoins = _usePaidStampMode ? _paidStamps : _dailyStamps;
     if (currentCoins <= 0) {
       _showCoinEmptyDialog();
       return;
     }
-
-    // 🎯 지시하신 대로 광고와 AI 생성을 동시에 실행합니다.
-    if (!_usePaidStampMode) {
-      if (_isAdLoaded && _rewardedAd != null) {
-        // 광고창 띄우기 (별도 await 없이 바로 아래 생성 함수 실행)
-        _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
-      }
-    }
-
-    // 광고가 떠 있는 동안 백그라운드에서 즉시 AI 작업 시작
+    if (!_usePaidStampMode && _isAdLoaded && _rewardedAd != null)
+      _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
     _startAiGeneration();
   }
 
   Future<void> _startAiGeneration() async {
-    // 무료 모드라면 '광고 뒤에서 그림 그리는 중' 메시지 노출
     setState(() {
       _loading = true;
       _loadingMessage = _usePaidStampMode
           ? "ai_drawing_memories".tr()
           : "ai_drawing_after_ad".tr();
     });
-
     try {
       final gemini = GeminiService();
       final summary = await gemini.generateSummary(
@@ -575,11 +619,8 @@ class _TravelDayPageState extends State<TravelDayPage>
         finalPrompt:
             '${PromptCache.imagePrompt.content}\nStyle:\n${_selectedStyle!.prompt}\nSummary:\n$summary',
       );
-
-      // 코인 소모 처리
       await _stampService.useStamp(_userId, _usePaidStampMode);
       await _refreshStampCounts();
-
       setState(() {
         _summaryText = summary;
         _generatedImage = image;
@@ -643,28 +684,36 @@ class _TravelDayPageState extends State<TravelDayPage>
       _loadingMessage = "saving_diary".tr();
     });
     try {
-      String? finalImageUrl = _imageUrl;
-      if (_generatedImage != null) {
-        final String path =
-            'ai_diaries/$_userId/${widget.travelId}/${DateTime.now().millisecondsSinceEpoch}.png';
-        finalImageUrl = await ImageUploadService.uploadAiImage(
-          path: path,
-          imageBytes: _generatedImage!,
-        );
-      }
       final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
       );
-      await TravelDayService.upsertDiary(
-        travelId: widget.travelId,
+      // 1. DB 저장 (id 확보)
+      final diaryData = await TravelDayService.upsertDiary(
+        travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
         date: widget.date,
         text: _contentController.text.trim(),
-        aiImageUrl: finalImageUrl,
         aiSummary: _summaryText,
         aiStyle: _selectedStyle?.id ?? 'default',
       );
+      final String diaryId = diaryData['id'].toString().replaceAll(
+        RegExp(r'[\s\n\r\t]+'),
+        '',
+      );
+      // 2. Storage 업로드 (ID 기반 확정 저장)
+      if (_generatedImage != null) {
+        final String rawPath = StoragePaths.travelDayImage(
+          _userId,
+          _cleanTravelId,
+          diaryId,
+        );
+        final String cleanPath = rawPath.replaceAll(RegExp(r'[\s\n\r\t]+'), '');
+        await ImageUploadService.uploadAiImage(
+          path: cleanPath,
+          imageBytes: _generatedImage!,
+        );
+      }
       if (mounted) {
         setState(() => _loading = false);
         Navigator.pop(context, true);
