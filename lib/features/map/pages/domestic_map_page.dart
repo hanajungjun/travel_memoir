@@ -45,7 +45,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: MapWidget(
-        key: UniqueKey(),
+        //  key: UniqueKey(),
         styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
         cameraOptions: CameraOptions(
           center: Point(coordinates: Position(127.8, 36.3)),

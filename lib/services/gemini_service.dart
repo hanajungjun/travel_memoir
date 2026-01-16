@@ -14,8 +14,8 @@ class GeminiService {
   // ✍️ 텍스트 요약 (무조건 String 반환)
   // ============================
   Future<String> generateSummary({
-    required String finalPrompt,
-    required List<File> photos,
+    required String finalPrompt, // <-- 수정됨: 올바른 required 사용
+    required List<File> photos, // <-- 수정됨: 올바른 required 사용
   }) async {
     // final url =
     //     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$_apiKey';

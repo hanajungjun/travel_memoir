@@ -22,9 +22,18 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   int _index = 0;
   int _mapKey = 0;
 
+  // ✅ [에러방지] 안전하게 setState를 호출하는 헬퍼 함수
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    setState(fn);
+  }
+
   void _move(int i) {
     if (_index == i) return;
-    setState(() => _index = i);
+
+    // 페이지 이동 전 위젯 상태 체크
+    _safeSetState(() => _index = i);
+
     _controller.animateToPage(
       i,
       duration: const Duration(milliseconds: 300),
@@ -33,7 +42,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   }
 
   void _refreshMap() {
-    setState(() => _mapKey++);
+    _safeSetState(() => _mapKey++);
   }
 
   @override
@@ -57,12 +66,12 @@ class _TravelMapPagerState extends State<TravelMapPager> {
           child: Row(
             children: [
               _Tab(
-                label: 'domestic'.tr(), // 번역 적용
+                label: 'domestic'.tr(),
                 selected: _index == 0,
                 onTap: () => _move(0),
               ),
               _Tab(
-                label: 'overseas'.tr(), // 번역 적용
+                label: 'overseas'.tr(),
                 selected: _index == 1,
                 onTap: () => _move(1),
               ),
@@ -80,10 +89,12 @@ class _TravelMapPagerState extends State<TravelMapPager> {
               children: [
                 PageView(
                   controller: _controller,
-                  onPageChanged: (i) => setState(() => _index = i),
+                  // ✅ 페이지 변경 시에도 안전하게 index 업데이트
+                  onPageChanged: (i) => _safeSetState(() => _index = i),
                   children: [
                     DomesticMapPage(key: ValueKey('domestic-map-$_mapKey')),
-                    const GlobalMapPage(),
+                    // ✅ [에러방지] 해외 지도에도 유니크 키를 부여해 뷰 충돌을 막습니다.
+                    GlobalMapPage(key: ValueKey('global-map-$_mapKey')),
                   ],
                 ),
 
@@ -102,7 +113,11 @@ class _TravelMapPagerState extends State<TravelMapPager> {
                             ),
                           ),
                         );
-                        _refreshMap();
+
+                        // ✅ [에러방지] 화면에서 돌아왔을 때 위젯이 아직 존재하는지 확인 후 리프레시
+                        if (mounted) {
+                          _refreshMap();
+                        }
                       },
                     ),
                   ),
@@ -117,7 +132,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
 }
 
 // ======================
-// 탭 버튼
+// 탭 버튼 (기존과 동일)
 // ======================
 class _Tab extends StatelessWidget {
   final String label;

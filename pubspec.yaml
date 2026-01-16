@@ -59,6 +59,7 @@ dependencies:
   purchases_flutter: ^8.2.0 
   flutter_native_splash: ^2.4.7
   flutter_local_notifications: ^19.5.0
+  connectivity_plus: ^7.0.0
 
 dev_dependencies:
   flutter_test:
