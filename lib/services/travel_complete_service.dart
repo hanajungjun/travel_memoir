@@ -72,7 +72,7 @@ class TravelCompleteService {
       };
 
       if (travelType == 'domestic' && regionId != null) {
-        updateData['region_key'] = regionId.split('_').last;
+        updateData['region_key'] = regionId;
       }
 
       await _supabase.from('travels').update(updateData).eq('id', travelId);
@@ -138,10 +138,9 @@ class TravelCompleteService {
       Map<String, dynamic> finalUpdate = {'cover_image_url': coverUrl};
 
       if (travelType == 'domestic' && regionId != null) {
-        final String regionKey = regionId.split('_').last;
         finalUpdate['map_image_url'] = _supabase.storage
             .from('map_images')
-            .getPublicUrl('$regionKey.png');
+            .getPublicUrl('$regionId.png');
       }
 
       // 7️⃣ 여행 하이라이트 요약 (Gemini)

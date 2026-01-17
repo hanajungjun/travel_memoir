@@ -23,7 +23,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
   static const _visitedSigLayer = 'visited-sig-layer';
   static const _sigGeoJson = 'assets/geo/processed/korea_sig.geojson';
 
-  // 통합시 매핑 (수원, 포항, 창원 등)
   static const Map<String, List<String>> majorCityMapping = {
     "41110": ["41111", "41113", "41115", "41117"],
     "41130": ["41131", "41133", "41135"],
@@ -45,35 +44,22 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: MapWidget(
-        //  key: UniqueKey(),
         styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
         cameraOptions: CameraOptions(
           center: Point(coordinates: Position(127.8, 36.3)),
           zoom: 5.2,
         ),
-        onMapCreated: (map) => _map = map,
-        onStyleLoadedListener: (data) => _drawMapData(),
+        onMapCreated: (map) {
+          _map = map;
+          debugPrint('🗺️ [MAP] created');
+        },
+        onStyleLoadedListener: (data) {
+          debugPrint('🎨 [MAP] style loaded');
+          _drawMapData();
+        },
         onTapListener: (context) => _onMapTap(context),
       ),
     );
-  }
-
-  Future<void> _localizeLabels(StyleManager style) async {
-    final lang = context.locale.languageCode;
-    try {
-      final layers = await style.getStyleLayers();
-      if (!mounted) return;
-      for (var l in layers) {
-        if (l != null && (l.id.contains('label') || l.id.contains('place'))) {
-          try {
-            await style.setStyleLayerProperty(l.id, 'text-field', [
-              'get',
-              'name_$lang',
-            ]);
-          } catch (_) {}
-        }
-      }
-    } catch (_) {}
   }
 
   Future<void> _drawMapData() async {
@@ -81,48 +67,62 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     if (style == null) return;
 
     try {
+      debugPrint('🗺️ [MAP] drawMapData start');
+
       await style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
-      if (!mounted) return; // 🎯 스타일 설정 후 체크
 
       await _localizeLabels(style);
-      if (!mounted) return; // 🎯 라벨 현지화 후 체크
 
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        debugPrint('❌ [MAP] user null');
+        return;
+      }
 
-      // Supabase 데이터 조회
       final travels = await Supabase.instance.client
           .from('travels')
-          .select('region_id, is_completed')
+          .select('region_id, is_completed, map_image_url')
           .eq('user_id', user.id)
           .eq('travel_type', 'domestic');
 
-      if (!mounted) return; // 🎯 데이터 조회 후 체크
+      debugPrint('🗺️ [MAP] travels count=${travels.length}');
+      for (final t in travels) {
+        debugPrint(
+          '🗺️ [MAP] region_id=${t['region_id']} '
+          'completed=${t['is_completed']} '
+          'map_image_url=${t['map_image_url']}',
+        );
+      }
 
       final Set<String> allSgg = {};
       final Set<String> completedSgg = {};
 
-      for (var t in travels) {
-        String regId = t['region_id']?.toString() ?? '';
+      for (final t in travels) {
+        final regId = t['region_id']?.toString() ?? '';
         final codeInfo = SggCodeMap.fromRegionId(regId);
-        final String? sggCd = codeInfo.sggCd;
 
-        if (sggCd != null) {
-          bool done = t['is_completed'] == true;
-          allSgg.add(sggCd);
-          if (done) completedSgg.add(sggCd);
+        debugPrint('🔎 [SGG] region_id=$regId → sggCd=${codeInfo.sggCd}');
 
-          if (majorCityMapping.containsKey(sggCd)) {
-            allSgg.addAll(majorCityMapping[sggCd]!);
-            if (done) completedSgg.addAll(majorCityMapping[sggCd]!);
+        if (codeInfo.sggCd != null) {
+          final sgg = codeInfo.sggCd!;
+          allSgg.add(sgg);
+
+          if (t['is_completed'] == true) {
+            completedSgg.add(sgg);
+          }
+
+          if (majorCityMapping.containsKey(sgg)) {
+            allSgg.addAll(majorCityMapping[sgg]!);
+            if (t['is_completed'] == true) {
+              completedSgg.addAll(majorCityMapping[sgg]!);
+            }
           }
         }
       }
 
-      final String rawSig = await rootBundle.loadString(_sigGeoJson);
-      if (!mounted) return; // 🎯 파일 로딩 후 체크
+      final rawSig = await rootBundle.loadString(_sigGeoJson);
 
       await _rmLayer(style, _visitedSigLayer);
       await _rmSource(style, _sigSourceId);
@@ -132,18 +132,16 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         FillLayer(id: _visitedSigLayer, sourceId: _sigSourceId),
       );
 
-      final String doneColor = _toHex(AppColors.mapVisitedFill);
-      final String activeColor = _toHex(
-        const Color(0xFFE30C1A).withOpacity(0.4),
-      );
-
       await style.setStyleLayerProperty(_visitedSigLayer, 'filter', [
         'in',
         ['get', 'SGG_CD'],
         ['literal', allSgg.toList()],
       ]);
 
-      final dynamic colorExpr = completedSgg.isEmpty
+      final doneColor = _toHex(AppColors.mapVisitedFill);
+      final activeColor = _toHex(const Color(0xFFE30C1A).withOpacity(0.4));
+
+      final colorExpr = completedSgg.isEmpty
           ? activeColor
           : [
               'case',
@@ -162,46 +160,61 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         colorExpr,
       );
       await style.setStyleLayerProperty(_visitedSigLayer, 'fill-opacity', 0.8);
+
+      debugPrint('✅ [MAP] drawMapData done');
     } catch (e) {
-      debugPrint('❌ 에러: $e');
+      debugPrint('❌ [MAP] error=$e');
     }
   }
 
   Future<void> _onMapTap(MapContentGestureContext context) async {
     final map = _map;
     if (map == null) return;
+
+    debugPrint('👆 [MAP TAP]');
+
     try {
-      final screenCoordinate = await map.pixelForCoordinate(context.point);
+      final screen = await map.pixelForCoordinate(context.point);
       final features = await map.queryRenderedFeatures(
-        RenderedQueryGeometry.fromScreenCoordinate(screenCoordinate),
+        RenderedQueryGeometry.fromScreenCoordinate(screen),
         RenderedQueryOptions(layerIds: [_visitedSigLayer]),
       );
 
-      if (!mounted) return; // 🎯 탭 처리 후 체크
+      debugPrint('👆 [MAP TAP] features=${features.length}');
 
-      if (features.isNotEmpty) {
-        final props =
-            features.first?.queriedFeature.feature['properties'] as Map?;
-        if (props != null) {
-          String sggCode = props['SGG_CD']?.toString() ?? '';
-          String lookup = sggCode;
-          majorCityMapping.forEach((parent, children) {
-            if (children.contains(sggCode)) lookup = parent;
-          });
+      if (features.isEmpty) return;
 
-          // ✅ 역조회 함수 사용
-          final String regId = SggCodeMap.getRegionIdFromSggCd(lookup);
-          if (regId.isNotEmpty) {
-            _handlePopup(regId);
-          }
+      final props =
+          features.first?.queriedFeature.feature['properties'] as Map?;
+      if (props == null) return;
+
+      final sggCode = props['SGG_CD']?.toString() ?? '';
+      debugPrint('👆 [MAP TAP] sgg=$sggCode');
+
+      String lookup = sggCode;
+      majorCityMapping.forEach((parent, children) {
+        if (children.contains(sggCode)) {
+          lookup = parent;
+          debugPrint('🔁 [REVERSE] child=$sggCode → parent=$parent');
         }
+      });
+
+      final regId = SggCodeMap.getRegionIdFromSggCd(lookup);
+      debugPrint('🔁 [REVERSE] lookup=$lookup → region_id=$regId');
+
+      if (regId.isNotEmpty) {
+        _handlePopup(regId);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('❌ [MAP TAP] error=$e');
+    }
   }
 
   void _handlePopup(String regId) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
+    debugPrint('🪟 [POPUP] query region_id=$regId');
 
     final res = await Supabase.instance.client
         .from('travels')
@@ -210,9 +223,11 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         .eq('region_id', regId)
         .maybeSingle();
 
-    if (!mounted) return; // 🎯 DB 결과 대기 후 체크
+    debugPrint('🪟 [POPUP] result=$res');
 
     if (res != null && res['is_completed'] == true) {
+      debugPrint('🖼️ [POPUP OPEN] map_image_url=${res['map_image_url']}');
+
       showGeneralDialog(
         context: context,
         barrierDismissible: true,
@@ -227,29 +242,34 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
             summary: res['ai_cover_summary'] ?? "no_memories_recorded".tr(),
           ),
         ),
-        transitionBuilder: (context, anim1, anim2, child) {
-          final curvedValue = Curves.easeOutBack.transform(anim1.value);
-          return Transform(
-            transform: Matrix4.identity()
-              ..setEntry(3, 2, 0.001)
-              ..rotateX((1 - curvedValue) * 1.5),
-            alignment: Alignment.center,
-            child: Opacity(opacity: anim1.value.clamp(0.0, 1.0), child: child),
-          );
-        },
       );
     }
   }
 
+  Future<void> _localizeLabels(StyleManager style) async {
+    final lang = context.locale.languageCode;
+    final layers = await style.getStyleLayers();
+    for (var l in layers) {
+      if (l != null && (l.id.contains('label') || l.id.contains('place'))) {
+        try {
+          await style.setStyleLayerProperty(l.id, 'text-field', [
+            'get',
+            'name_$lang',
+          ]);
+        } catch (_) {}
+      }
+    }
+  }
+
   Future<void> _rmLayer(StyleManager style, String id) async {
-    try {
-      if (await style.styleLayerExists(id)) await style.removeStyleLayer(id);
-    } catch (_) {}
+    if (await style.styleLayerExists(id)) {
+      await style.removeStyleLayer(id);
+    }
   }
 
   Future<void> _rmSource(StyleManager style, String id) async {
-    try {
-      if (await style.styleSourceExists(id)) await style.removeStyleSource(id);
-    } catch (_) {}
+    if (await style.styleSourceExists(id)) {
+      await style.removeStyleSource(id);
+    }
   }
 }

@@ -57,6 +57,7 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   ImageStyleModel? _selectedStyle;
   final List<File> _localPhotos = [];
+  List<String> _remotePhotoUrls = [];
   Uint8List? _generatedImage;
   String? _imageUrl;
   String? _summaryText;
@@ -128,6 +129,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     setState(() => _travelType = tripData['travel_type'] ?? 'domestic');
   }
 
+  // ✅ [수정] diaryId 기반으로 사진을 불러오도록 로직 변경
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
       travelId: _cleanTravelId,
@@ -136,48 +138,70 @@ class _TravelDayPageState extends State<TravelDayPage>
 
     if (!mounted || diary == null) return;
 
+    final String diaryId = diary['id'].toString().replaceAll(
+      RegExp(r'[\s\n\r\t]+'),
+      '',
+    );
+
     setState(() {
       _contentController.text = diary['text'] ?? '';
-
-      final String? diaryId = diary['id']?.toString().replaceAll(
-        RegExp(r'[\s\n\r\t]+'),
-        '',
-      );
-
-      final bool hasAiSummary = (diary['ai_summary'] ?? '')
-          .toString()
-          .trim()
-          .isNotEmpty;
-
-      // ✅ AI 요약이 있는 경우에만 이미지 URL 생성
-      if (diaryId != null && hasAiSummary) {
-        final String? rawUrl = TravelDayService.getAiImageUrl(
-          travelId: _cleanTravelId,
-          diaryId: diaryId,
-        );
-
-        _imageUrl = rawUrl != null && rawUrl.isNotEmpty ? rawUrl : null;
-
-        if (_imageUrl != null) {
-          _cardController.forward();
-        }
-      } else {
-        // ✅ 새 일기 / 이미지 없는 경우 강제 초기화
-        _imageUrl = null;
-        _generatedImage = null;
-      }
     });
+
+    // 📸 diaryId 폴더 내의 moments 사진들 불러오기
+    try {
+      final String momentsPath =
+          'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments';
+      final List<FileObject> files = await Supabase.instance.client.storage
+          .from('travel_images')
+          .list(path: momentsPath);
+
+      if (files.isNotEmpty) {
+        final List<String> urls = files
+            .where((f) => !f.name.startsWith('.'))
+            .map(
+              (f) => Supabase.instance.client.storage
+                  .from('travel_images')
+                  .getPublicUrl('$momentsPath/${f.name}'),
+            )
+            .toList();
+
+        setState(() {
+          _remotePhotoUrls = urls;
+        });
+      }
+    } catch (e) {
+      debugPrint('📸 사진 불러오기 실패: $e');
+    }
+
+    final bool hasAiSummary = (diary['ai_summary'] ?? '')
+        .toString()
+        .trim()
+        .isNotEmpty;
+
+    if (hasAiSummary) {
+      // AI 이미지 경로도 diaryId 기반으로 생성
+      final String aiPath =
+          'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
+      final String aiUrl = Supabase.instance.client.storage
+          .from('travel_images')
+          .getPublicUrl(aiPath);
+
+      setState(() {
+        _imageUrl = aiUrl;
+      });
+      if (_imageUrl != null) _cardController.forward();
+    }
   }
 
   Future<void> _pickImages() async {
-    if (_localPhotos.length >= 3) return;
+    final int currentTotal = _localPhotos.length + _remotePhotoUrls.length;
+    if (currentTotal >= 3) return;
+
     final List<XFile> pickedFiles = await _picker.pickMultiImage();
     if (pickedFiles.isNotEmpty) {
       setState(() {
         _localPhotos.addAll(
-          pickedFiles
-              .take(3 - _localPhotos.length)
-              .map((file) => File(file.path)),
+          pickedFiles.take(3 - currentTotal).map((file) => File(file.path)),
         );
       });
     }
@@ -394,34 +418,38 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Widget _buildPhotoList() {
+    final int totalCount = _remotePhotoUrls.length + _localPhotos.length;
     return SizedBox(
       height: 85,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
-        itemCount: _localPhotos.length + 1,
+        itemCount: totalCount + 1,
         itemBuilder: (context, index) {
-          if (index == _localPhotos.length)
-            return _localPhotos.length < 3
+          if (index == totalCount) {
+            return totalCount < 3
                 ? _buildAddPhotoButton()
                 : const SizedBox.shrink();
-          return _buildPhotoItem(index);
+          }
+          if (index < _remotePhotoUrls.length) {
+            return _buildRemotePhotoItem(index);
+          }
+          return _buildPhotoItem(index - _remotePhotoUrls.length);
         },
       ),
     );
   }
 
-  Widget _buildAddPhotoButton() {
-    return GestureDetector(
-      onTap: _pickImages,
-      child: Container(
-        width: 85,
-        height: 85,
-        margin: const EdgeInsets.only(right: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5),
-          borderRadius: BorderRadius.circular(12),
+  Widget _buildRemotePhotoItem(int index) {
+    return Container(
+      width: 85,
+      height: 85,
+      margin: const EdgeInsets.only(right: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        image: DecorationImage(
+          image: NetworkImage(_remotePhotoUrls[index]),
+          fit: BoxFit.cover,
         ),
-        child: const Icon(Icons.add, color: Colors.grey, size: 30),
       ),
     );
   }
@@ -454,6 +482,22 @@ class _TravelDayPageState extends State<TravelDayPage>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildAddPhotoButton() {
+    return GestureDetector(
+      onTap: _pickImages,
+      child: Container(
+        width: 85,
+        height: 85,
+        margin: const EdgeInsets.only(right: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.add, color: Colors.grey, size: 30),
+      ),
     );
   }
 
@@ -498,24 +542,7 @@ class _TravelDayPageState extends State<TravelDayPage>
           ClipRRect(
             borderRadius: BorderRadius.circular(25),
             child: _imageUrl != null
-                ? Image.network(
-                    _imageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      debugPrint("ℹ️ 이미지 로드 실패(404 등): $error");
-                      return Container(
-                        height: 250,
-                        color: Colors.grey[100],
-                        child: const Center(
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey,
-                            size: 40,
-                          ),
-                        ),
-                      );
-                    },
-                  )
+                ? Image.network(_imageUrl!, fit: BoxFit.cover)
                 : Image.memory(_generatedImage!, fit: BoxFit.cover),
           ),
           Positioned(
@@ -591,16 +618,53 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   Future<void> _handleGenerateWithStamp() async {
     FocusScope.of(context).unfocus();
+
+    // 스타일 선택 안 했거나 내용 없으면 리턴
     if (_selectedStyle == null || _contentController.text.trim().isEmpty)
       return;
+
+    // 1️⃣ [수정 로직] 무료 모드인데 무료 코인이 없고 보관 코인이 있는 경우
+    if (!_usePaidStampMode && _dailyStamps <= 0 && _paidStamps > 0) {
+      setState(() => _usePaidStampMode = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('무료 코인이 모두 소진되어 보관 중인 코인을 사용합니다.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+    // 2️⃣ 반대의 경우 (보관 모드인데 보관 코인 없고 무료 코인 있을 때)
+    else if (_usePaidStampMode && _paidStamps <= 0 && _dailyStamps > 0) {
+      setState(() => _usePaidStampMode = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('보관 코인이 없어 무료 코인을 사용합니다.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+
+    // 3️⃣ 최종적으로 현재 선택된 모드의 코인 개수 확인
     int currentCoins = _usePaidStampMode ? _paidStamps : _dailyStamps;
+
+    // 진짜 둘 다 없으면 그제서야 충전 팝업!
     if (currentCoins <= 0) {
       _showCoinEmptyDialog();
       return;
     }
-    if (!_usePaidStampMode && _isAdLoaded && _rewardedAd != null)
-      _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
-    _startAiGeneration();
+
+    // 광고가 필요한 무료 모드라면 광고 송출 후 생성 시작
+    if (!_usePaidStampMode && _isAdLoaded && _rewardedAd != null) {
+      _rewardedAd!.show(
+        onUserEarnedReward: (ad, reward) {
+          // 보상 획득 시 생성 시작 (기존 로직 유지)
+          _startAiGeneration();
+        },
+      );
+    } else {
+      // 보관 코인 사용 시에는 바로 생성 시작
+      _startAiGeneration();
+    }
   }
 
   Future<void> _startAiGeneration() async {
@@ -621,6 +685,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         finalPrompt:
             '${PromptCache.imagePrompt.content}\nStyle:\n${_selectedStyle!.prompt}\nSummary:\n$summary',
       );
+
       await _stampService.useStamp(_userId, _usePaidStampMode);
       await _refreshStampCounts();
       setState(() {
@@ -676,12 +741,12 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
+  // ✅ [수정] diaryId 기반 저장 로직
   Future<void> _saveDiary() async {
     if (_generatedImage == null &&
         _imageUrl == null &&
         _contentController.text.trim().isEmpty)
       return;
-
     setState(() {
       _loading = true;
       _loadingMessage = "saving_diary".tr();
@@ -693,7 +758,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         currentDate: widget.date,
       );
 
-      // 1️⃣ [DB 저장] 일기 내용 먼저 저장
+      // 1. DB에 일기를 먼저 저장해서 diaryId를 가져옵니다.
       final diaryData = await TravelDayService.upsertDiary(
         travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
@@ -702,46 +767,47 @@ class _TravelDayPageState extends State<TravelDayPage>
         aiSummary: _summaryText,
         aiStyle: _selectedStyle?.id ?? 'default',
       );
-
       final String diaryId = diaryData['id'].toString().replaceAll(
         RegExp(r'[\s\n\r\t]+'),
         '',
       );
 
-      // 2️⃣ [Storage 업로드] 생성된 AI 이미지가 있으면 업로드
+      // 2. [변경] 고유한 diaryId 폴더 안에 사진 업로드
+      if (_localPhotos.isNotEmpty) {
+        for (int i = 0; i < _localPhotos.length; i++) {
+          final String fileName =
+              'moment_${DateTime.now().millisecondsSinceEpoch}_$i.png';
+          final String fullPath =
+              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/$fileName';
+          await Supabase.instance.client.storage
+              .from('travel_images')
+              .upload(fullPath, _localPhotos[i]);
+        }
+      }
+
+      // 3. [변경] 고유한 diaryId 폴더 안에 AI 이미지 업로드
       if (_generatedImage != null) {
-        final String rawPath = StoragePaths.travelDayImage(
-          _userId,
-          _cleanTravelId,
-          diaryId,
-        );
-        final String cleanPath = rawPath.replaceAll(RegExp(r'[\s\n\r\t]+'), '');
+        final String aiPath =
+            'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
         await ImageUploadService.uploadAiImage(
-          path: cleanPath,
+          path: aiPath,
           imageBytes: _generatedImage!,
         );
       }
 
-      // 🎯 [끊어졌던 연결고리] 이번 저장이 마지막 일기인지 체크
       final writtenDays = await TravelDayService.getWrittenDayCount(
         travelId: _cleanTravelId,
       );
       final totalDays = widget.endDate.difference(widget.startDate).inDays + 1;
 
-      debugPrint('📊 [체크] 작성일수: $writtenDays / 전체일수: $totalDays');
-
       if (mounted) {
         setState(() => _loading = false);
-
-        // ✅ 모든 일기를 다 썼다면? 대망의 '여행 완료 페이지'로 점프!
         if (writtenDays >= totalDays) {
-          debugPrint('🎊 마지막 조각 발견! 여행 완료 페이지를 호출합니다.');
-
           Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => TravelCompletionPage(
-                rewardedAd: _rewardedAd, // 로드해둔 광고 전달
+                rewardedAd: _rewardedAd,
                 processingTask: TravelCompleteService.tryCompleteTravel(
                   travelId: _cleanTravelId,
                   startDate: widget.startDate,
@@ -751,7 +817,6 @@ class _TravelDayPageState extends State<TravelDayPage>
             ),
           );
         } else {
-          // 일기가 더 남았다면 평소처럼 이전 화면으로
           Navigator.pop(context, true);
         }
       }

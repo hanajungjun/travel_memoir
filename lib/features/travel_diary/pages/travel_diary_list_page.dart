@@ -114,7 +114,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     final isDomestic = _travel['travel_type'] == 'domestic';
     final bool isKo = context.locale.languageCode == 'ko';
 
-    // 🎯 [다국어 타이틀 로직]
     String title = '';
     if (isDomestic) {
       if (isKo) {
@@ -150,6 +149,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                     buildDefaultDragHandles: false,
                     onReorder: _onReorder,
                     itemBuilder: (context, index) {
+                      // ✅ [핵심 수정] 변수 정의 위치 확보
                       final diary = _diaries[index];
                       final displayDate = startDate.add(Duration(days: index));
                       final dayIndex = index + 1;
@@ -159,9 +159,10 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                       String? imageUrl;
                       if (hasDiary) {
                         final rawUrl = TravelDayService.getAiImageUrl(
-                          travelId: _travel['id'],
-                          diaryId: diary['id'],
+                          travelId: _travel['id'].toString(),
+                          diaryId: diary['id'].toString(),
                         );
+
                         if (rawUrl != null) {
                           imageUrl =
                               '$rawUrl?t=${DateTime.now().millisecondsSinceEpoch}';
@@ -251,7 +252,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                   endDate: startDate.add(
                                     Duration(days: _diaries.length - 1),
                                   ),
-                                  date: displayDate,
+                                  date: displayDate, // ✅ 이제 인식됨
                                   initialDiary: diary,
                                 ),
                               ),
@@ -261,8 +262,8 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                           },
                           child: _buildListItem(
                             diary,
-                            displayDate,
-                            dayIndex,
+                            displayDate, // ✅ 이제 인식됨
+                            dayIndex, // ✅ 이제 인식됨
                             hasDiary,
                             text,
                             imageUrl,

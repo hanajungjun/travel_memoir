@@ -89,7 +89,7 @@ class TravelDayService {
   }
 
   // =====================================================
-  // 🤖 AI 이미지 URL (400 에러 박멸 버전)
+  // 🤖 AI 이미지 URL (새 표준: ai_generated.png 고정)
   // =====================================================
   static String? getAiImageUrl({
     required String travelId,
@@ -102,11 +102,9 @@ class TravelDayService {
     final tid = _clean(travelId);
     final did = _clean(diaryId);
 
-    // 경로 조립
-    final String rawPath = StoragePaths.travelDayImage(uid, tid, did);
-    final String cleanPath = _clean(rawPath);
-
-    if (cleanPath.isEmpty) return null;
+    // ✅ 우리가 약속한 새 경로로 강제 고정
+    final String cleanPath =
+        'users/$uid/travels/$tid/diaries/$did/ai_generated.png';
 
     try {
       final url = _supabase.storage
@@ -114,13 +112,10 @@ class TravelDayService {
           .getPublicUrl(cleanPath);
 
       final cleanUrl = _clean(url);
-
-      // ✅ URL 자체가 비정상이면 null
       if (cleanUrl.isEmpty) return null;
 
       return cleanUrl;
     } catch (_) {
-      // ✅ 어떤 경우든 여기서 터지면 이미지 없음 처리
       return null;
     }
   }
