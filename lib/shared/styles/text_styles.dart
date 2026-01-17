@@ -6,18 +6,19 @@ class AppTextStyles {
   // 🧭 Landing / Login (Figma 기준)
   // =====================================================
   static const TextStyle landingTitle = TextStyle(
-    fontSize: 28,
+    fontSize: 35,
     fontWeight: FontWeight.w800,
     color: AppColors.textPrimary,
     height: 1.25, // 줄간격 고정
-    letterSpacing: -0.2,
+    letterSpacing: -1.5,
   );
 
   static const TextStyle landingSubtitle = TextStyle(
     fontSize: 15,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w300,
     color: AppColors.textSecondary,
     height: 1.5, // 줄간격 고정
+    letterSpacing: -0.3,
   );
 
   static const TextStyle loginButton = TextStyle(
