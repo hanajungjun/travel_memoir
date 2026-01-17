@@ -13,8 +13,19 @@ class AppColors {
   // ✍️ Text
   // =========================
   static const textPrimary = Color(0xFF000000); // 메인 텍스트
-  static const textSecondary = Color(0xFF8A8A8A); // 설명 / 보조
+  static const textSecondary = Color(0xFF8C8C8C); // 설명 / 보조
   static const textDisabled = Color(0xFFBDBDBD);
+
+  static const textColor01 = Color(0xFF222222); // 폰트색상
+  static const textColor02 = Color(0xFFFFFFFF); // 폰트색상
+
+  // =========================
+  // 🌈 login
+  // =========================
+  static const inputBg = Color(0xFFEEEEEE); // 입력창 배경색
+  static const inputText = Color(0xFF222222); // 입력창 글자색
+  static const buttonBg = Color(0xffffffff); // 버튼 배경색
+  static const buttonBorder = Color(0xffD7D7D7); // 버튼 배경색
 
   // =========================
   // 🌈 Brand / Accent
@@ -50,6 +61,7 @@ class AppColors {
   static const kakaoYellow = Color(0xFFFEE500);
   static const appleBlack = Color(0xFF000000);
   static const googleBorder = Color(0xFFE0E0E0);
+
   // =========================
   // 🌤 Light UI (피그마 기준)
   // =========================
@@ -69,12 +81,12 @@ class AppColors {
   // =========================
   // 🧳 Home 상태 카드
   // =========================
-  static const travelActiveBlue = Color(0xFF19C6D8); // 여행 중 (피그마 파랑)
-  static const travelInactiveGray = Color(0xFF8E8E8E); // 여행 준비 중
+  static const travelActiveBlue = Color(0xFF289AEB); // 여행 중 (피그마 파랑)
+  static const travelInactiveGray = Color(0xFFA8A8A8); // 여행 준비 중
 
   // 홈 여행 상태
-  static const travelingBlue = Color(0xFF1ECADF); // 피그마 파랑
-  static const travelReadyGray = Color(0xFF8E8E8E); // 피그마 회색
+  static const travelingBlue = Color(0xFF289AEB); // 피그마 파랑
+  static const travelReadyGray = Color(0xFFA8A8A8); // 피그마 회색
 
   // =========================
   // 🗺 Map / Tab

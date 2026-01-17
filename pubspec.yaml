@@ -62,6 +62,9 @@ dependencies:
   connectivity_plus: ^7.0.0
   flutter_app_badge_control: ^0.0.2
   
+  # 폰트
+  google_fonts: ^6.1.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -81,6 +84,7 @@ flutter:
     - assets/geo/raw/
     - assets/translations/
     - assets/lottie/
+    - assets/icons/
      
 flutter_launcher_icons:
   android: true

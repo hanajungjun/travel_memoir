@@ -174,6 +174,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           Positioned.fill(
@@ -186,74 +187,95 @@ class _LoginPageState extends State<LoginPage> {
           ),
           SafeArea(
             child: SingleChildScrollView(
-              // ✅ 키보드 노출 시 오버플로우 방지
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight:
+                      MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom,
+                ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 80),
-                    Text(
-                      'landing_title'.tr(),
-                      style: AppTextStyles.landingTitle,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'landing_subtitle'.tr(),
-                      style: AppTextStyles.landingSubtitle,
-                    ),
-                    const SizedBox(height: 40),
-
-                    // ✅ [추가] 이메일/비밀번호 입력 필드
-                    _buildIdPwFields(),
-                    const SizedBox(height: 16),
-
-                    // ✅ [추가] 일반 로그인 버튼
-                    _socialButton(
-                      icon: Icons.login,
-                      color: AppColors.travelingBlue,
-                      text: 'login_sign_in'.tr(), // "로그인"
-                      onTap: _isLoading ? () {} : _loginWithPassword,
-                      textColor: Colors.white,
-                    ),
-
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Text(
-                        "────────  OR  ────────",
-                        style: TextStyle(color: Colors.white54, fontSize: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 43),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 120),
+                          Text(
+                            'landing_title'.tr(),
+                            style: AppTextStyles.landingTitle,
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'landing_subtitle'.tr(),
+                            style: AppTextStyles.landingSubtitle,
+                          ),
+                        ],
                       ),
                     ),
 
-                    // ✅ 기존 소셜 버튼들
-                    _socialButton(
-                      icon: Icons.chat_bubble,
-                      color: const Color(0xFFFEE500),
-                      text: 'login_kakao'.tr(),
-                      onTap: _loginWithKakao,
+                    const SizedBox(height: 27),
+
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 30),
+                      child: Column(
+                        children: [
+                          _buildIdPwFields(),
+                          const SizedBox(height: 10),
+
+                          _socialButton(
+                            color: AppColors.travelingBlue,
+                            text: 'login_sign_in'.tr(),
+                            onTap: _isLoading ? () {} : _loginWithPassword,
+                            textColor: AppColors.textColor02,
+                          ),
+
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            child: Text(
+                              "────────  OR  ────────",
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+
+                          // ✅ 기존 소셜 버튼들
+                          _socialButton(
+                            iconAsset: 'assets/icons/kakao.png',
+                            color: AppColors.buttonBg,
+                            text: 'login_kakao'.tr(),
+                            onTap: _loginWithKakao,
+                          ),
+                          const SizedBox(height: 10),
+                          _socialButton(
+                            iconAsset: 'assets/icons/google.png',
+                            color: AppColors.buttonBg,
+                            text: 'login_google'.tr(),
+                            onTap: _loginWithGoogle,
+                          ),
+                          const SizedBox(height: 10),
+                          _socialButton(
+                            iconAsset: 'assets/icons/apple.png',
+                            text: 'login_apple'.tr(),
+                            onTap: _loginWithApple,
+                            color: AppColors.buttonBg,
+                          ),
+                          const SizedBox(height: 10),
+                          _socialButton(
+                            iconAsset: 'assets/icons/mail.png',
+                            color: AppColors.buttonBg,
+                            text: 'login_email'.tr(),
+                            onTap: _loginWithEmail,
+                          ),
+                          const SizedBox(height: 48),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _socialButton(
-                      icon: Icons.g_mobiledata,
-                      color: Colors.white,
-                      text: 'login_google'.tr(),
-                      onTap: _loginWithGoogle,
-                    ),
-                    const SizedBox(height: 12),
-                    _socialButton(
-                      icon: Icons.apple,
-                      color: Colors.black,
-                      text: 'login_apple'.tr(),
-                      onTap: _loginWithApple,
-                      textColor: Colors.white,
-                    ),
-                    const SizedBox(height: 12),
-                    _socialButton(
-                      icon: Icons.email_outlined,
-                      color: Colors.white,
-                      text: 'login_email'.tr(),
-                      onTap: _loginWithEmail,
-                    ),
-                    const SizedBox(height: 48),
                   ],
                 ),
               ),
@@ -271,16 +293,16 @@ class _LoginPageState extends State<LoginPage> {
       children: [
         TextField(
           controller: _emailController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: AppColors.inputText),
           keyboardType: TextInputType.emailAddress,
-          decoration: _inputDeco('Email (ID)'),
+          decoration: _inputDeco('아이디를 입력하세요'),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         TextField(
           controller: _passwordController,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: AppColors.inputText),
           obscureText: true,
-          decoration: _inputDeco('Password'),
+          decoration: _inputDeco('비밀번호를 입력하세요'),
         ),
       ],
     );
@@ -289,23 +311,26 @@ class _LoginPageState extends State<LoginPage> {
   InputDecoration _inputDeco(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white60, fontSize: 14),
+      hintStyle: TextStyle(
+        color: AppColors.inputText.withOpacity(0.2),
+        fontSize: 14,
+      ),
       filled: true,
-      fillColor: Colors.black.withOpacity(0.3),
+      fillColor: AppColors.inputBg,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,
       ),
     );
   }
 
   Widget _socialButton({
-    required IconData icon,
+    String? iconAsset,
     required Color color,
     required String text,
     required VoidCallback onTap,
-    Color textColor = Colors.black,
+    Color textColor = AppColors.textColor01,
   }) {
     return SizedBox(
       width: double.infinity,
@@ -317,19 +342,29 @@ class _LoginPageState extends State<LoginPage> {
           foregroundColor: textColor,
           elevation: 0,
           side: color == Colors.white
-              ? const BorderSide(color: Color(0xFFEEEEEE))
+              ? const BorderSide(color: AppColors.buttonBorder)
               : null,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            Icon(icon, size: 24),
-            const SizedBox(width: 10),
+            // ✅ 아이콘 이미지 (iconAsset 기준으로 렌더링)
+            if (iconAsset != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Image.asset(
+                  iconAsset,
+                  width: 20,
+                  height: 20,
+                  fit: BoxFit.contain,
+                ),
+              ),
+
+            // ✅ 텍스트는 항상 가운데
             Text(
               text,
+              textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ],
