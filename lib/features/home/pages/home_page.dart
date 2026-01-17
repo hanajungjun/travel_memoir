@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart';
-
+import 'package:flutter_app_badger/flutter_app_badger.dart'; // ✅ 배지 제거를 위해 추가
 import 'package:travel_memoir/app/route_observer.dart';
+
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
 
@@ -32,11 +32,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
   @override
   void initState() {
     super.initState();
-
-    // 🔔 앱 진입 시 알림 뱃지 초기화
-    FlutterAppBadger.removeBadge();
-
-    // ⏱️ 1초 뒤 데일리 보상 체크
+    // 1초 뒤 안전하게 보상 체크 실행
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(const Duration(milliseconds: 1000));
       _checkDailyReward();
@@ -47,9 +43,15 @@ class _HomePageState extends State<HomePage> with RouteAware {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    debugPrint("🚀 [HomePage] daily reward check start");
+    // ✅ 앱 실행 시 배지 숫자 '1'을 지웁니다.
+    bool isSupported = await FlutterAppBadger.isAppBadgeSupported();
+    if (isSupported) {
+      FlutterAppBadger.removeBadge();
+    }
+
+    print("🚀 [HomePage] 보상 체크 프로세스 시작...");
     bool isGranted = await _stampService.checkAndGrantDailyReward(user.id);
-    debugPrint("🚀 [HomePage] reward granted: $isGranted");
+    print("🚀 [HomePage] 지급 여부: $isGranted");
 
     if (isGranted && mounted) {
       _showRewardPopup();
@@ -62,18 +64,21 @@ class _HomePageState extends State<HomePage> with RouteAware {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Center(
+        title: const Center(
           child: Text(
-            "daily_reward_title".tr(),
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            "🎁 오늘의 선물",
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
-        content: Column(
+        content: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.stars, size: 60, color: Colors.orangeAccent),
-            const SizedBox(height: 20),
-            Text("ad_reward_msg".tr(), textAlign: TextAlign.center),
+            Icon(Icons.stars, size: 60, color: Colors.orangeAccent),
+            SizedBox(height: 20),
+            Text(
+              "새로운 날이 밝았습니다!\n데일리 코인 5개가 추가되었습니다.",
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         actions: [
@@ -84,12 +89,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
                 Navigator.pop(context);
                 _triggerRefresh();
               },
-              child: Text(
-                "back_to_main".tr(),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: const Text(
+                "닫기",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -200,7 +202,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
                                 final String? travelId = travels.isNotEmpty
                                     ? travels.first['id']
                                     : null;
-
                                 return AnimatedSwitcher(
                                   duration: const Duration(milliseconds: 250),
                                   child:

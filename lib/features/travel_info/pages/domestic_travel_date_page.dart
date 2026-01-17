@@ -72,6 +72,15 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
+    // 🔍 [로그 추가] 서비스 호출 직전에 데이터 확인
+    print("--------------------------------------------------");
+    print("📍 [DEBUG] 여행 생성 버튼 클릭됨");
+    print("📍 [DEBUG] 선택된 지역 Name: ${_region?.name}");
+    print(
+      "📍 [DEBUG] 선택된 지역 ID: ${_region?.id}",
+    ); // 👈 여기가 'KR_GB_POHANG'인지 'POHANG'인지 확인!
+    print("--------------------------------------------------");
+
     // TravelCreateService 내부에서 이제 region_key(YEOJU 등)를
     // 자동으로 추출해서 DB와 Storage 경로를 만듭니다.
     final travel = await TravelCreateService.createDomesticTravel(
@@ -80,7 +89,9 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
       startDate: _startDate!,
       endDate: _endDate!,
     );
-
+    // 🔍 [로그 추가] 서비스 다녀온 후 결과 확인
+    print("✅ [DEBUG] 저장 성공 - DB에서 받은 region_key: ${travel['region_key']}");
+    print("--------------------------------------------------");
     if (!mounted) return;
 
     // 메인으로 돌아갔다가 일기 목록으로 이동

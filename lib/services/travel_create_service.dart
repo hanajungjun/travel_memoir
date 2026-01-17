@@ -23,7 +23,10 @@ class TravelCreateService {
     required DateTime endDate,
   }) async {
     // 1️⃣ region_key 추출 (예: KR_GG_YEOJU -> YEOJU)
-    final String regionKey = region.id.split('_').last;
+    //final String regionKey = region.id.split('_').last;
+    final String regionKey = region.id; // ✅ 이제 KR_GB_POHANG 전체가 들어감
+
+    debugPrint("🚀뭐지 포항뭐야 [regionKey]: $regionKey");
 
     // 2️⃣ 통합된 map_images 버킷 경로 생성
     final String mapImageUrl = '$_storageBaseUrl/$regionKey.png';

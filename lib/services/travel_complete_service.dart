@@ -137,7 +137,6 @@ class TravelCompleteService {
 
       Map<String, dynamic> finalUpdate = {'cover_image_url': coverUrl};
 
-      // 🎯 [해외/국내 분기] 해외는 기존 map_image_url(미니어처)을 절대 건드리지 않음
       if (travelType == 'domestic' && regionId != null) {
         final String regionKey = regionId.split('_').last;
         finalUpdate['map_image_url'] = _supabase.storage
