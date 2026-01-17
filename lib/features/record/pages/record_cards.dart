@@ -5,7 +5,7 @@ import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/features/travel_album/pages/travel_album_page.dart';
 
-// 🧭 상단 요약 히어로 카드
+// 🧭 상단 요약 히어로 카드 (기존 유지)
 class SummaryHeroCard extends StatelessWidget {
   final int totalCount;
   final Map<String, dynamic> lastTravel;
@@ -71,6 +71,17 @@ class TravelRecordCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isKo = context.locale.languageCode == 'ko';
+
+    final String destination = travel['travel_type'] == 'domestic'
+        ? (isKo
+              ? (travel['region_name'] ?? '')
+              : (travel['region_id']?.toString().split('_').last ??
+                    '')) // 👈 region_name_en 대신 이거!
+        : (isKo
+              ? (travel['country_name_ko'] ?? '')
+              : (travel['country_name_en'] ?? ''));
+
     final coverUrl = travel['cover_image_url'] as String?;
     final summary = (travel['ai_cover_summary'] ?? '').toString().trim();
     final hasCover = coverUrl != null;
@@ -102,6 +113,30 @@ class TravelRecordCard extends StatelessWidget {
                         )
                       : Container(color: AppColors.divider),
                 ),
+
+                // ✅ 여행지 이름 (상단)
+                Positioned(
+                  top: 24,
+                  left: 20,
+                  right: 20,
+                  child: Text(
+                    destination,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900, // 에러 없는 가장 두꺼운 두께
+                      letterSpacing: -1.0,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black87,
+                          offset: Offset(0, 2),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
                 if (hasCover && !hasSummary)
                   BottomLabel(text: 'ai_organizing'.tr()),
                 if (hasSummary) BottomLabel(text: summary, gradient: true),
@@ -114,7 +149,7 @@ class TravelRecordCard extends StatelessWidget {
   }
 }
 
-// 🏷️ 하단 텍스트 라벨 (공통)
+// 🏷️ 하단 텍스트 라벨 (공통 - 기존 유지)
 class BottomLabel extends StatelessWidget {
   final String text;
   final bool gradient;

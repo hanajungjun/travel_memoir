@@ -154,36 +154,38 @@ class _OfflineFullScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black.withAlpha(204), // 반투명 검정 (0.8 opacity)
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.wifi_off_rounded, size: 100, color: Colors.white),
-            SizedBox(height: 20),
-            DefaultTextStyle(
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                decoration: TextDecoration.none,
+    // ✅ ui.TextDirection.ltr 로 수정해서 충돌을 해결했습니다.
+    return Directionality(
+      textDirection: ui.TextDirection.ltr,
+      child: Material(
+        color: Colors.black.withAlpha(204), // 반투명 검정
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Icon(Icons.wifi_off_rounded, size: 100, color: Colors.white),
+              SizedBox(height: 20),
+              Text(
+                '인터넷 연결이 필요합니다.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.none,
+                ),
               ),
-              child: Text('인터넷 연결이 필요합니다.'),
-            ),
-            SizedBox(height: 10),
-            DefaultTextStyle(
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-                decoration: TextDecoration.none,
-              ),
-              child: Text(
+              SizedBox(height: 10),
+              Text(
                 'Wi-Fi 또는 셀룰러 데이터를 확인해주세요.\n연결되면 자동으로 화면이 돌아옵니다.',
                 textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  decoration: TextDecoration.none,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_app_badger/flutter_app_badger.dart'; // ✅ 배지 제거를 위해 추가
+import 'package:flutter_app_badge_control/flutter_app_badge_control.dart';
 import 'package:travel_memoir/app/route_observer.dart';
 
 import 'package:travel_memoir/services/travel_list_service.dart';
@@ -43,10 +43,12 @@ class _HomePageState extends State<HomePage> with RouteAware {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    // ✅ 앱 실행 시 배지 숫자 '1'을 지웁니다.
-    bool isSupported = await FlutterAppBadger.isAppBadgeSupported();
-    if (isSupported) {
-      FlutterAppBadger.removeBadge();
+    // ✅ [추가] 앱 실행 시 지긋지긋한 숫자 '1' 뱃지를 지웁니다.
+    try {
+      await FlutterAppBadgeControl.removeBadge();
+      debugPrint("✅ [Badge] 알림 뱃지 제거 성공");
+    } catch (e) {
+      debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
     }
 
     print("🚀 [HomePage] 보상 체크 프로세스 시작...");
