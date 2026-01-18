@@ -127,7 +127,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.lightBackground,
+      backgroundColor: AppColors.background,
       body: Column(
         children: [
           HomeTravelStatusHeader(onGoToTravel: widget.onGoToTravel),
@@ -171,8 +171,8 @@ class _HomePageState extends State<HomePage> with RouteAware {
                   slivers: [
                     SliverToBoxAdapter(
                       child: Container(
-                        color: AppColors.lightBackground,
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                        color: AppColors.background,
+                        padding: EdgeInsets.fromLTRB(27, 25, 27, 0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -214,15 +214,19 @@ class _HomePageState extends State<HomePage> with RouteAware {
                                         )
                                       : Container(
                                           key: const ValueKey('map-content'),
-                                          padding: const EdgeInsets.all(12),
+                                          padding: const EdgeInsets.all(13),
                                           decoration: BoxDecoration(
                                             color: AppColors.lightSurface,
                                             borderRadius: BorderRadius.circular(
-                                              16,
+                                              10,
                                             ),
                                           ),
                                           child: SizedBox(
-                                            height: 380,
+                                            height:
+                                                MediaQuery.of(
+                                                  context,
+                                                ).size.height *
+                                                0.45,
                                             child: TravelMapPager(
                                               travelId: travelId ?? 'preview',
                                             ),
@@ -231,7 +235,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                                 );
                               },
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 0),
                           ],
                         ),
                       ),

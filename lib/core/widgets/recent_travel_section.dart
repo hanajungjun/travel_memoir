@@ -29,35 +29,37 @@ class RecentTravelSection extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('recent_travels'.tr(), style: AppTextStyles.sectionTitle),
+                Padding(
+                  padding: const EdgeInsets.only(left: 5),
+                  child: Text(
+                    'recent_travels'.tr(),
+                    style: AppTextStyles.sectionTitle,
+                  ),
+                ),
+
                 if (showSeeAll)
                   GestureDetector(
                     onTap: onSeeAll,
                     child: Text(
                       'see_all'.tr(),
-                      style: AppTextStyles.body.copyWith(color: Colors.grey),
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textColor04,
+                      ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
             Row(
               children: [
-                ...displayTravels.map(
-                  (travel) => Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: _RecentTravelCard(travel: travel),
-                    ),
+                for (int i = 0; i < _maxCards; i++) ...[
+                  Expanded(
+                    child: i < displayTravels.length
+                        ? _RecentTravelCard(travel: displayTravels[i])
+                        : const _EmptyTravelCard(),
                   ),
-                ),
-                for (int i = 0; i < emptyCount; i++)
-                  const Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: 12),
-                      child: _EmptyTravelCard(),
-                    ),
-                  ),
+                  if (i != _maxCards - 1) const SizedBox(width: 12),
+                ],
               ],
             ),
           ],
@@ -114,7 +116,7 @@ class _RecentTravelCard extends StatelessWidget {
       child: Column(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(10),
             child: AspectRatio(
               aspectRatio: 1,
               child: imageUrl != null
@@ -127,7 +129,7 @@ class _RecentTravelCard extends StatelessWidget {
                   : Container(color: AppColors.divider),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 7),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -178,26 +180,24 @@ class _EmptyTravelCard extends StatelessWidget {
     return Column(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(10),
           child: AspectRatio(
             aspectRatio: 1,
             child: Container(
               color: AppColors.lightSurface,
-              child: const Center(
-                child: Icon(
-                  Icons.add_location_alt,
-                  size: 30,
-                  color: Colors.grey,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/no_trip.png',
+                  width: 90,
+                  height: 90,
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Text(
-          'add_travel'.tr(),
-          style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
-        ),
+        const SizedBox(height: 7),
+        Text('add_travel'.tr(), style: AppTextStyles.listTitle),
       ],
     );
   }

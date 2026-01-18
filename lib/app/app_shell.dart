@@ -69,38 +69,42 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: pages),
-      bottomNavigationBar: BottomNavigationBar(
-        // ✅ 2. [핵심] ValueKey 추가 - 언어(locale)가 바뀔 때마다 탭바를 새로 그림
-        key: ValueKey(context.locale.toString()),
-        currentIndex: _currentIndex,
-        onTap: _onTabSelected,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.textColor01,
-        unselectedItemColor: AppColors.textColor01,
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        items: [
-          _buildMenuItem(
-            iconAsset: 'assets/icons/nav_home.png',
-            label: 'nav_home'.tr(),
-            index: 0,
-          ),
-          _buildMenuItem(
-            iconAsset: 'assets/icons/nav_travel.png',
-            label: 'nav_travel'.tr(),
-            index: 1,
-          ),
-          _buildMenuItem(
-            iconAsset: 'assets/icons/nav_record.png',
-            label: 'nav_record'.tr(),
-            index: 2,
-          ),
-          _buildMenuItem(
-            iconAsset: 'assets/icons/nav_my.png',
-            label: 'nav_my'.tr(),
-            index: 3,
-          ),
-        ],
+      bottomNavigationBar: SizedBox(
+        height: 80, // 🔥 여기서 높이 조절
+        child: BottomNavigationBar(
+          backgroundColor: AppColors.background, // 배경
+          // ✅ 2. [핵심] ValueKey 추가 - 언어(locale)가 바뀔 때마다 탭바를 새로 그림
+          key: ValueKey(context.locale.toString()),
+          currentIndex: _currentIndex,
+          onTap: _onTabSelected,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: AppColors.textColor01,
+          unselectedItemColor: AppColors.textColor01,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          items: [
+            _buildMenuItem(
+              iconAsset: 'assets/icons/nav_home.png',
+              label: 'nav_home'.tr(),
+              index: 0,
+            ),
+            _buildMenuItem(
+              iconAsset: 'assets/icons/nav_travel.png',
+              label: 'nav_travel'.tr(),
+              index: 1,
+            ),
+            _buildMenuItem(
+              iconAsset: 'assets/icons/nav_record.png',
+              label: 'nav_record'.tr(),
+              index: 2,
+            ),
+            _buildMenuItem(
+              iconAsset: 'assets/icons/nav_my.png',
+              label: 'nav_my'.tr(),
+              index: 3,
+            ),
+          ],
+        ),
       ),
     );
   }

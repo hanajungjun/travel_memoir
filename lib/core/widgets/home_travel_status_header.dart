@@ -91,7 +91,7 @@ class _HeaderContent extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(33, 20, 24, 30),
+      padding: const EdgeInsets.fromLTRB(33, 25, 24, 30),
       color: bgColor,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,9 +100,9 @@ class _HeaderContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.sectionTitle.copyWith()),
+                Text(title, style: AppTextStyles.travelTitle.copyWith()),
                 const SizedBox(height: 1),
-                Text(subtitle, style: AppTextStyles.sectionText.copyWith()),
+                Text(subtitle, style: AppTextStyles.travelText.copyWith()),
               ],
             ),
           ),
@@ -121,17 +121,19 @@ class _HeaderContent extends StatelessWidget {
               );
             },
             child: Container(
-              width: 36,
-              height: 36,
+              width: 50,
+              height: 50,
               alignment: Alignment.center,
-              color: isTraveling
-                  ? AppColors.onPrimary.withOpacity(0.2)
-                  : AppColors.divider,
-              child: Icon(
-                Icons.add,
-                color: isTraveling
-                    ? AppColors.onPrimary
-                    : AppColors.textPrimary,
+              decoration: BoxDecoration(
+                color: AppColors.onPrimary.withOpacity(0.15), // ✅ 배경색 하나만
+                borderRadius: BorderRadius.circular(6), // ✅ 라운딩
+              ),
+              child: Image.asset(
+                'assets/icons/ico_add.png', // ✅ 아이콘 이미지 하나만 사용
+                width: 20,
+                height: 20,
+                fit: BoxFit.contain,
+                color: AppColors.onPrimary, // 필요 없으면 지워도 됨
               ),
             ),
           ),

@@ -37,13 +37,20 @@ class AppTextStyles {
   );
 
   static const TextStyle sectionTitle = TextStyle(
-    fontSize: 19,
+    fontSize: 17,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textColor01,
+    letterSpacing: -0.3,
+  );
+
+  static const TextStyle travelTitle = TextStyle(
+    fontSize: 20,
     fontWeight: FontWeight.w800,
     color: AppColors.textColor02,
     letterSpacing: -0.3,
   );
 
-  static const TextStyle sectionText = TextStyle(
+  static const TextStyle travelText = TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w100,
     color: AppColors.textColor02,
@@ -92,7 +99,7 @@ class AppTextStyles {
   // 🏷 Small / Meta
   // =====================================================
   static const TextStyle caption = TextStyle(
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: FontWeight.w400,
     color: AppColors.textSecondary,
   );
@@ -102,9 +109,19 @@ class AppTextStyles {
   // =========================
   static const statusTitle = TextStyle(
     fontSize: 20,
-    fontWeight: FontWeight.bold,
+    fontWeight: FontWeight.w800,
     color: Colors.white,
   );
 
-  static const statusSubtitle = TextStyle(fontSize: 14, color: Colors.white70);
+  static const statusSubtitle = TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.w100,
+    color: Colors.white70,
+  );
+
+  static const TextStyle listTitle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w300,
+    color: AppColors.textColor03,
+  );
 }

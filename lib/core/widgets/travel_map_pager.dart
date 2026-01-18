@@ -55,10 +55,10 @@ class _TravelMapPagerState extends State<TravelMapPager> {
       children: [
         // ===== 탭 (해외 왼쪽 배치) =====
         Container(
-          padding: const EdgeInsets.all(6),
+          padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
-            color: AppColors.tabBackground,
-            borderRadius: BorderRadius.circular(28),
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(40),
           ),
           child: Row(
             children: [
@@ -144,7 +144,7 @@ class _Tab extends StatelessWidget {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             // 선택됐을 때 색상을 AppColors.primary로 적용
             color: selected ? AppColors.primary : Colors.transparent,
@@ -154,8 +154,8 @@ class _Tab extends StatelessWidget {
             child: Text(
               label,
               style: AppTextStyles.button.copyWith(
-                color: selected ? AppColors.onPrimary : AppColors.textSecondary,
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: selected ? AppColors.onPrimary : AppColors.textColor05,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
               ),
             ),
           ),

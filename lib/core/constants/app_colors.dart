@@ -18,6 +18,9 @@ class AppColors {
 
   static const textColor01 = Color(0xFF222222); // 폰트색상
   static const textColor02 = Color(0xFFFFFFFF); // 폰트색상
+  static const textColor03 = Color(0xFF666666); // 폰트색상
+  static const textColor04 = Color(0xFFCBCBCB); // 폰트색상
+  static const textColor05 = Color(0xFF424242); // 폰트색상
 
   // =========================
   // 🌈 login
