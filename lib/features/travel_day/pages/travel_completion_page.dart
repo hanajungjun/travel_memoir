@@ -7,11 +7,12 @@ import 'package:easy_localization/easy_localization.dart';
 class TravelCompletionPage extends StatefulWidget {
   final Future<void> processingTask;
   final RewardedAd? rewardedAd;
-
+  final bool usedPaidStamp;
   const TravelCompletionPage({
     super.key,
     required this.processingTask,
     this.rewardedAd,
+    required this.usedPaidStamp,
   });
 
   @override
@@ -30,8 +31,10 @@ class _TravelCompletionPageState extends State<TravelCompletionPage> {
       final Future<void> backgroundTask = widget.processingTask;
       await Future.delayed(const Duration(milliseconds: 100));
 
-      if (widget.rewardedAd != null) {
+      // ✅ 바로 여기
+      if (!widget.usedPaidStamp && widget.rewardedAd != null) {
         final adCompleter = Completer<void>();
+
         widget.rewardedAd!.fullScreenContentCallback =
             FullScreenContentCallback(
               onAdDismissedFullScreenContent: (ad) {
@@ -44,24 +47,18 @@ class _TravelCompletionPageState extends State<TravelCompletionPage> {
               },
             );
 
-        debugPrint("📺 [AD-COMPLETE] 여행 완료 광고 노출 시작");
-        await widget.rewardedAd!.show(
-          onUserEarnedReward: (ad, reward) => debugPrint("🎁 보상 확인"),
-        );
+        await widget.rewardedAd!.show(onUserEarnedReward: (_, __) {});
+
         await adCompleter.future;
       }
+
       await backgroundTask;
-    } catch (e) {
-      debugPrint("❌ 작업 중 오류: $e");
     } finally {
-      // 모든 작업이 끝나도 화면이 메인으로 이동
       if (mounted) {
         Navigator.of(
           context,
-        ).pushNamedAndRemoveUntil('/travel_info', (route) => false);
+        ).pushNamedAndRemoveUntil('/travel_info', (_) => false);
       }
-
-      debugPrint("🔔 [TEST] 모든 작업 완료! 주석 처리로 인해 메인 이동은 하지 않습니다.");
     }
   }
 

@@ -76,6 +76,10 @@ class _TravelDayPageState extends State<TravelDayPage>
   late AnimationController _cardController;
   late Animation<Offset> _cardOffset;
 
+  // ✅ 병렬 처리용 플래그
+  bool _isAiDone = false;
+  bool _isAdDone = false;
+
   String get _userId => Supabase.instance.client.auth.currentUser!.id
       .replaceAll(RegExp(r'[\s\n\r\t]+'), '');
   String get _cleanTravelId =>
@@ -129,32 +133,23 @@ class _TravelDayPageState extends State<TravelDayPage>
     setState(() => _travelType = tripData['travel_type'] ?? 'domestic');
   }
 
-  // ✅ [수정] diaryId 기반으로 사진을 불러오도록 로직 변경
   Future<void> _loadDiary() async {
     final diary = await TravelDayService.getDiaryByDate(
       travelId: _cleanTravelId,
       date: widget.date,
     );
-
     if (!mounted || diary == null) return;
-
     final String diaryId = diary['id'].toString().replaceAll(
       RegExp(r'[\s\n\r\t]+'),
       '',
     );
-
-    setState(() {
-      _contentController.text = diary['text'] ?? '';
-    });
-
-    // 📸 diaryId 폴더 내의 moments 사진들 불러오기
+    setState(() => _contentController.text = diary['text'] ?? '');
     try {
       final String momentsPath =
           'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments';
       final List<FileObject> files = await Supabase.instance.client.storage
           .from('travel_images')
           .list(path: momentsPath);
-
       if (files.isNotEmpty) {
         final List<String> urls = files
             .where((f) => !f.name.startsWith('.'))
@@ -164,31 +159,19 @@ class _TravelDayPageState extends State<TravelDayPage>
                   .getPublicUrl('$momentsPath/${f.name}'),
             )
             .toList();
-
-        setState(() {
-          _remotePhotoUrls = urls;
-        });
+        setState(() => _remotePhotoUrls = urls);
       }
     } catch (e) {
-      debugPrint('📸 사진 불러오기 실패: $e');
+      debugPrint('📸 사진 로드 실패: $e');
     }
-
-    final bool hasAiSummary = (diary['ai_summary'] ?? '')
-        .toString()
-        .trim()
-        .isNotEmpty;
-
-    if (hasAiSummary) {
-      // AI 이미지 경로도 diaryId 기반으로 생성
+    if ((diary['ai_summary'] ?? '').toString().trim().isNotEmpty) {
       final String aiPath =
           'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
-      final String aiUrl = Supabase.instance.client.storage
-          .from('travel_images')
-          .getPublicUrl(aiPath);
-
-      setState(() {
-        _imageUrl = aiUrl;
-      });
+      setState(
+        () => _imageUrl = Supabase.instance.client.storage
+            .from('travel_images')
+            .getPublicUrl(aiPath),
+      );
       if (_imageUrl != null) _cardController.forward();
     }
   }
@@ -196,14 +179,13 @@ class _TravelDayPageState extends State<TravelDayPage>
   Future<void> _pickImages() async {
     final int currentTotal = _localPhotos.length + _remotePhotoUrls.length;
     if (currentTotal >= 3) return;
-
     final List<XFile> pickedFiles = await _picker.pickMultiImage();
     if (pickedFiles.isNotEmpty) {
-      setState(() {
-        _localPhotos.addAll(
+      setState(
+        () => _localPhotos.addAll(
           pickedFiles.take(3 - currentTotal).map((file) => File(file.path)),
-        );
-      });
+        ),
+      );
     }
   }
 
@@ -224,12 +206,239 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
+  // 🚀 병렬 실행 핸들러
+  Future<void> _handleGenerateWithStamp() async {
+    FocusScope.of(context).unfocus();
+    if (_selectedStyle == null || _contentController.text.trim().isEmpty)
+      return;
+
+    if (!_usePaidStampMode && _dailyStamps <= 0 && _paidStamps > 0)
+      setState(() => _usePaidStampMode = true);
+    else if (_usePaidStampMode && _paidStamps <= 0 && _dailyStamps > 0)
+      setState(() => _usePaidStampMode = false);
+
+    int currentCoins = _usePaidStampMode ? _paidStamps : _dailyStamps;
+    if (currentCoins <= 0) {
+      _showCoinEmptyDialog();
+      return;
+    }
+
+    _isAiDone = false;
+    _isAdDone = false;
+
+    // 🔴 [병렬 1] AI 생성 즉시 시작
+    _startAiGeneration()
+        .then((_) {
+          _isAiDone = true;
+          _checkSync();
+        })
+        .catchError((e) {
+          debugPrint("❌ AI 태스크 실패: $e");
+          if (mounted) setState(() => _loading = false);
+        });
+
+    // 🔴 [병렬 2] 광고 즉시 송출
+    if (!_usePaidStampMode && _isAdLoaded && _rewardedAd != null) {
+      _rewardedAd!.show(
+        onUserEarnedReward: (ad, reward) {
+          _isAdDone = true;
+          _checkSync();
+        },
+      );
+    } else {
+      _isAdDone = true;
+      _checkSync();
+    }
+  }
+
+  void _checkSync() {
+    if (_isAiDone && _isAdDone) {
+      if (mounted) {
+        setState(() => _loading = false);
+        _cardController.forward();
+      }
+    } else if (_isAdDone && !_isAiDone) {
+      // 광고는 끝났는데 AI가 아직 안 끝났을 때만 메시지 변경
+      if (mounted)
+        setState(() => _loadingMessage = "ai_finishing_touches".tr());
+    }
+  }
+
+  // ✅ 사진 분석 기반 AI 생성 로직
+  Future<void> _startAiGeneration() async {
+    if (mounted)
+      setState(() {
+        _loading = true;
+        _loadingMessage = _usePaidStampMode
+            ? "ai_drawing_memories".tr()
+            : "ai_drawing_hidden".tr();
+      });
+
+    try {
+      final gemini = GeminiService();
+
+      // 1. 사진 정보를 포함한 요약 생성 (타임아웃 방지 위해 30초 제한 권장)
+      final summary = await gemini.generateSummary(
+        finalPrompt:
+            '''
+          일기와 사진을 분석해서 3D 미니어처 이미지 생성을 위한 시각적 묘사문을 작성해.
+          장소: ${widget.placeName}
+          일기: ${_contentController.text}
+          사진이 있다면 사진 속의 구체적인 특징(배경, 색감, 피사체)을 적극 반영해.
+        ''',
+        photos: _localPhotos,
+      );
+
+      _summaryText = summary;
+
+      // 2. 이미지 생성
+      final image = await gemini.generateImage(
+        finalPrompt:
+            '''
+          Style: ${_selectedStyle!.prompt}
+          Description: $summary
+          Instruction: 사용자가 올린 사진의 분위기가 담긴 3D 미니어처 스타일.
+        ''',
+      );
+
+      if (image == null) throw Exception("Image generation failed");
+
+      // 3. 코인 차감
+      await _stampService.useStamp(_userId, _usePaidStampMode);
+      await _refreshStampCounts();
+
+      _generatedImage = image;
+      _imageUrl = null;
+    } catch (e) {
+      debugPrint("❌ AI 생성 로직 에러: $e");
+      rethrow; // _handleGenerateWithStamp의 catchError에서 처리됨
+    }
+  }
+
+  void _showCoinEmptyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('coin_empty_title'.tr()),
+        content: Text('coin_empty_desc'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AdMissionPage()),
+              );
+            },
+            child: Text(
+              'free_charging_station'.tr(),
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              bool? purchased = await showModalBottomSheet<bool>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => const CoinPaywallBottomSheet(),
+              );
+              if (purchased == true) await _refreshStampCounts();
+            },
+            child: Text('go_to_shop_btn'.tr()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveDiary() async {
+    if (_generatedImage == null &&
+        _imageUrl == null &&
+        _contentController.text.trim().isEmpty)
+      return;
+    setState(() {
+      _loading = true;
+      _loadingMessage = "saving_diary".tr();
+    });
+    try {
+      final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
+        startDate: widget.startDate,
+        currentDate: widget.date,
+      );
+      final diaryData = await TravelDayService.upsertDiary(
+        travelId: _cleanTravelId,
+        dayIndex: currentDayIndex,
+        date: widget.date,
+        text: _contentController.text.trim(),
+        aiSummary: _summaryText,
+        aiStyle: _selectedStyle?.id ?? 'default',
+      );
+      final String diaryId = diaryData['id'].toString().replaceAll(
+        RegExp(r'[\s\n\r\t]+'),
+        '',
+      );
+
+      if (_localPhotos.isNotEmpty) {
+        for (int i = 0; i < _localPhotos.length; i++) {
+          final String fileName =
+              'moment_${DateTime.now().millisecondsSinceEpoch}_$i.png';
+          final String fullPath =
+              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/$fileName';
+          await Supabase.instance.client.storage
+              .from('travel_images')
+              .upload(fullPath, _localPhotos[i]);
+        }
+      }
+      if (_generatedImage != null) {
+        final String aiPath =
+            'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
+        await ImageUploadService.uploadAiImage(
+          path: aiPath,
+          imageBytes: _generatedImage!,
+        );
+      }
+      final writtenDays = await TravelDayService.getWrittenDayCount(
+        travelId: _cleanTravelId,
+      );
+      final totalDays = widget.endDate.difference(widget.startDate).inDays + 1;
+
+      if (mounted) {
+        setState(() => _loading = false);
+        if (writtenDays >= totalDays) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => TravelCompletionPage(
+                rewardedAd: _rewardedAd,
+                usedPaidStamp: _usePaidStampMode,
+                processingTask: TravelCompleteService.tryCompleteTravel(
+                  travelId: _cleanTravelId,
+                  startDate: widget.startDate,
+                  endDate: widget.endDate,
+                ),
+              ),
+            ),
+          );
+        } else {
+          Navigator.pop(context, true);
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 저장 실패: $e');
+      setState(() => _loading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeColor = _travelType == 'domestic'
         ? AppColors.travelingBlue
         : const Color(0xFF9B59B6);
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: GestureDetector(
@@ -425,14 +634,12 @@ class _TravelDayPageState extends State<TravelDayPage>
         scrollDirection: Axis.horizontal,
         itemCount: totalCount + 1,
         itemBuilder: (context, index) {
-          if (index == totalCount) {
+          if (index == totalCount)
             return totalCount < 3
                 ? _buildAddPhotoButton()
                 : const SizedBox.shrink();
-          }
-          if (index < _remotePhotoUrls.length) {
+          if (index < _remotePhotoUrls.length)
             return _buildRemotePhotoItem(index);
-          }
           return _buildPhotoItem(index - _remotePhotoUrls.length);
         },
       ),
@@ -614,215 +821,5 @@ class _TravelDayPageState extends State<TravelDayPage>
         ),
       ),
     );
-  }
-
-  Future<void> _handleGenerateWithStamp() async {
-    FocusScope.of(context).unfocus();
-
-    // 스타일 선택 안 했거나 내용 없으면 리턴
-    if (_selectedStyle == null || _contentController.text.trim().isEmpty)
-      return;
-
-    // 1️⃣ [수정 로직] 무료 모드인데 무료 코인이 없고 보관 코인이 있는 경우
-    if (!_usePaidStampMode && _dailyStamps <= 0 && _paidStamps > 0) {
-      setState(() => _usePaidStampMode = true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('무료 코인이 모두 소진되어 보관 중인 코인을 사용합니다.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-    // 2️⃣ 반대의 경우 (보관 모드인데 보관 코인 없고 무료 코인 있을 때)
-    else if (_usePaidStampMode && _paidStamps <= 0 && _dailyStamps > 0) {
-      setState(() => _usePaidStampMode = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('보관 코인이 없어 무료 코인을 사용합니다.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-
-    // 3️⃣ 최종적으로 현재 선택된 모드의 코인 개수 확인
-    int currentCoins = _usePaidStampMode ? _paidStamps : _dailyStamps;
-
-    // 진짜 둘 다 없으면 그제서야 충전 팝업!
-    if (currentCoins <= 0) {
-      _showCoinEmptyDialog();
-      return;
-    }
-
-    // 광고가 필요한 무료 모드라면 광고 송출 후 생성 시작
-    if (!_usePaidStampMode && _isAdLoaded && _rewardedAd != null) {
-      _rewardedAd!.show(
-        onUserEarnedReward: (ad, reward) {
-          // 보상 획득 시 생성 시작 (기존 로직 유지)
-          _startAiGeneration();
-        },
-      );
-    } else {
-      // 보관 코인 사용 시에는 바로 생성 시작
-      _startAiGeneration();
-    }
-  }
-
-  Future<void> _startAiGeneration() async {
-    setState(() {
-      _loading = true;
-      _loadingMessage = _usePaidStampMode
-          ? "ai_drawing_memories".tr()
-          : "ai_drawing_after_ad".tr();
-    });
-    try {
-      final gemini = GeminiService();
-      final summary = await gemini.generateSummary(
-        finalPrompt:
-            '${PromptCache.textPrompt.content}\n장소:${widget.placeName}\n내용:${_contentController.text}',
-        photos: _localPhotos,
-      );
-      final image = await gemini.generateImage(
-        finalPrompt:
-            '${PromptCache.imagePrompt.content}\nStyle:\n${_selectedStyle!.prompt}\nSummary:\n$summary',
-      );
-
-      await _stampService.useStamp(_userId, _usePaidStampMode);
-      await _refreshStampCounts();
-      setState(() {
-        _summaryText = summary;
-        _generatedImage = image;
-        _imageUrl = null;
-        _loading = false;
-      });
-      _cardController.forward();
-    } catch (e) {
-      setState(() => _loading = false);
-    }
-  }
-
-  void _showCoinEmptyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('coin_empty_title'.tr()),
-        content: Text('coin_empty_desc'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AdMissionPage()),
-              );
-            },
-            child: Text(
-              'free_charging_station'.tr(),
-              style: const TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              bool? purchased = await showModalBottomSheet<bool>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => const CoinPaywallBottomSheet(),
-              );
-              if (purchased == true) await _refreshStampCounts();
-            },
-            child: Text('go_to_shop_btn'.tr()),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ✅ [수정] diaryId 기반 저장 로직
-  Future<void> _saveDiary() async {
-    if (_generatedImage == null &&
-        _imageUrl == null &&
-        _contentController.text.trim().isEmpty)
-      return;
-    setState(() {
-      _loading = true;
-      _loadingMessage = "saving_diary".tr();
-    });
-
-    try {
-      final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
-        startDate: widget.startDate,
-        currentDate: widget.date,
-      );
-
-      // 1. DB에 일기를 먼저 저장해서 diaryId를 가져옵니다.
-      final diaryData = await TravelDayService.upsertDiary(
-        travelId: _cleanTravelId,
-        dayIndex: currentDayIndex,
-        date: widget.date,
-        text: _contentController.text.trim(),
-        aiSummary: _summaryText,
-        aiStyle: _selectedStyle?.id ?? 'default',
-      );
-      final String diaryId = diaryData['id'].toString().replaceAll(
-        RegExp(r'[\s\n\r\t]+'),
-        '',
-      );
-
-      // 2. [변경] 고유한 diaryId 폴더 안에 사진 업로드
-      if (_localPhotos.isNotEmpty) {
-        for (int i = 0; i < _localPhotos.length; i++) {
-          final String fileName =
-              'moment_${DateTime.now().millisecondsSinceEpoch}_$i.png';
-          final String fullPath =
-              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/$fileName';
-          await Supabase.instance.client.storage
-              .from('travel_images')
-              .upload(fullPath, _localPhotos[i]);
-        }
-      }
-
-      // 3. [변경] 고유한 diaryId 폴더 안에 AI 이미지 업로드
-      if (_generatedImage != null) {
-        final String aiPath =
-            'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
-        await ImageUploadService.uploadAiImage(
-          path: aiPath,
-          imageBytes: _generatedImage!,
-        );
-      }
-
-      final writtenDays = await TravelDayService.getWrittenDayCount(
-        travelId: _cleanTravelId,
-      );
-      final totalDays = widget.endDate.difference(widget.startDate).inDays + 1;
-
-      if (mounted) {
-        setState(() => _loading = false);
-        if (writtenDays >= totalDays) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TravelCompletionPage(
-                rewardedAd: _rewardedAd,
-                processingTask: TravelCompleteService.tryCompleteTravel(
-                  travelId: _cleanTravelId,
-                  startDate: widget.startDate,
-                  endDate: widget.endDate,
-                ),
-              ),
-            ),
-          );
-        } else {
-          Navigator.pop(context, true);
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ 저장 실패: $e');
-      setState(() => _loading = false);
-    }
   }
 }
