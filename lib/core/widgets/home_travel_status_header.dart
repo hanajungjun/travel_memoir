@@ -21,8 +21,8 @@ class HomeTravelStatusHeader extends StatelessWidget {
         final isDomestic = travel?['travel_type'] == 'domestic';
 
         final bgColor = isTraveling
-            ? (isDomestic ? AppColors.primary : AppColors.decoPurple)
-            : AppColors.lightSurface;
+            ? (isDomestic ? AppColors.travelingBlue : AppColors.travelingPurple)
+            : AppColors.travelReadyGray;
 
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 250),
@@ -91,7 +91,7 @@ class _HeaderContent extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      padding: const EdgeInsets.fromLTRB(33, 20, 24, 30),
       color: bgColor,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,23 +100,9 @@ class _HeaderContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: AppTextStyles.sectionTitle.copyWith(
-                    color: isTraveling
-                        ? AppColors.onPrimary
-                        : AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  style: AppTextStyles.body.copyWith(
-                    color: isTraveling
-                        ? AppColors.onPrimary.withOpacity(0.9)
-                        : AppColors.textSecondary,
-                  ),
-                ),
+                Text(title, style: AppTextStyles.sectionTitle.copyWith()),
+                const SizedBox(height: 1),
+                Text(subtitle, style: AppTextStyles.sectionText.copyWith()),
               ],
             ),
           ),

@@ -37,9 +37,17 @@ class AppTextStyles {
   );
 
   static const TextStyle sectionTitle = TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.w700,
-    color: AppColors.textPrimary,
+    fontSize: 19,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textColor02,
+    letterSpacing: -0.3,
+  );
+
+  static const TextStyle sectionText = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w100,
+    color: AppColors.textColor02,
+    letterSpacing: -0.5,
   );
 
   // =====================================================

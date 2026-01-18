@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/features/home/pages/home_page.dart';
 import 'package:travel_memoir/features/record/pages/record_tab_page.dart';
 import 'package:travel_memoir/features/travel_info/pages/travel_info_page.dart';
@@ -20,30 +21,37 @@ class _AppShellState extends State<AppShell> {
   }
 
   // 커스텀 메뉴 아이템 빌더
+  // 커스텀 메뉴 아이템 빌더 (이미지 아이콘 + 체크 점)
   BottomNavigationBarItem _buildMenuItem({
-    required IconData icon,
+    required String iconAsset,
     required String label,
     required int index,
   }) {
     return BottomNavigationBarItem(
-      icon: Icon(icon),
-      activeIcon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Icon(icon, color: Colors.black87),
-          Positioned(
-            top: -2,
-            right: -4,
-            child: Container(
-              width: 7,
-              height: 7,
-              decoration: const BoxDecoration(
-                color: Color(0xFF2196F3),
-                shape: BoxShape.circle,
+      icon: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Image.asset(iconAsset, width: 22, height: 22),
+      ),
+      activeIcon: Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Image.asset(iconAsset, width: 22, height: 22),
+            Positioned(
+              top: -5,
+              right: -5,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       label: label,
     );
@@ -67,28 +75,28 @@ class _AppShellState extends State<AppShell> {
         currentIndex: _currentIndex,
         onTap: _onTabSelected,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.black87,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: AppColors.textColor01,
+        unselectedItemColor: AppColors.textColor01,
         selectedFontSize: 12,
         unselectedFontSize: 12,
         items: [
           _buildMenuItem(
-            icon: Icons.home_outlined,
+            iconAsset: 'assets/icons/nav_home.png',
             label: 'nav_home'.tr(),
             index: 0,
           ),
           _buildMenuItem(
-            icon: Icons.work_outline,
+            iconAsset: 'assets/icons/nav_travel.png',
             label: 'nav_travel'.tr(),
             index: 1,
           ),
           _buildMenuItem(
-            icon: Icons.menu_book,
+            iconAsset: 'assets/icons/nav_record.png',
             label: 'nav_record'.tr(),
             index: 2,
           ),
           _buildMenuItem(
-            icon: Icons.person_outline,
+            iconAsset: 'assets/icons/nav_my.png',
             label: 'nav_my'.tr(),
             index: 3,
           ),

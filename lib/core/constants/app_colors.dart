@@ -30,7 +30,7 @@ class AppColors {
   // =========================
   // 🌈 Brand / Accent
   // =========================
-  static const primary = Color(0xFF11D1EA); // 여행 하늘색
+  static const primary = Color(0xFF289AEB); // 여행 하늘색
   static const accent = Color(0xFFEA6AA3); // 감성 포인트
 
   static const onPrimary = Color(0xFFFFFFFF);
@@ -70,7 +70,7 @@ class AppColors {
 
   // 배경
   static const lightBackground = Color(0xFFFFFFFF);
-  static const lightSurface = Color(0xFFF6F6F6);
+  static const lightSurface = Color(0xFFEEEEEE);
   static const lightDivider = Color(0xFFE5E5E5);
 
   // 텍스트 (라이트)
@@ -87,6 +87,7 @@ class AppColors {
   // 홈 여행 상태
   static const travelingBlue = Color(0xFF289AEB); // 피그마 파랑
   static const travelReadyGray = Color(0xFFA8A8A8); // 피그마 회색
+  static const travelingPurple = Color(0xFF7C5FF6); // 피그마 보라
 
   // =========================
   // 🗺 Map / Tab
