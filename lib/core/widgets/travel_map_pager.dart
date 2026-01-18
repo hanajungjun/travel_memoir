@@ -18,11 +18,11 @@ class TravelMapPager extends StatefulWidget {
 }
 
 class _TravelMapPagerState extends State<TravelMapPager> {
-  final PageController _controller = PageController();
+  // ✅ 해외지도가 0번이므로 초기 인덱스 0
+  final PageController _controller = PageController(initialPage: 0);
   int _index = 0;
   int _mapKey = 0;
 
-  // ✅ [에러방지] 안전하게 setState를 호출하는 헬퍼 함수
   void _safeSetState(VoidCallback fn) {
     if (!mounted) return;
     setState(fn);
@@ -30,10 +30,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
 
   void _move(int i) {
     if (_index == i) return;
-
-    // 페이지 이동 전 위젯 상태 체크
     _safeSetState(() => _index = i);
-
     _controller.animateToPage(
       i,
       duration: const Duration(milliseconds: 300),
@@ -56,7 +53,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ===== 탭 =====
+        // ===== 탭 (해외 왼쪽 배치) =====
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
@@ -66,12 +63,12 @@ class _TravelMapPagerState extends State<TravelMapPager> {
           child: Row(
             children: [
               _Tab(
-                label: 'domestic'.tr(),
+                label: 'overseas'.tr(), // 해외가 0번(왼쪽)
                 selected: _index == 0,
                 onTap: () => _move(0),
               ),
               _Tab(
-                label: 'overseas'.tr(),
+                label: 'domestic'.tr(), // 국내가 1번(오른쪽)
                 selected: _index == 1,
                 onTap: () => _move(1),
               ),
@@ -81,7 +78,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
 
         const SizedBox(height: 12),
 
-        // ===== 지도 (부모 높이에 맞춰서 꽉 채움) =====
+        // ===== 지도 영역 =====
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -89,16 +86,15 @@ class _TravelMapPagerState extends State<TravelMapPager> {
               children: [
                 PageView(
                   controller: _controller,
-                  // ✅ 페이지 변경 시에도 안전하게 index 업데이트
                   onPageChanged: (i) => _safeSetState(() => _index = i),
                   children: [
-                    DomesticMapPage(key: ValueKey('domestic-map-$_mapKey')),
-                    // ✅ [에러방지] 해외 지도에도 유니크 키를 부여해 뷰 충돌을 막습니다.
+                    // ✅ 인덱스 0: 해외 지도
                     GlobalMapPage(key: ValueKey('global-map-$_mapKey')),
+                    // ✅ 인덱스 1: 국내 지도
+                    DomesticMapPage(key: ValueKey('domestic-map-$_mapKey')),
                   ],
                 ),
 
-                // 전체 지도 이동
                 Positioned.fill(
                   child: Material(
                     color: Colors.transparent,
@@ -114,7 +110,6 @@ class _TravelMapPagerState extends State<TravelMapPager> {
                           ),
                         );
 
-                        // ✅ [에러방지] 화면에서 돌아왔을 때 위젯이 아직 존재하는지 확인 후 리프레시
                         if (mounted) {
                           _refreshMap();
                         }
@@ -131,9 +126,6 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   }
 }
 
-// ======================
-// 탭 버튼 (기존과 동일)
-// ======================
 class _Tab extends StatelessWidget {
   final String label;
   final bool selected;
@@ -154,14 +146,16 @@ class _Tab extends StatelessWidget {
           duration: const Duration(milliseconds: 220),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
+            // 선택됐을 때 색상을 AppColors.primary로 적용
             color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(28), // 둥글게 깎기
           ),
           child: Center(
             child: Text(
               label,
               style: AppTextStyles.button.copyWith(
                 color: selected ? AppColors.onPrimary : AppColors.textSecondary,
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ),

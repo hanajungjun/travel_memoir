@@ -21,6 +21,11 @@ class MySupportPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 현재 언어가 한국어인지 확인
+    final bool isKo = context.locale.languageCode == 'ko';
+    // 💡 팁: 영어일 때는 URL 뒤에 _en을 붙이는 식으로 규칙을 정하면 편합니다.
+    final String langSuffix = isKo ? "" : "_en";
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -40,23 +45,27 @@ class MySupportPage extends StatelessWidget {
           children: [
             const SizedBox(height: 24),
 
-            // ✅ 공지사항 버튼 (맨 위로 이동)
+            // ✅ 공지사항 (언어별 분기)
             _SupportTile(
-              title: 'notice'.tr(), // 번역 파일에 'notice' 추가 필요
+              title: 'notice'.tr(),
               trailing: const Icon(Icons.open_in_new),
               onTap: () => _launchURL(
-                'https://hanajungjun.github.io/travel-memoir-docs/notice.html',
+                isKo
+                    ? 'https://hanajungjun.github.io/travel-memoir-docs/notice.html'
+                    : 'https://hanajungjun.github.io/travel-memoir-docs/notice_en.html',
               ),
             ),
             _Divider(),
 
+            // ✅ 도움말 (언어별 분기)
             _SupportTile(
               title: 'get_help'.tr(),
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
-                // FAQ나 고객센터 링크가 있다면 여기에 넣으세요.
                 _launchURL(
-                  'https://hanajungjun.github.io/travel-memoir-docs/faq.html',
+                  isKo
+                      ? 'https://hanajungjun.github.io/travel-memoir-docs/faq.html'
+                      : 'https://hanajungjun.github.io/travel-memoir-docs/faq_en.html',
                 );
               },
             ),
@@ -66,33 +75,34 @@ class MySupportPage extends StatelessWidget {
               title: 'rate_app'.tr(),
               trailing: const Icon(Icons.open_in_new),
               onTap: () {
-                // TODO: 실제 스토어 출시 후 스토어 링크로 교체하세요.
-                // _launchURL('market://details?id=com.hanajungjun.travelmemoir');
+                // TODO: 스토어 링크
               },
             ),
 
             const SizedBox(height: 32),
-
-            // =========================
-            // 이용약관 및 법적 고지 섹션
-            // =========================
             _SectionTitle('legal'.tr()),
             _Divider(),
 
+            // ✅ 개인정보 처리방침 (언어별 분기)
             _SupportTile(
               title: 'privacy_policy'.tr(),
               trailing: const Icon(Icons.open_in_new),
               onTap: () => _launchURL(
-                'https://hanajungjun.github.io/travel-memoir-docs/',
+                isKo
+                    ? 'https://hanajungjun.github.io/travel-memoir-docs/'
+                    : 'https://hanajungjun.github.io/travel-memoir-docs/index_en.html',
               ),
             ),
             _Divider(),
 
+            // ✅ 이용약관 (언어별 분기)
             _SupportTile(
               title: 'terms_of_service'.tr(),
               trailing: const Icon(Icons.open_in_new),
               onTap: () => _launchURL(
-                'https://hanajungjun.github.io/travel-memoir-docs/terms.html',
+                isKo
+                    ? 'https://hanajungjun.github.io/travel-memoir-docs/terms.html'
+                    : 'https://hanajungjun.github.io/travel-memoir-docs/terms_en.html',
               ),
             ),
             _Divider(),
@@ -108,9 +118,7 @@ class MySupportPage extends StatelessWidget {
 
             const SizedBox(height: 48),
 
-            // =========================
-            // 하단 브랜드 및 버전 정보
-            // =========================
+            // 하단 브랜드 정보
             Center(
               child: Column(
                 children: [
@@ -132,7 +140,6 @@ class MySupportPage extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(height: 40),
           ],
         ),

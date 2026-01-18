@@ -3,139 +3,180 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class DomesticTravelSummaryService {
   static final _supabase = Supabase.instance.client;
 
-  // ✅ 방문한 지역을 조회하는 쿼리 (안전하게 수정)
+  // =====================================================
+  // ✅ 방문한 지역 카운트
+  // =====================================================
   static Future<Map<String, int>> getVisitedCountByArea({
     required String userId,
     required bool isDomestic,
-    required bool isCompleted,
+    bool? isCompleted,
   }) async {
-    try {
-      final rows = await _supabase
-          .from('visited_regions_view')
-          .select('sido_cd')
-          .eq('user_id', userId);
+    final rows = await _supabase
+        .from('visited_regions_view')
+        .select('sido_cd')
+        .eq('user_id', userId);
 
-      final result = <String, int>{};
-
-      for (final row in rows) {
-        final sidoCd = row['sido_cd']?.toString();
-        if (sidoCd == null) continue;
-        result[sidoCd] = (result[sidoCd] ?? 0) + 1;
-      }
-      return result;
-    } catch (e) {
-      return {};
+    final result = <String, int>{};
+    for (final row in rows) {
+      final sido = row['sido_cd']?.toString();
+      if (sido == null) continue;
+      result[sido] = (result[sido] ?? 0) + 1;
     }
+    return result;
   }
 
-  // ✅ 여행 횟수 조회 (안전하게 수정)
+  // =====================================================
+  // ✅ 여행 횟수
+  // =====================================================
   static Future<int> getTravelCount({
     required String userId,
     required bool isDomestic,
-    bool? isCompleted, // ✅ 'required'를 지우고 '?'를 붙여서 선택사항으로 변경!
+    bool? isCompleted,
   }) async {
-    var query = Supabase.instance.client
+    var q = _supabase
         .from('travels')
-        .select()
+        .select('id')
         .eq('user_id', userId)
         .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
 
-    // ✅ isCompleted가 null이 아닐 때만 필터를 적용합니다.
     if (isCompleted != null) {
-      query = query.eq('is_completed', isCompleted);
+      q = q.eq('is_completed', isCompleted);
     }
 
-    final response = await query;
-    return response.length;
+    final rows = await q;
+    return rows.length;
   }
 
-  // ✅ 여행 일수 조회 (안전하게 수정)
+  // =====================================================
+  // ✅ 총 여행 일수
+  // =====================================================
   static Future<int> getTotalTravelDays({
     required String userId,
     required bool isDomestic,
-    required bool isCompleted,
+    bool? isCompleted,
   }) async {
-    try {
-      final rows = await _supabase
-          .from('travels')
-          .select('start_date, end_date')
-          .eq('user_id', userId)
-          .eq('is_completed', isCompleted)
-          .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
+    var q = _supabase
+        .from('travels')
+        .select('start_date, end_date')
+        .eq('user_id', userId)
+        .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
 
-      int totalDays = 0;
-
-      for (final row in rows) {
-        final startDateStr = row['start_date'];
-        final endDateStr = row['end_date'];
-
-        if (startDateStr != null && endDateStr != null) {
-          try {
-            final startDate = DateTime.parse(startDateStr);
-            final endDate = DateTime.parse(endDateStr);
-            final difference =
-                endDate.difference(startDate).inDays + 1; // 당일 여행도 1일로 처리
-            totalDays += difference;
-          } catch (e) {
-            continue;
-          }
-        }
-      }
-      return totalDays;
-    } catch (e) {
-      return 0;
+    if (isCompleted != null) {
+      q = q.eq('is_completed', isCompleted);
     }
+
+    final rows = await q;
+    int total = 0;
+
+    for (final r in rows) {
+      if (r['start_date'] == null || r['end_date'] == null) continue;
+      final s = DateTime.parse(r['start_date']);
+      final e = DateTime.parse(r['end_date']);
+      total += e.difference(s).inDays + 1;
+    }
+    return total;
   }
 
-  // ✅ 가장 많이 방문한 지역 조회 (🔥 에러 원인 해결!)
-  static Future<String> getMostVisitedRegion({
+  // =====================================================
+  // ✅ 최다 방문 지역
+  // =====================================================
+  static Future<List<String>> getMostVisitedRegions({
     required String userId,
     required bool isDomestic,
-    required bool isCompleted,
+    bool? isCompleted,
   }) async {
-    try {
-      final rows = await _supabase
-          .from('travels')
-          .select('region_name')
-          .eq('user_id', userId)
-          .eq('is_completed', isCompleted)
-          .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
+    var q = _supabase
+        .from('travels')
+        .select('region_name')
+        .eq('user_id', userId)
+        .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
 
-      if (rows.isEmpty) return '-'; // 데이터 없으면 즉시 반환
-
-      final regionCount = <String, int>{};
-
-      for (final row in rows) {
-        final region = row['region_name']?.toString();
-        if (region != null) {
-          regionCount[region] = (regionCount[region] ?? 0) + 1;
-        }
-      }
-
-      // 비어있지 않을 때만 reduce 실행
-      if (regionCount.isEmpty) return '-';
-
-      final mostVisitedRegion = regionCount.entries
-          .reduce((a, b) => a.value > b.value ? a : b)
-          .key;
-
-      return mostVisitedRegion;
-    } catch (e) {
-      return '-';
+    if (isCompleted != null) {
+      q = q.eq('is_completed', isCompleted);
     }
+
+    final rows = await q;
+    final map = <String, int>{};
+
+    for (final r in rows) {
+      final name = r['region_name']?.toString();
+      if (name == null || name.isEmpty) continue;
+      map[name] = (map[name] ?? 0) + 1;
+    }
+
+    final sorted = map.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return sorted.map((e) => e.key).toList();
   }
 
-  // ✅ 방문한 도시 수 조회 (안전하게 수정)
+  // =====================================================
+  // ✅ 방문 도시 수
+  // =====================================================
+  /*
   static Future<int> getVisitedCityCount({required String userId}) async {
-    try {
-      final rows = await _supabase
-          .from('domestic_travel_regions')
-          .select('sido_cd')
-          .eq('user_id', userId);
+    final rows = await _supabase
+        .from('domestic_travel_regions')
+        .select('sido_cd')
+        .eq('user_id', userId);
 
-      return rows.length;
-    } catch (e) {
-      return 0;
+    final set = <String>{};
+    for (final r in rows) {
+      final s = r['sido_cd']?.toString();
+      if (s != null) set.add(s);
     }
+    return set.length;
+  }
+  */
+
+  // =====================================================
+  // ✅ 완성된 추억 개수 (🔥 일기 전부 작성된 여행)
+  // =====================================================
+  static Future<int> getCompletedMemoriesCount({
+    required String userId,
+    required bool isDomestic,
+  }) async {
+    // 1. 여행 목록
+    final travels = await _supabase
+        .from('travels')
+        .select('id, start_date, end_date')
+        .eq('user_id', userId)
+        .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
+
+    if (travels.isEmpty) return 0;
+
+    final travelIds = travels
+        .map((t) => t['id']?.toString())
+        .whereType<String>()
+        .toList();
+
+    // 2. 일기 작성 수
+    final days = await _supabase
+        .from('travel_days')
+        .select('travel_id, text, ai_summary')
+        .inFilter('travel_id', travelIds);
+
+    final written = <String, int>{};
+    for (final d in days) {
+      final id = d['travel_id']?.toString();
+      if (id == null) continue;
+      final text = d['text']?.toString().trim() ?? '';
+      final summary = d['ai_summary']?.toString().trim() ?? '';
+      if (text.isEmpty && summary.isEmpty) continue;
+      written[id] = (written[id] ?? 0) + 1;
+    }
+
+    // 3. 기대 일수와 비교
+    int completed = 0;
+    for (final t in travels) {
+      if (t['start_date'] == null || t['end_date'] == null) continue;
+      final s = DateTime.parse(t['start_date']);
+      final e = DateTime.parse(t['end_date']);
+      final expected = e.difference(s).inDays + 1;
+      final have = written[t['id']] ?? 0;
+      if (have >= expected) completed++;
+    }
+
+    return completed;
   }
 }

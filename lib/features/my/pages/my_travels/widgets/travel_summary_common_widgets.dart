@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart'; // 추가
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/skeleton_box.dart';
 
-// 🧩 1. 공통 도넛 카드
+// 🧩 1. 공통 도넛 카드 (수정 없음)
 class TotalDonutCard extends StatelessWidget {
   final int visited;
   final int total;
-  final String? title; // 기본값 처리를 위해 nullable로 변경
+  final String? title;
   final String sub;
   final int percent;
 
@@ -36,7 +36,6 @@ class TotalDonutCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ✅ 기본값 'in_total' 번역 적용
                 Text(title ?? 'in_total'.tr(), style: AppTextStyles.caption),
                 const SizedBox(height: 8),
                 RichText(
@@ -84,21 +83,37 @@ class TotalDonutCard extends StatelessWidget {
   }
 }
 
+// 🧩 2. 공통 여행 요약 카드 (최다 방문 지역 로직 수정)
 class CommonTravelSummaryCard extends StatelessWidget {
-  final int travelCount; // 총 방문 횟수
-  final int completedCount; // ✅ 추가: 일기 작성 완료 횟수 (is_completed == true)
-  final int travelDays;
-  final String mostVisited;
+  final int travelCount;
+  final int completedCount;
+  final int travelDays; // ✅ 이 값은 호출하는 쪽에서 전체 합산값(is_completed 무관)을 넘겨줘야 함
+  final String mostVisited; // 예: "서울, 부산, 제주, 도쿄"
   final String mostVisitedLabel;
 
   const CommonTravelSummaryCard({
     super.key,
     required this.travelCount,
-    required this.completedCount, // ✅ 필수 인자로 추가
+    required this.completedCount,
     required this.travelDays,
     required this.mostVisited,
     required this.mostVisitedLabel,
   });
+
+  // ✅ 최다 방문 지역 텍스트 정리 헬퍼 함수
+  String _formatMostVisited(String rawText) {
+    if (rawText.isEmpty) return "-";
+
+    // 쉼표로 구분된 리스트로 변환
+    List<String> locations = rawText.split(',').map((e) => e.trim()).toList();
+
+    if (locations.length <= 2) {
+      return rawText; // 2개 이하면 그대로 반환
+    } else {
+      // 2개까지만 합치고 뒤에 ... 추가
+      return "${locations[0]}, ${locations[1]} ...";
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,29 +129,25 @@ class CommonTravelSummaryCard extends StatelessWidget {
         children: [
           Text('travel_summary'.tr(), style: AppTextStyles.sectionTitle),
           const SizedBox(height: 16),
-          // 1. 총 방문 횟수
           _buildSummaryItem(
             'trip_count_label'.tr(),
             'count_unit'.tr(args: [travelCount.toString()]),
           ),
           const SizedBox(height: 12),
-          // 2. ✅ 일기 작성 완료 (새로 추가된 줄)
           _buildSummaryItem(
-            'diary_completed_label'
-                .tr(), // 번역 키 예: "일기 작성 완료" / "Diaries Completed"
+            'diary_completed_label'.tr(),
             'count_unit'.tr(args: [completedCount.toString()]),
           ),
           const SizedBox(height: 12),
-          // 3. 총 여행 일수
+          // 📊 총 여행 일수 (데이터 집계 시 is_completed 필터가 빠졌는지 확인 필요)
           _buildSummaryItem(
             'total_days_label'.tr(),
             'day_unit'.tr(args: [travelDays.toString()]),
           ),
           const SizedBox(height: 12),
-          // 4. 최다 방문 지역
           _buildSummaryItem(
             'most_visited_format'.tr(args: [mostVisitedLabel]),
-            mostVisited,
+            _formatMostVisited(mostVisited), // ✅ 가공된 텍스트 적용
           ),
         ],
       ),
@@ -160,7 +171,7 @@ class CommonTravelSummaryCard extends StatelessWidget {
   }
 }
 
-// 🧩 3. 공통 스켈레톤 (텍스트가 없으므로 그대로 유지)
+// 🧩 3. 공통 스켈레톤 (기존 유지)
 class MyTravelSummarySkeleton extends StatelessWidget {
   const MyTravelSummarySkeleton({super.key});
 
