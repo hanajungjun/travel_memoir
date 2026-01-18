@@ -10,7 +10,7 @@ class ImageStyleService {
         .from('ai_image_styles')
         .select()
         .eq('is_enabled', true)
-        .order('created_at', ascending: false);
+        .order('sort_order', ascending: false);
 
     return (res as List).map((e) => ImageStyleModel.fromMap(e)).toList();
   }

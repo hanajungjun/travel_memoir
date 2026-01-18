@@ -7,6 +7,9 @@ import 'package:http/http.dart' as http;
 
 import '../env.dart';
 
+import 'package:travel_memoir/models/ai_premium_prompt_model.dart';
+import 'package:travel_memoir/services/ai_premium_prompt_service.dart';
+
 class GeminiService {
   final String _apiKey = AppEnv.geminiApiKey;
 
@@ -100,71 +103,28 @@ $finalPrompt
     final url =
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey';
 
-    final bool isSingleDay = allDiaryTexts.length <= 1;
+    final premiumPrompt = await AiPremiumPromptService.fetchActive();
 
-    debugPrint('🤖 [GEMINI] premium infographic image request start');
-    debugPrint('📊 [INFOGRAPHIC] title=$travelTitle');
-    debugPrint('📊 [INFOGRAPHIC] diaryCount=${allDiaryTexts.length}');
-    debugPrint('📊 [INFOGRAPHIC] isSingleDay=$isSingleDay');
+    if (premiumPrompt == null) {
+      throw Exception('❌ 활성 프리미엄 프롬프트 없음');
+    }
 
-    // --------------------------------------------------
-    // 1️⃣ 프롬프트 구성 (하루 여행 / 여러 날 여행 분기)
-    // --------------------------------------------------
-    final String combinedText = isSingleDay
-        ? """
-너는 프리미엄 여행 리포트를 제작하는 비주얼 디자이너이자 일러스트레이터야.
-아래 여행 정보를 바탕으로, 하루 여행을 한 장의 인포그래픽 이미지로 표현해줘.
+    String finalPrompt = premiumPrompt.prompt
+        .replaceAll('\${travelTitle}', travelTitle)
+        .replaceAll(
+          '\${allDiaryTexts.join(\'\\n\')}',
+          allDiaryTexts.join('\n'),
+        );
 
-⚠️ 규칙 (매우 중요):
-- DAY 2, DAY 3 같은 여러 날짜를 절대 표현하지 마
-- 타임라인, 일차 개념을 사용하지 마
-- 오직 하루의 분위기와 기억만 시각적으로 표현해
-- 설명문이나 텍스트 결과를 출력하지 말고, 이미지만 생성해
-
-🎨 이미지 스타일:
-- 인스타그램 여행 광고 느낌
-- 따뜻하고 감성적인 톤
-- 종이 다이어리 / 스크랩북 / 여행 노트 스타일
-- 스티커, 테이프, 손글씨 느낌 요소
-- 고급스럽고 프리미엄 감성
-
-🧭 이미지 구성:
-- 상단 제목: "${travelTitle}"
-- 중앙: 하루 동안의 주요 순간들을 콜라주 형태로 배치
-- 하단: "One perfect day" 같은 단일 하루 감성 문구
-
-📷 참고 기록:
-${allDiaryTexts.join('\n')}
-"""
-        : """
-너는 프리미엄 여행 리포트를 제작하는 비주얼 디자이너이자 일러스트레이터야.
-아래 여행 정보를 바탕으로, 여러 날에 걸친 여행을 한 장의 인포그래픽 이미지로 표현해줘.
-
-⚠️ 규칙:
-- 설명문이나 텍스트 결과를 출력하지 말고, 이미지만 생성해
-
-🎨 이미지 스타일:
-- 인스타그램 여행 광고 느낌
-- 따뜻하고 감성적인 톤
-- 종이 다이어리 / 스크랩북 / 여행 노트 스타일
-- 스티커, 테이프, 손글씨 느낌 요소
-- 고급스럽고 프리미엄 감성
-
-🧭 이미지 구성:
-- 상단 제목: "${travelTitle}"
-- 중앙: DAY 1 ~ DAY ${allDiaryTexts.length} 타임라인과 여행 경로 아이콘
-- 하단: "A journey to remember" 감성 문구
-
-📷 참고 기록:
-${allDiaryTexts.join('\n')}
-""";
+    // debugPrint('🤖 [GEMINI PREMIUM PROMPT]');
+    // debugPrint(finalPrompt);
 
     final parts = <Map<String, dynamic>>[
-      {'text': combinedText},
+      {'text': finalPrompt},
     ];
 
     // --------------------------------------------------
-    // 2️⃣ 사진 참고 데이터 (최대 5장)
+    // 3️⃣ 사진 참고 데이터 (최대 5장)
     // --------------------------------------------------
     if (allPhotos != null && allPhotos.isNotEmpty) {
       for (final file in allPhotos.take(5)) {
@@ -176,7 +136,7 @@ ${allDiaryTexts.join('\n')}
     }
 
     // --------------------------------------------------
-    // 3️⃣ Gemini 이미지 생성 요청
+    // 4️⃣ Gemini 이미지 생성 요청
     // --------------------------------------------------
     final res = await http.post(
       Uri.parse(url),
@@ -185,6 +145,9 @@ ${allDiaryTexts.join('\n')}
         'contents': [
           {'parts': parts},
         ],
+        'generationConfig': {
+          'responseModalities': ['IMAGE'],
+        },
       }),
     );
 
@@ -193,20 +156,11 @@ ${allDiaryTexts.join('\n')}
       throw Exception('❌ 이미지 생성 실패 (${res.statusCode})');
     }
 
-    // --------------------------------------------------
-    // 4️⃣ 이미지 결과 파싱
-    // --------------------------------------------------
-    try {
-      final decoded = jsonDecode(res.body);
-      final String base64Str =
-          decoded['candidates'][0]['content']['parts'][0]['inlineData']['data'];
+    final data = jsonDecode(res.body);
+    final imageBase64 =
+        data['candidates'][0]['content']['parts'][0]['inlineData']['data'];
 
-      debugPrint('✅ [GEMINI] premium infographic image success');
-      return base64Decode(base64Str);
-    } catch (e) {
-      debugPrint('❌ [GEMINI] parsing error: $e');
-      throw Exception('❌ 이미지 데이터 파싱 실패');
-    }
+    return base64Decode(imageBase64);
   }
 
   // ============================
