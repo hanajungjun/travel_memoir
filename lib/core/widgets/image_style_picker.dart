@@ -22,7 +22,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   // 🔥 테스트용: 유저 프리미엄 여부
   // false / true 바꿔가며 테스트
   // =========================================
-  final bool _isUserPremium = true;
+  final bool _isUserPremium = false;
 
   @override
   void initState() {

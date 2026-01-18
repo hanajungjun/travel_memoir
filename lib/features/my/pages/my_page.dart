@@ -7,8 +7,9 @@ import 'package:travel_memoir/features/my/pages/my_travels/my_travel_summary_pag
 import 'package:travel_memoir/features/my/pages/settings/my_settings_page.dart';
 import 'package:travel_memoir/features/my/pages/supports/my_support_page.dart';
 import 'package:travel_memoir/features/my/pages/user_details/user_details.dart';
-import 'package:travel_memoir/features/my/pages/sticker/my_sticker_page.dart';
 import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
+import 'package:travel_memoir/features/my/pages/sticker/my_sticker_page.dart';
+import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
@@ -24,59 +25,61 @@ class _MyPageState extends State<MyPage> {
   final String _userId = Supabase.instance.client.auth.currentUser!.id;
 
   Future<Map<String, dynamic>> _getProfileData() async {
-    final userRes = await Supabase.instance.client
-        .from('users')
-        .select()
-        .eq('auth_uid', _userId)
-        .single();
-
-    final travelRes = await Supabase.instance.client
-        .from('travels')
-        .select('id')
-        .eq('user_id', _userId)
-        .eq('is_completed', true);
-
-    return {'profile': userRes, 'travelCount': travelRes.length};
-  }
-
-  bool _checkPremium(Map<String, dynamic> profile) {
-    final bool isPremium = profile['is_premium'] ?? false;
-    final String? premiumUntil = profile['premium_until'];
-    if (!isPremium || premiumUntil == null) return false;
     try {
-      return DateTime.parse(premiumUntil).isAfter(DateTime.now());
-    } catch (_) {
-      return false;
+      final userFuture = Supabase.instance.client
+          .from('users')
+          .select()
+          .eq('auth_uid', _userId)
+          .maybeSingle();
+
+      final travelFuture = Supabase.instance.client
+          .from('travels')
+          .select('*')
+          .eq('user_id', _userId)
+          .eq('is_completed', true)
+          .order('created_at', ascending: false);
+
+      final results = await Future.wait([userFuture, travelFuture]);
+
+      return {
+        'profile': results[0],
+        'completedTravels': results[1] ?? [],
+        'travelCount': (results[1] as List?)?.length ?? 0,
+      };
+    } catch (e) {
+      debugPrint("❌ 데이터 로드 에러: $e");
+      rethrow;
     }
   }
 
-  void _showPremiumAlert(BuildContext context) {
-    showDialog(
+  // ⬢ 진짜 MyStickerPage를 팝업으로 호출 (다국어 유지)
+  void _showStickerPopup(BuildContext context) {
+    showGeneralDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('premium_only_title'.tr()),
-        content: Text('premium_sticker_desc'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'cancel'.tr(),
-              style: const TextStyle(color: Colors.grey),
+      barrierDismissible: true,
+      barrierLabel: 'StickerPopup',
+      barrierColor: Colors.black.withOpacity(0.5),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) {
+        return Center(
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.75,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(30),
             ),
+            child: const MyStickerPage(),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.textPrimary,
-            ),
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'view_plans'.tr(),
-              style: const TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+          child: child,
+        );
+      },
     );
   }
 
@@ -92,6 +95,7 @@ class _MyPageState extends State<MyPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ [번역 복구] 이 코드가 있어야 언어 변경 시 화면이 다시 그려집니다.
     context.locale;
 
     return Scaffold(
@@ -103,14 +107,14 @@ class _MyPageState extends State<MyPage> {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (!snapshot.hasData) return const SizedBox.shrink();
+            if (!snapshot.hasData || snapshot.data!['profile'] == null) {
+              return Center(child: Text("error_loading_data".tr()));
+            }
 
             final profile = snapshot.data!['profile'];
             final travelCount = snapshot.data!['travelCount'] as int;
-
             final nickname = profile['nickname'] ?? 'default_nickname'.tr();
             final imageUrl = profile['profile_image_url'];
-            final isSubscribed = _checkPremium(profile);
             final badge = _getBadge(travelCount);
 
             return SingleChildScrollView(
@@ -118,7 +122,6 @@ class _MyPageState extends State<MyPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. 프로필 섹션
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -126,78 +129,108 @@ class _MyPageState extends State<MyPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 닉네임 (역마살)
-                            Text(
-                              nickname,
-                              style: AppTextStyles.pageTitle.copyWith(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  nickname,
+                                  style: const TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: badge['color'].withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: badge['color'].withOpacity(0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    (badge['title_key'] as String).tr(),
+                                    style: TextStyle(
+                                      color: badge['color'],
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            // ✅ 뱃지 (닉네임 아래로 이동)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: badge['color'].withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: badge['color'].withOpacity(0.3),
+                            const SizedBox(height: 16),
+                            // 📘 여권 버튼 (텍스트 번역 적용)
+                            GestureDetector(
+                              onTap: () => _showStickerPopup(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1A3D2F),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.menu_book,
+                                      color: Color(0xFFE5C100),
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'passport_label'.tr(), // ✅ 하드코딩 제거
+                                      style: const TextStyle(
+                                        color: Color(0xFFE5C100),
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              child: Text(
-                                (badge['title_key'] as String).tr(),
-                                style: TextStyle(
-                                  color: badge['color'],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
-                              ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             Text(
                               profile['email'] ?? '',
-                              style: AppTextStyles.caption.copyWith(
-                                color: AppColors.textSecondary,
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      // 프로필 이미지
-                      GestureDetector(
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ProfileEditPage(),
-                            ),
-                          );
-                          setState(() {});
-                        },
-                        child: CircleAvatar(
-                          radius: 38,
-                          backgroundColor: AppColors.surface,
-                          backgroundImage: imageUrl != null
-                              ? NetworkImage(imageUrl)
-                              : null,
-                          child: imageUrl == null
-                              ? Icon(
-                                  Icons.person,
-                                  size: 38,
-                                  color: AppColors.textDisabled,
-                                )
-                              : null,
-                        ),
+                      CircleAvatar(
+                        radius: 38,
+                        backgroundColor: Colors.grey.shade100,
+                        backgroundImage: imageUrl != null
+                            ? NetworkImage(imageUrl)
+                            : null,
+                        child: imageUrl == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 38,
+                                color: Colors.grey,
+                              )
+                            : null,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 10),
 
-                  // 2. 메뉴 그리드
                   GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
@@ -229,17 +262,16 @@ class _MyPageState extends State<MyPage> {
                         },
                       ),
                       _MenuTile(
-                        title: 'my_stickers'.tr(),
-                        icon: Icons.portrait_rounded,
-                        isLocked: !isSubscribed,
-                        onTap: () => isSubscribed
-                            ? Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const MyStickerPage(),
-                                ),
-                              )
-                            : _showPremiumAlert(context),
+                        title: 'map_settings'.tr(),
+                        icon: Icons.map_outlined,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MapManagementPage(),
+                            ),
+                          );
+                        },
                       ),
                       _MenuTile(
                         title: 'user_detail_title'.tr(),
@@ -286,17 +318,35 @@ class _MyPageState extends State<MyPage> {
   }
 }
 
+// ⬢ 육각형 클리퍼 (디자인 일관성 유지)
+class HexagonClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    final w = size.width;
+    final h = size.height;
+    path.moveTo(w * 0.5, 0);
+    path.lineTo(w, h * 0.25);
+    path.lineTo(w, h * 0.75);
+    path.lineTo(w * 0.5, h);
+    path.lineTo(0, h * 0.75);
+    path.lineTo(0, h * 0.25);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
 class _MenuTile extends StatelessWidget {
   final String title;
   final IconData icon;
   final VoidCallback onTap;
-  final bool isLocked;
-
   const _MenuTile({
     required this.title,
     required this.icon,
     required this.onTap,
-    this.isLocked = false,
   });
 
   @override
@@ -307,48 +357,18 @@ class _MenuTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isLocked
-              ? AppColors.lightSurface.withOpacity(0.5)
-              : Colors.white,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-          border: Border.all(
-            color: isLocked ? Colors.transparent : const Color(0xFFF0F0F0),
-          ),
+          border: Border.all(color: const Color(0xFFF0F0F0)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(
-                  icon,
-                  size: 32,
-                  color: isLocked
-                      ? AppColors.textDisabled
-                      : AppColors.travelingBlue,
-                ),
-                if (isLocked)
-                  const Icon(Icons.lock_outline, size: 20, color: Colors.amber),
-              ],
-            ),
+            Icon(icon, size: 32, color: Colors.blue.shade700),
             Text(
               title,
-              style: AppTextStyles.body.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: isLocked
-                    ? AppColors.textDisabled
-                    : AppColors.textPrimary,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ],
         ),

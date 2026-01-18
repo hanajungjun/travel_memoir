@@ -261,5 +261,14 @@
   "data_management": "데이터 및 저장소 관리",
   "export_my_data": "내 데이터 내보내기",
   "feature_preparing": "준비 중인 기능입니다.",
-  "account_actions": "계정 관리"
+  "account_actions": "계정 관리",
+  "map_settings": "지도관리",
+  "passport_label":"여권",
+  "korea_map": "한국 지도",
+  "world_map": "세계 지도",
+  "usa_map": "미국 지도",
+  "japan_map": "일본 지도",
+  "italy_map": "이탈리아 지도",
+   "map_reorder_guide": "지도를 꾹 눌러서 순서를 변경해주세요",
+  "map_reorder_purchase_only": "구매한 지도만 순서 변경이 가능합니다"
 }

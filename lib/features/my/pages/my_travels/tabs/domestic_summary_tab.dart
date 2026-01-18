@@ -19,27 +19,27 @@ class DomesticSummaryTab extends StatelessWidget {
         // [0] 방문한 시/군 수
         //DomesticTravelSummaryService.getVisitedCityCount(userId: userId),
 
-        // [1] 전체 국내 여행 횟수 (전체)
+        // [0] 전체 국내 여행 횟수 (전체)
         DomesticTravelSummaryService.getTravelCount(
           userId: userId,
           isDomestic: true,
           isCompleted: null,
         ),
 
-        // [2] 완성된 추억 개수 (🔥 일기 다 쓴 여행만)
+        // [1] 완성된 추억 개수 (🔥 일기 다 쓴 여행만)
         DomesticTravelSummaryService.getCompletedMemoriesCount(
           userId: userId,
           isDomestic: true,
         ),
 
-        // [3] 총 여행 일수 (전체 날짜 합)
+        // [2] 총 여행 일수 (전체 날짜 합)
         DomesticTravelSummaryService.getTotalTravelDays(
           userId: userId,
           isDomestic: true,
           isCompleted: null,
         ),
 
-        // [4] 최다 방문 지역
+        // [3] 최다 방문 지역
         DomesticTravelSummaryService.getMostVisitedRegions(
           userId: userId,
           isDomestic: true,
@@ -57,11 +57,11 @@ class DomesticSummaryTab extends StatelessWidget {
 
         final data = snapshot.data!;
 
-        final visitedCityCount = data[1] as int;
-        final totalVisitCount = data[1] as int;
-        final completedMemoriesCount = data[2] as int;
-        final travelDays = data[3] as int;
-        final mostVisitedList = data[4] as List<String>;
+        final visitedCityCount = data[0] as int;
+        final totalVisitCount = data[0] as int;
+        final completedMemoriesCount = data[1] as int;
+        final travelDays = data[2] as int;
+        final mostVisitedList = data[3] as List<String>;
 
         String mostVisitedText;
         if (mostVisitedList.isEmpty) {

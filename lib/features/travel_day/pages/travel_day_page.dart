@@ -1,3 +1,13 @@
+/// ****************************************************************************
+/// 🚩 MASTER RULES FOR THIS PAGE:
+/// 1. PARALLEL PROCESSING: Background AI tasks and foreground Ads must run
+///    concurrently. Never 'await' AI generation before showing Ads.
+/// 2. PHOTO-CENTRIC: AI summary must prioritize visual analysis of uploaded
+///    photos over text diary to ensure visual consistency.
+/// 3. NO OMISSION: All logic blocks, including UI, Services, and State
+///    management, must be fully preserved during updates.
+/// ****************************************************************************
+
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:async';
@@ -206,7 +216,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  // 🚀 병렬 실행 핸들러
+  // 🚀 [병렬유지] 광고와 AI 동시 출발
   Future<void> _handleGenerateWithStamp() async {
     FocusScope.of(context).unfocus();
     if (_selectedStyle == null || _contentController.text.trim().isEmpty)
@@ -258,13 +268,12 @@ class _TravelDayPageState extends State<TravelDayPage>
         _cardController.forward();
       }
     } else if (_isAdDone && !_isAiDone) {
-      // 광고는 끝났는데 AI가 아직 안 끝났을 때만 메시지 변경
       if (mounted)
         setState(() => _loadingMessage = "ai_finishing_touches".tr());
     }
   }
 
-  // ✅ 사진 분석 기반 AI 생성 로직
+  // ✅ [사진유지 + 영어 프롬프트] 최적화된 AI 생성 로직
   Future<void> _startAiGeneration() async {
     if (mounted)
       setState(() {
@@ -277,33 +286,35 @@ class _TravelDayPageState extends State<TravelDayPage>
     try {
       final gemini = GeminiService();
 
-      // 1. 사진 정보를 포함한 요약 생성 (타임아웃 방지 위해 30초 제한 권장)
+      // 1. [영어 최적화] 사진과 일기를 분석하여 시각적 묘사 생성
       final summary = await gemini.generateSummary(
         finalPrompt:
             '''
-          일기와 사진을 분석해서 3D 미니어처 이미지 생성을 위한 시각적 묘사문을 작성해.
-          장소: ${widget.placeName}
-          일기: ${_contentController.text}
-          사진이 있다면 사진 속의 구체적인 특징(배경, 색감, 피사체)을 적극 반영해.
+          Analyze the provided travel diary and photos. 
+          Create a highly detailed visual description suitable for 3D isometric miniature scene generation. 
+          PRIORITY: Focus on the color palette, lighting, and key subjects found in the photos to maintain visual consistency. 
+          Location: ${widget.placeName} 
+          Diary Content: ${_contentController.text}
         ''',
         photos: _localPhotos,
       );
 
       _summaryText = summary;
 
-      // 2. 이미지 생성
+      // 2. [영어 최적화] 최종 이미지 생성
       final image = await gemini.generateImage(
         finalPrompt:
             '''
-          Style: ${_selectedStyle!.prompt}
-          Description: $summary
-          Instruction: 사용자가 올린 사진의 분위기가 담긴 3D 미니어처 스타일.
+          Render a high-quality 3D isometric miniature scene. 
+          Style: ${_selectedStyle!.prompt} 
+          Visual Context: $summary 
+          Instruction: The final image must reflect the unique atmosphere and visual details from the original photos provided. 
+          Use soft global illumination and vibrant colors.
         ''',
       );
 
       if (image == null) throw Exception("Image generation failed");
 
-      // 3. 코인 차감
       await _stampService.useStamp(_userId, _usePaidStampMode);
       await _refreshStampCounts();
 
@@ -311,9 +322,11 @@ class _TravelDayPageState extends State<TravelDayPage>
       _imageUrl = null;
     } catch (e) {
       debugPrint("❌ AI 생성 로직 에러: $e");
-      rethrow; // _handleGenerateWithStamp의 catchError에서 처리됨
+      rethrow;
     }
   }
+
+  // --- [생략없음] 이하 UI 및 저장 로직 전체 유지 ---
 
   void _showCoinEmptyDialog() {
     showDialog(

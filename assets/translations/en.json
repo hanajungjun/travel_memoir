@@ -263,5 +263,14 @@
   "data_management": "Data & Storage Management",
   "export_my_data": "Export My Data",
   "feature_preparing": "Coming soon.",
-  "account_actions": "Account Management"
+  "account_actions": "Account Management",
+  "map_settings": "Map Settings",
+  "passport_label":"Passport",
+   "korea_map": "Korea Map",
+  "world_map": "World Map",
+  "usa_map": "USA Map",
+  "japan_map": "Japan Map",
+  "italy_map": "Italy Map",
+   "map_reorder_guide": "Press and hold a map to change its order",
+  "map_reorder_purchase_only": "Only purchased maps can be reordered"
 }
