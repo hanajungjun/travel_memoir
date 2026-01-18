@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // ✅ Supabase 연동을 위해 추가
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/screens/onboarding_screen.dart';
+import 'package:travel_memoir/features/my/pages/settings/data_settings_page.dart';
 
 class MySettingsPage extends StatefulWidget {
   const MySettingsPage({super.key});
@@ -200,7 +201,12 @@ class _MySettingsPageState extends State<MySettingsPage> {
                   _SettingTile(
                     title: 'data_settings'.tr(),
                     onTap: () {
-                      // TODO: 데이터 설정 페이지 연결
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DataSettingsPage(),
+                        ),
+                      );
                     },
                   ),
                   _Divider(),
