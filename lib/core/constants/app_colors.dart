@@ -25,7 +25,7 @@ class AppColors {
   // =========================
   // 🌈 login
   // =========================
-  static const inputBg = Color(0xFFEEEEEE); // 입력창 배경색
+  static const inputBg = Color(0xFFF3F3F3); // 입력창 배경색
   static const inputText = Color(0xFF222222); // 입력창 글자색
   static const buttonBg = Color(0xffffffff); // 버튼 배경색
   static const buttonBorder = Color(0xffD7D7D7); // 버튼 배경색

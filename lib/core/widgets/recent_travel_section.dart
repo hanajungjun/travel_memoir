@@ -137,7 +137,8 @@ class _RecentTravelCard extends StatelessWidget {
                 child: Text(
                   destinationName,
                   style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -147,7 +148,8 @@ class _RecentTravelCard extends StatelessWidget {
                 _periodText(context, travel),
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
-                  fontSize: 12, // 카드의 좁은 공간을 위해 살짝 줄였습니다.
+                  fontSize: 13, // 카드의 좁은 공간을 위해 살짝 줄였습니다.
+                  fontWeight: FontWeight.w300,
                 ),
               ),
             ],

@@ -157,7 +157,7 @@ class _Tab extends StatelessWidget {
               label,
               style: AppTextStyles.button.copyWith(
                 color: selected ? AppColors.onPrimary : inactiveTextColor,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ),

@@ -151,7 +151,7 @@ class _HeaderContent extends StatelessWidget {
                     ],
                   )
                 else
-                  Text(subtitle, style: AppTextStyles.homeTravelDate),
+                  Text(subtitle, style: AppTextStyles.homeTravelInfo),
               ],
             ),
           ),

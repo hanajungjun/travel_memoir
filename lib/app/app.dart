@@ -44,6 +44,21 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
         useMaterial3: true,
         fontFamily: 'NotoSansKR',
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+
+        // ✅ 버튼 테마 설정 부분 수정
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ButtonStyle(
+            elevation: WidgetStateProperty.all(0), // 그림자 제거
+            shadowColor: WidgetStateProperty.all(Colors.transparent),
+            overlayColor: WidgetStateProperty.all(
+              Colors.transparent,
+            ), // 눌렀을 때 색상 변하는 층 제거
+            // 🔥 핵심: 버튼 클릭 시 퍼지는 물결 애니메이션(Splash) 제거
+            splashFactory: NoSplash.splashFactory,
+
+            // 참고: 최신 버전에서는 MaterialStateProperty 대신 WidgetStateProperty 사용을 권장합니다.
+          ),
+        ),
       ),
 
       // ✅ [추가] 경로(Route) 설정
