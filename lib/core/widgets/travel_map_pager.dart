@@ -66,16 +66,19 @@ class _TravelMapPagerState extends State<TravelMapPager> {
                 label: 'overseas'.tr(), // 해외가 0번(왼쪽)
                 selected: _index == 0,
                 onTap: () => _move(0),
+                activeColor: AppColors.travelingPurple, // 🌍 해외
+                inactiveTextColor: AppColors.textColor05,
               ),
               _Tab(
                 label: 'domestic'.tr(), // 국내가 1번(오른쪽)
                 selected: _index == 1,
                 onTap: () => _move(1),
+                activeColor: AppColors.travelingBlue, // 🇰🇷 국내
+                inactiveTextColor: AppColors.textColor05,
               ),
             ],
           ),
         ),
-
         const SizedBox(height: 12),
 
         // ===== 지도 영역 =====
@@ -94,7 +97,6 @@ class _TravelMapPagerState extends State<TravelMapPager> {
                     DomesticMapPage(key: ValueKey('domestic-map-$_mapKey')),
                   ],
                 ),
-
                 Positioned.fill(
                   child: Material(
                     color: Colors.transparent,
@@ -110,9 +112,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
                           ),
                         );
 
-                        if (mounted) {
-                          _refreshMap();
-                        }
+                        if (mounted) _refreshMap();
                       },
                     ),
                   ),
@@ -130,11 +130,15 @@ class _Tab extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final Color activeColor;
+  final Color inactiveTextColor;
 
   const _Tab({
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.activeColor,
+    required this.inactiveTextColor,
   });
 
   @override
@@ -142,19 +146,17 @@ class _Tab extends StatelessWidget {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
+        child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-            // 선택됐을 때 색상을 AppColors.primary로 적용
-            color: selected ? AppColors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(28), // 둥글게 깎기
+            color: selected ? activeColor : AppColors.onPrimary,
+            borderRadius: BorderRadius.circular(28),
           ),
           child: Center(
             child: Text(
               label,
               style: AppTextStyles.button.copyWith(
-                color: selected ? AppColors.onPrimary : AppColors.textColor05,
+                color: selected ? AppColors.onPrimary : inactiveTextColor,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
               ),
             ),

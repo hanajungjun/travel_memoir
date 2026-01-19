@@ -100,12 +100,62 @@ class _HeaderContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: AppTextStyles.travelTitle.copyWith()),
-                const SizedBox(height: 1),
-                Text(subtitle, style: AppTextStyles.travelText.copyWith()),
+                // ===== 제목 =====
+                if (isTraveling)
+                  RichText(
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    text: (() {
+                      final fullTitle = title; // "대구 여행중"
+                      final loc = location; // "대구"
+                      final rest = fullTitle.replaceFirst(loc, '').trim();
+
+                      return TextSpan(
+                        children: [
+                          TextSpan(
+                            text: loc,
+                            style: AppTextStyles.homeTravelLocation,
+                          ),
+                          const TextSpan(text: ' '),
+                          TextSpan(
+                            text: rest,
+                            style: AppTextStyles.homeTravelStatus,
+                          ),
+                        ],
+                      );
+                    })(),
+                  )
+                else
+                  Text(
+                    title,
+                    style: AppTextStyles.homeTravelTitleIdle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                const SizedBox(height: 0),
+
+                // ===== 서브타이틀 =====
+                if (isTraveling)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/icons/ico_calendar.png',
+                        width: 14,
+                        height: 14,
+                        color: AppColors.onPrimary.withOpacity(0.8),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(subtitle, style: AppTextStyles.homeTravelDate),
+                    ],
+                  )
+                else
+                  Text(subtitle, style: AppTextStyles.homeTravelDate),
               ],
             ),
           ),
+
           GestureDetector(
             onTap: () async {
               if (!isTraveling) {

@@ -124,4 +124,40 @@ class AppTextStyles {
     fontWeight: FontWeight.w300,
     color: AppColors.textColor03,
   );
+
+  // =====================================================
+  // 🧳 Home Travel Status Header
+  // =====================================================
+
+  // 지역명 (굵게)
+  static const TextStyle homeTravelLocation = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textColor02,
+    letterSpacing: -0.3,
+  );
+
+  // "여행 중" 텍스트 (얇게)
+  static const TextStyle homeTravelStatus = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w100,
+    color: AppColors.textColor02,
+    letterSpacing: -0.3,
+  );
+
+  // 여행 전 제목
+  static const TextStyle homeTravelTitleIdle = TextStyle(
+    fontSize: 20,
+    fontWeight: FontWeight.w800,
+    color: AppColors.textColor02,
+    letterSpacing: -0.3,
+  );
+
+  // 날짜 / 일정
+  static const TextStyle homeTravelDate = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w100,
+    color: AppColors.textColor02,
+    letterSpacing: -0.5,
+  );
 }

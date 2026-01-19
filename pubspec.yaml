@@ -61,10 +61,7 @@ dependencies:
   flutter_local_notifications: ^19.5.0
   connectivity_plus: ^7.0.0
   flutter_app_badge_control: ^0.0.2
-  
-  # 폰트
-  google_fonts: ^6.1.0
-  
+    
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -85,6 +82,30 @@ flutter:
     - assets/translations/
     - assets/lottie/
     - assets/icons/
+    - assets/fonts/
+
+  fonts:
+    - family: NotoSansKR
+      fonts:
+        - asset: assets/fonts/NotoSansKR-Thin.ttf
+          weight: 100
+        - asset: assets/fonts/NotoSansKR-ExtraLight.ttf
+          weight: 200
+        - asset: assets/fonts/NotoSansKR-Light.ttf
+          weight: 300
+        - asset: assets/fonts/NotoSansKR-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSansKR-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/NotoSansKR-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSansKR-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/NotoSansKR-ExtraBold.ttf
+          weight: 800
+        - asset: assets/fonts/NotoSansKR-Black.ttf
+          weight: 900
+  
      
 flutter_launcher_icons:
   android: true

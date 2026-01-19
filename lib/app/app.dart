@@ -8,8 +8,6 @@ import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/screens/onboarding_screen.dart';
 import 'package:easy_localization/easy_localization.dart';
 
-import 'package:google_fonts/google_fonts.dart';
-
 class TravelMemoirApp extends StatefulWidget {
   final bool showOnboarding;
 
@@ -44,7 +42,7 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
       navigatorObservers: [routeObserver],
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: GoogleFonts.notoSansKr().fontFamily,
+        fontFamily: 'NotoSansKR',
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
       ),
 
