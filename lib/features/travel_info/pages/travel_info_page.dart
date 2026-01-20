@@ -269,22 +269,16 @@ class _TravelListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDomestic = travel['travel_type'] == 'domestic';
+    // ✅ 여행 타입 구분 로직 확장
+    final String travelType = travel['travel_type'] ?? '';
+    final bool isDomestic = travelType == 'domestic';
+    final bool isUSA = travelType == 'usa';
     final bool isKo = context.locale.languageCode == 'ko';
 
-    // 🎯 [수정된 타이틀 로직]
+    // 🎯 타이틀 로직: 미국과 국내 여행 모두 region_name 활용
     String title = '';
-    if (isDomestic) {
-      if (isKo) {
-        title = travel['region_name'] ?? '';
-      } else {
-        // ✅ region_key가 있으면 '_'로 잘라서 마지막 단어(예: YEOJU)만 가져오고,
-        // 없으면(null이면) 한글 이름이라도 보여줍니다.
-        final String rawKey = travel['region_key'] ?? '';
-        title = rawKey.isNotEmpty
-            ? rawKey.split('_').last
-            : (travel['region_name'] ?? '');
-      }
+    if (isDomestic || isUSA) {
+      title = travel['region_name'] ?? (isUSA ? 'USA' : '');
     } else {
       title = isKo
           ? (travel['country_name_ko'] ?? '')
@@ -305,11 +299,26 @@ class _TravelListItem extends StatelessWidget {
       builder: (context, snapshot) {
         final written = snapshot.data ?? 0;
         final completed = written == totalDays && totalDays > 0;
-        final badgeColor = completed
-            ? const Color(0xFF9E9E9E)
-            : isDomestic
-            ? const Color(0xFF4A90E2)
-            : const Color(0xFF9B51E0);
+
+        // ✅ 타입에 따른 배지 색상 결정
+        Color badgeColor;
+        String badgeText;
+
+        if (completed) {
+          badgeColor = const Color(0xFF9E9E9E);
+          badgeText = isUSA
+              ? 'usa'.tr()
+              : (isDomestic ? 'domestic'.tr() : 'overseas'.tr());
+        } else if (isUSA) {
+          badgeColor = const Color(0xFFE74C3C); // 미국 레드
+          badgeText = 'usa'.tr();
+        } else if (isDomestic) {
+          badgeColor = const Color(0xFF4A90E2); // 국내 블루
+          badgeText = 'domestic'.tr();
+        } else {
+          badgeColor = const Color(0xFF9B51E0); // 해외 퍼플
+          badgeText = 'overseas'.tr();
+        }
 
         return GestureDetector(
           onTap: onTap,
@@ -345,7 +354,7 @@ class _TravelListItem extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                isDomestic ? 'domestic'.tr() : 'overseas'.tr(),
+                                badgeText, // ✅ 동적 텍스트 적용
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -356,7 +365,7 @@ class _TravelListItem extends StatelessWidget {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                title, // ✅ 여기 title 하나로 통합해서 에러 해결!
+                                title,
                                 style: AppTextStyles.sectionTitle.copyWith(
                                   fontSize: 18,
                                   color: completed

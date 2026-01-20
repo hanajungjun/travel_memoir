@@ -126,6 +126,51 @@ class TravelCreateService {
   }
 
   // ============================
+  // 🇺🇸 미국 여행 생성
+  // ============================
+  static Future<Map<String, dynamic>> createUSATravel({
+    required String userId,
+    required CountryModel country,
+    required String stateName, // 예: Arizona
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final String countryCode = country.code.toUpperCase();
+    final String mapImageUrl = '$_storageBaseUrl/$countryCode.png';
+
+    final travel = await _supabase
+        .from('travels')
+        .insert({
+          'user_id': userId,
+          'travel_type': 'usa',
+          'country_code': countryCode,
+          'country_name_ko': country.nameKo,
+          'country_name_en': country.nameEn,
+          // ✅ 주(State) 이름을 기존 region_name 컬럼에 저장
+          'region_name': stateName,
+          // ✅ 필요하다면 region_key에도 저장 (국가코드와 조합하거나 주 이름 그대로 사용)
+          'region_key': stateName,
+          'continent': country.continent,
+          'country_lat': country.lat,
+          'country_lng': country.lng,
+          'map_image_url': mapImageUrl,
+          'start_date': startDate.toIso8601String().substring(0, 10),
+          'end_date': endDate.toIso8601String().substring(0, 10),
+          'is_completed': false,
+        })
+        .select()
+        .single();
+
+    await _createEmptyDays(
+      travelId: travel['id'],
+      startDate: startDate,
+      endDate: endDate,
+    );
+
+    return travel;
+  }
+
+  // ============================
   // 📦 [헬퍼] 빈 일기 로우 배치 인서트
   // ============================
   static Future<void> _createEmptyDays({

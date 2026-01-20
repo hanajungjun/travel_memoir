@@ -25,6 +25,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
   }
 
   Future<List<Map<String, dynamic>>> _getMapData() async {
+    // 1. 유저의 활성화 목록 가져오기 (active_maps)
     final res = await Supabase.instance.client
         .from('users')
         .select('active_maps')
@@ -33,32 +34,45 @@ class _MapManagementPageState extends State<MapManagementPage> {
 
     final List<dynamic> activeIds = res?['active_maps'] ?? ['ko', 'world'];
 
+    // 2. 기본 맵 정의
     final List<Map<String, dynamic>> baseMaps = [
-      {'id': 'world', 'name': 'world_map', 'icon': '🌎', 'isPurchased': true},
-      {'id': 'ko', 'name': 'korea_map', 'icon': '🇰🇷', 'isPurchased': true},
-      {'id': 'us', 'name': 'usa_map', 'icon': '🇺🇸', 'isPurchased': true},
-      {'id': 'jp', 'name': 'japan_map', 'icon': '🇯🇵', 'isPurchased': false},
-      {'id': 'it', 'name': 'italy_map', 'icon': '🇮🇹', 'isPurchased': false},
+      {'id': 'world', 'name': 'world_map', 'icon': '🌎', 'isFixed': true},
+      {'id': 'us', 'name': 'usa_map', 'icon': '🇺🇸', 'isFixed': true},
+      {'id': 'ko', 'name': 'korea_map', 'icon': '🇰🇷', 'isFixed': false},
+      {'id': 'jp', 'name': 'japan_map', 'icon': '🇯🇵', 'isFixed': false},
+      {'id': 'it', 'name': 'italy_map', 'icon': '🇮🇹', 'isFixed': false},
     ];
 
-    List<Map<String, dynamic>> sortedList = [];
-
-    for (var id in activeIds) {
-      final map = baseMaps.firstWhere((m) => m['id'] == id, orElse: () => {});
-      if (map.isNotEmpty) {
-        map['isActive'] = true;
-        sortedList.add(map);
-      }
-    }
-
+    List<Map<String, dynamic>> resultList = [];
     for (var map in baseMaps) {
-      if (!activeIds.contains(map['id'])) {
-        map['isActive'] = false;
-        sortedList.add(map);
+      final String id = map['id'];
+
+      // 한국(ko)과 세계지도(world)는 무조건 '구매됨' 상태
+      bool isPurchased =
+          (id == 'world' || id == 'ko') || activeIds.contains(id);
+
+      // 활성화(isActive) 상태 결정
+      bool isActive = false;
+      if (id == 'world') {
+        isActive = true;
+      } else if (id == 'us') {
+        isActive = activeIds.contains('us');
+      } else {
+        isActive = activeIds.contains(id);
       }
+
+      map['isPurchased'] = isPurchased;
+      map['isActive'] = isActive;
+      resultList.add(map);
     }
 
-    return sortedList;
+    // ✅ [추가] 정렬 로직: 구매한 지도를 위로, 구매하지 않은 지도를 아래로 정렬
+    resultList.sort((a, b) {
+      if (a['isPurchased'] == b['isPurchased']) return 0;
+      return a['isPurchased'] ? -1 : 1; // 구매한 것이 위(-1)로, 아니면 아래(1)로
+    });
+
+    return resultList;
   }
 
   void _refresh() {
@@ -83,36 +97,30 @@ class _MapManagementPageState extends State<MapManagementPage> {
   }
 
   void _handleToggle(int index) {
-    int activeCount = _localMapList!.where((m) => m['isActive'] == true).length;
-    bool currentState = _localMapList![index]['isActive'];
+    final map = _localMapList![index];
+    if (map['isFixed'] == true && map['isActive'] == true) return;
 
     setState(() {
-      if (currentState && activeCount <= 1) {
-        _showSnackBar('min_map_alert'.tr());
-        return;
-      }
-      if (!currentState && activeCount >= 2) {
-        _showSnackBar('max_map_alert'.tr());
-        return;
-      }
-      _localMapList![index]['isActive'] = !currentState;
+      map['isActive'] = !map['isActive'];
     });
 
     _syncToDb();
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-      );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFF8F9FA),
+        elevation: 0,
+        centerTitle: true,
+        title: Text('map_settings'.tr(), style: AppTextStyles.sectionTitle),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snapshot) {
@@ -125,74 +133,18 @@ class _MapManagementPageState extends State<MapManagementPage> {
             _localMapList = List.from(snapshot.data!);
           }
 
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverAppBar(
-                pinned: true,
-                backgroundColor: const Color(0xFFF8F9FA),
-                centerTitle: true,
-                title: Text(
-                  'map_settings'.tr(),
-                  style: AppTextStyles.sectionTitle,
-                ),
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ),
+          if (_localMapList == null) return const SizedBox.shrink();
 
-              /// ✅ 도움말 문구
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-                  child: Text(
-                    '지도를 꾹 눌러서 순서를 변경해주세요',
-                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-                  ),
-                ),
-              ),
-
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                sliver: SliverReorderableList(
-                  itemCount: _localMapList!.length,
-                  onReorder: (oldIndex, newIndex) {
-                    if (oldIndex < newIndex) newIndex -= 1;
-
-                    final oldItem = _localMapList![oldIndex];
-                    final newItem = _localMapList![newIndex];
-
-                    // ❌ 구매 맵끼리만 이동 허용
-                    if (!(oldItem['isPurchased'] == true &&
-                        newItem['isPurchased'] == true)) {
-                      _showSnackBar('구매한 지도만 순서 변경이 가능합니다');
-                      return;
-                    }
-
-                    setState(() {
-                      final item = _localMapList!.removeAt(oldIndex);
-                      _localMapList!.insert(newIndex, item);
-                    });
-
-                    _syncToDb();
-                  },
-                  itemBuilder: (context, index) {
-                    final map = _localMapList![index];
-
-                    return _MapItemTile(
-                      key: ValueKey(map['id']),
-                      map: map,
-                      index: index,
-                      onToggle: () => _handleToggle(index),
-                    );
-                  },
-                ),
-              ),
-            ],
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            itemCount: _localMapList!.length,
+            itemBuilder: (context, index) {
+              final map = _localMapList![index];
+              return _MapItemTile(
+                map: map,
+                onToggle: () => _handleToggle(index),
+              );
+            },
           );
         },
       ),
@@ -203,64 +155,77 @@ class _MapManagementPageState extends State<MapManagementPage> {
 class _MapItemTile extends StatelessWidget {
   final Map<String, dynamic> map;
   final VoidCallback onToggle;
-  final int index;
 
-  const _MapItemTile({
-    super.key,
-    required this.map,
-    required this.onToggle,
-    required this.index,
-  });
+  const _MapItemTile({required this.map, required this.onToggle});
 
   @override
   Widget build(BuildContext context) {
     final bool isPurchased = map['isPurchased'] ?? false;
     final bool isActive = map['isActive'] ?? false;
+    final bool isFixed = map['isFixed'] ?? false;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Material(
-        color: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            color: isPurchased ? Colors.white : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isPurchased ? Colors.white : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: isPurchased
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 10,
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 10,
+          leading: Text(map['icon'], style: const TextStyle(fontSize: 32)),
+          title: Text(
+            map['name'].toString().tr(),
+            style: AppTextStyles.sectionTitle.copyWith(
+              fontSize: 18,
+              color: isPurchased ? Colors.black87 : Colors.grey,
             ),
-
-            /// ✅ 구매 맵만 드래그 가능
-            leading: isPurchased
-                ? ReorderableDragStartListener(
-                    index: index,
-                    child: Text(
-                      map['icon'],
-                      style: const TextStyle(fontSize: 32),
-                    ),
-                  )
-                : Text(map['icon'], style: const TextStyle(fontSize: 32)),
-
-            title: Text(
-              map['name'].toString().tr(),
-              style: AppTextStyles.sectionTitle.copyWith(
-                fontSize: 18,
-                color: isPurchased ? Colors.black87 : Colors.grey,
-              ),
-            ),
-
-            trailing: isPurchased
-                ? CupertinoSwitch(
-                    value: isActive,
-                    activeColor: AppColors.travelingBlue,
-                    onChanged: (_) => onToggle(),
-                  )
-                : const Icon(Icons.shopping_cart_outlined, color: Colors.blue),
           ),
+          trailing: _buildTrailing(isPurchased, isActive, isFixed),
         ),
       ),
+    );
+  }
+
+  Widget _buildTrailing(bool isPurchased, bool isActive, bool isFixed) {
+    if (!isPurchased) {
+      return const Icon(Icons.shopping_cart_outlined, color: Colors.blue);
+    }
+
+    if (isFixed && isActive) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: AppColors.travelingBlue.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'active_label'.tr(),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: AppColors.travelingBlue,
+          ),
+        ),
+      );
+    }
+
+    return CupertinoSwitch(
+      value: isActive,
+      activeColor: AppColors.travelingBlue,
+      onChanged: (_) => onToggle(),
     );
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:easy_localization/easy_localization.dart'; // ✅ 추가
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/models/country_model.dart';
 import 'package:travel_memoir/services/travel_create_service.dart';

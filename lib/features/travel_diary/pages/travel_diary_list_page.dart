@@ -111,19 +111,21 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   @override
   Widget build(BuildContext context) {
     final startDate = DateTime.parse(_travel['start_date']);
-    final isDomestic = _travel['travel_type'] == 'domestic';
+
+    // ✅ 여행 타입 구분 (domestic, usa, overseas)
+    final travelType = _travel['travel_type'] ?? '';
+    final isDomestic = travelType == 'domestic';
+    final isUSA = travelType == 'usa';
+
     final bool isKo = context.locale.languageCode == 'ko';
 
     String title = '';
-    if (isDomestic) {
-      if (isKo) {
-        title = _travel['region_name'] ?? 'travel'.tr();
-      } else {
-        final String rawKey = _travel['region_key'] ?? '';
-        title = rawKey.isNotEmpty
-            ? rawKey.split('_').last
-            : (_travel['region_name'] ?? 'travel'.tr());
-      }
+
+    // ✅ 미국 여행이거나 한국 여행일 때 region_name(예: Colorado, 경기도)을 제목으로 사용
+    if (isUSA || isDomestic) {
+      title =
+          _travel['region_name'] ??
+          (isKo ? (isUSA ? '미국' : '국내') : (isUSA ? 'USA' : 'Domestic'));
     } else {
       title = isKo
           ? (_travel['country_name_ko'] ?? 'travel'.tr())
@@ -136,7 +138,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       backgroundColor: const Color(0xFFF8F9FA),
       body: Column(
         children: [
-          _buildHeader(isDomestic, title),
+          _buildHeader(travelType, title), // ✅ travelType 전달하여 색상 결정
           Expanded(
             child: _loading
                 ? const TravelDiaryListSkeleton()
@@ -149,7 +151,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                     buildDefaultDragHandles: false,
                     onReorder: _onReorder,
                     itemBuilder: (context, index) {
-                      // ✅ [핵심 수정] 변수 정의 위치 확보
                       final diary = _diaries[index];
                       final displayDate = startDate.add(Duration(days: index));
                       final dayIndex = index + 1;
@@ -252,7 +253,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                   endDate: startDate.add(
                                     Duration(days: _diaries.length - 1),
                                   ),
-                                  date: displayDate, // ✅ 이제 인식됨
+                                  date: displayDate,
                                   initialDiary: diary,
                                 ),
                               ),
@@ -262,8 +263,8 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                           },
                           child: _buildListItem(
                             diary,
-                            displayDate, // ✅ 이제 인식됨
-                            dayIndex, // ✅ 이제 인식됨
+                            displayDate,
+                            dayIndex,
                             hasDiary,
                             text,
                             imageUrl,
@@ -279,7 +280,10 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       floatingActionButton: _isChanged
           ? FloatingActionButton.extended(
               onPressed: _saveChanges,
-              backgroundColor: AppColors.travelingBlue,
+              // ✅ 미국 테마 레드 컬러 적용
+              backgroundColor: travelType == 'usa'
+                  ? const Color(0xFFE74C3C)
+                  : AppColors.travelingBlue,
               elevation: 4,
               icon: const Icon(Icons.check, color: Colors.white),
               label: Text(
@@ -294,18 +298,35 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     );
   }
 
-  Widget _buildHeader(bool isDomestic, String title) {
+  Widget _buildHeader(String travelType, String title) {
+    // ✅ 미국(Red), 한국(Blue), 세계(Purple) 구분
+    Color primaryColor;
+    Color secondaryColor;
+    String badgeLabel;
+
+    if (travelType == 'usa') {
+      primaryColor = const Color(0xFFE74C3C); // 미국 레드
+      secondaryColor = const Color(0xFFC0392B);
+      badgeLabel = 'usa'.tr();
+    } else if (travelType == 'domestic') {
+      primaryColor = AppColors.travelingBlue; // 한국 블루
+      secondaryColor = const Color(0xFF2980B9);
+      badgeLabel = 'domestic'.tr();
+    } else {
+      primaryColor = AppColors.decoPurple; // 세계 퍼플
+      secondaryColor = const Color(0xFF8E44AD);
+      badgeLabel = 'overseas'.tr();
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
       decoration: BoxDecoration(
-        color: isDomestic ? AppColors.travelingBlue : AppColors.decoPurple,
+        color: primaryColor,
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDomestic
-              ? [AppColors.travelingBlue, const Color(0xFF2980B9)]
-              : [AppColors.decoPurple, const Color(0xFF8E44AD)],
+          colors: [primaryColor, secondaryColor],
         ),
       ),
       child: Column(
@@ -313,10 +334,11 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
         children: [
           Row(
             children: [
-              _TypeBadge(label: isDomestic ? 'domestic'.tr() : 'overseas'.tr()),
+              _TypeBadge(label: badgeLabel),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
+                  // ✅ Localization에서 {0} 여행 형태로 정의되어 있다면 Colorado 여행으로 표시됨
                   'travel_diary_list_title'.tr(args: [title]),
                   style: AppTextStyles.pageTitle.copyWith(
                     color: Colors.white,

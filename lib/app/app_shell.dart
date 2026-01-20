@@ -20,20 +20,17 @@ class _AppShellState extends State<AppShell> {
     setState(() => _currentIndex = index);
   }
 
-  // 커스텀 메뉴 아이템 빌더
-  // 커스텀 메뉴 아이템 빌더 (이미지 아이콘 + 체크 점)
   BottomNavigationBarItem _buildMenuItem({
     required String iconAsset,
     required String label,
-    required int index,
   }) {
     return BottomNavigationBarItem(
       icon: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.only(bottom: 2), // ✅ 살짝 줄임
         child: Image.asset(iconAsset, width: 22, height: 22),
       ),
       activeIcon: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.only(bottom: 2), // ✅ 살짝 줄임
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -59,7 +56,6 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 1. 페이지 리스트를 build 내부로 옮겨서 언어 변경 시 즉시 반영되도록 함
     final List<Widget> pages = [
       HomePage(onGoToTravel: () => _onTabSelected(1)),
       const TravelInfoPage(),
@@ -69,41 +65,52 @@ class _AppShellState extends State<AppShell> {
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: pages),
-      bottomNavigationBar: SizedBox(
-        height: 80, // 🔥 여기서 높이 조절
-        child: BottomNavigationBar(
-          backgroundColor: AppColors.background, // 배경
-          // ✅ 2. [핵심] ValueKey 추가 - 언어(locale)가 바뀔 때마다 탭바를 새로 그림
-          key: ValueKey(context.locale.toString()),
-          currentIndex: _currentIndex,
-          onTap: _onTabSelected,
-          type: BottomNavigationBarType.fixed,
+
+      // ✅ 핵심: BottomNavigationBarTheme로 내부 레이아웃까지 안정적으로 잡는다
+      bottomNavigationBar: BottomNavigationBarTheme(
+        data: const BottomNavigationBarThemeData(
+          backgroundColor: AppColors.background,
           selectedItemColor: AppColors.textColor01,
           unselectedItemColor: AppColors.textColor01,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          items: [
-            _buildMenuItem(
-              iconAsset: 'assets/icons/nav_home.png',
-              label: 'nav_home'.tr(),
-              index: 0,
+
+          // ✅ 오버플로우 방지 포인트
+          selectedLabelStyle: TextStyle(fontSize: 11, height: 1.0),
+          unselectedLabelStyle: TextStyle(fontSize: 11, height: 1.0),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 72, // ✅ 80 -> 72 정도가 안정적 (원하면 76도 OK)
+            child: BottomNavigationBar(
+              key: ValueKey(context.locale.toString()),
+              currentIndex: _currentIndex,
+              onTap: _onTabSelected,
+              type: BottomNavigationBarType.fixed,
+
+              // ✅ 여기 숫자도 너무 키우면 다시 overflow 날 수 있음
+              selectedFontSize: 11,
+              unselectedFontSize: 11,
+
+              items: [
+                _buildMenuItem(
+                  iconAsset: 'assets/icons/nav_home.png',
+                  label: 'nav_home'.tr(),
+                ),
+                _buildMenuItem(
+                  iconAsset: 'assets/icons/nav_travel.png',
+                  label: 'nav_travel'.tr(),
+                ),
+                _buildMenuItem(
+                  iconAsset: 'assets/icons/nav_record.png',
+                  label: 'nav_record'.tr(),
+                ),
+                _buildMenuItem(
+                  iconAsset: 'assets/icons/nav_my.png',
+                  label: 'nav_my'.tr(),
+                ),
+              ],
             ),
-            _buildMenuItem(
-              iconAsset: 'assets/icons/nav_travel.png',
-              label: 'nav_travel'.tr(),
-              index: 1,
-            ),
-            _buildMenuItem(
-              iconAsset: 'assets/icons/nav_record.png',
-              label: 'nav_record'.tr(),
-              index: 2,
-            ),
-            _buildMenuItem(
-              iconAsset: 'assets/icons/nav_my.png',
-              label: 'nav_my'.tr(),
-              index: 3,
-            ),
-          ],
+          ),
         ),
       ),
     );
