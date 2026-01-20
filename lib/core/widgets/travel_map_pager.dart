@@ -25,7 +25,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   int _index = 0;
   int _mapKey = 0;
 
-  // ✅ 활성 맵 관리를 위한 변수
+  // 활성 맵 리스트 (world / ko / us 등)
   List<String> _activeMapIds = ['world', 'ko'];
   bool _loading = true;
 
@@ -35,7 +35,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
     _loadActiveMaps();
   }
 
-  /// ✅ Supabase에서 활성화된 맵 리스트 가져오기
+  /// 🔑 active_maps 로드
   Future<void> _loadActiveMaps() async {
     try {
       final res = await Supabase.instance.client
@@ -44,18 +44,16 @@ class _TravelMapPagerState extends State<TravelMapPager> {
           .eq('auth_uid', _userId)
           .maybeSingle();
 
-      if (res != null && res['active_maps'] != null) {
-        if (mounted) {
-          setState(() {
-            _activeMapIds = List<String>.from(res['active_maps']);
-            _loading = false;
-          });
-        }
-      } else {
-        if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _activeMapIds = List<String>.from(
+            res?['active_maps'] ?? ['world', 'ko'],
+          );
+          _loading = false;
+        });
       }
     } catch (e) {
-      debugPrint('❌ [TravelMapPager] Load Error: $e');
+      debugPrint('❌ [TravelMapPager] load error: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -76,7 +74,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   }
 
   void _refreshMap() {
-    _loadActiveMaps(); // ✅ 맵 설정 변경 가능성이 있으므로 다시 로드
+    _loadActiveMaps();
     _safeSetState(() => _mapKey++);
   }
 
@@ -95,33 +93,36 @@ class _TravelMapPagerState extends State<TravelMapPager> {
       );
     }
 
-    // 🎯 동적 탭 구성 로직
+    /// 🧭 동적 맵 구성
     final List<Map<String, dynamic>> dynamicConfigs = [];
+
     if (_activeMapIds.contains('world')) {
       dynamicConfigs.add({
         'label': 'overseas'.tr(),
+        'activeColor': AppColors.travelingPurple,
         'page': GlobalMapPage(key: ValueKey('global-map-$_mapKey')),
       });
     }
+
     if (_activeMapIds.contains('ko')) {
       dynamicConfigs.add({
         'label': 'domestic'.tr(),
+        'activeColor': AppColors.travelingBlue,
         'page': DomesticMapPage(key: ValueKey('domestic-map-$_mapKey')),
       });
     }
 
-    // 활성화된 지도가 없을 경우 예외 처리
     if (dynamicConfigs.isEmpty) {
       return const SizedBox(
         height: 200,
-        child: Center(child: Text("활성화된 지도가 없습니다.")),
+        child: Center(child: Text('활성화된 지도가 없습니다.')),
       );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ===== 탭: 활성 맵이 2개 이상일 때만 표시 =====
+        /// ===== 탭 (2개 이상일 때만) =====
         if (dynamicConfigs.length > 1)
           Container(
             padding: const EdgeInsets.all(3),
@@ -130,42 +131,21 @@ class _TravelMapPagerState extends State<TravelMapPager> {
               borderRadius: BorderRadius.circular(40),
             ),
             child: Row(
-              children: List.generate(dynamicConfigs.length, (index) {
+              children: List.generate(dynamicConfigs.length, (i) {
                 return _Tab(
-                  label: dynamicConfigs[index]['label'],
-                  selected: _index == index,
-                  onTap: () => _move(index),
+                  label: dynamicConfigs[i]['label'],
+                  selected: _index == i,
+                  onTap: () => _move(i),
+                  activeColor: dynamicConfigs[i]['activeColor'],
+                  inactiveTextColor: AppColors.textColor05,
                 );
               }),
             ),
           ),
-<<<<<<< Updated upstream
-          child: Row(
-            children: [
-              _Tab(
-                label: 'overseas'.tr(), // 해외가 0번(왼쪽)
-                selected: _index == 0,
-                onTap: () => _move(0),
-                activeColor: AppColors.travelingPurple, // 🌍 해외
-                inactiveTextColor: AppColors.textColor05,
-              ),
-              _Tab(
-                label: 'domestic'.tr(), // 국내가 1번(오른쪽)
-                selected: _index == 1,
-                onTap: () => _move(1),
-                activeColor: AppColors.travelingBlue, // 🇰🇷 국내
-                inactiveTextColor: AppColors.textColor05,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-=======
 
         if (dynamicConfigs.length > 1) const SizedBox(height: 12),
->>>>>>> Stashed changes
 
-        // ===== 지도 영역 =====
+        /// ===== 지도 영역 =====
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
@@ -192,12 +172,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
                             ),
                           ),
                         );
-<<<<<<< Updated upstream
-
-                        if (mounted) _refreshMap();
-=======
-                        _refreshMap(); // 설정 변경 후 돌아왔을 때 갱신
->>>>>>> Stashed changes
+                        _refreshMap();
                       },
                     ),
                   ),
@@ -211,7 +186,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   }
 }
 
-// 🎨 커스텀 탭 위젯 (이 부분이 빠져서 에러가 났었습니다)
+/// 🎨 탭 위젯
 class _Tab extends StatelessWidget {
   final String label;
   final bool selected;
@@ -235,11 +210,7 @@ class _Tab extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
-<<<<<<< Updated upstream
-            color: selected ? activeColor : AppColors.onPrimary,
-=======
-            color: selected ? AppColors.primary : Colors.transparent,
->>>>>>> Stashed changes
+            color: selected ? activeColor : Colors.transparent,
             borderRadius: BorderRadius.circular(28),
           ),
           child: Center(
