@@ -301,5 +301,6 @@
   "state": "State",
   "mainland": "Mainland",
   "alaska": "Alaska",
-  "hawaii": "Hawaii"
+  "hawaii": "Hawaii",
+  "pull_to_discover":"Discover"
 }

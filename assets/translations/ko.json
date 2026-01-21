@@ -299,5 +299,6 @@
   "state": "주(State)",
   "mainland": "본토",
   "alaska": "알래스카",
-  "hawaii": "하와이"
+  "hawaii": "하와이",
+  "pull_to_discover":"쭉쭉"
 }

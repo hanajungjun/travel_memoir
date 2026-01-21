@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_app_badge_control/flutter_app_badge_control.dart';
 import 'package:travel_memoir/app/route_observer.dart';
 
@@ -15,7 +15,6 @@ import 'package:travel_memoir/core/widgets/skeletons/travel_map_skeleton.dart';
 import 'package:travel_memoir/core/widgets/skeletons/recent_travel_section_skeleton.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
-import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback onGoToTravel;
@@ -32,7 +31,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
   @override
   void initState() {
     super.initState();
-    // 1초 뒤 안전하게 보상 체크 실행
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(const Duration(milliseconds: 1000));
       _checkDailyReward();
@@ -43,18 +41,13 @@ class _HomePageState extends State<HomePage> with RouteAware {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    // ✅ [추가] 앱 실행 시 지긋지긋한 숫자 '1' 뱃지를 지웁니다.
     try {
       await FlutterAppBadgeControl.removeBadge();
-      debugPrint("✅ [Badge] 알림 뱃지 제거 성공");
     } catch (e) {
       debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
     }
 
-    print("🚀 [HomePage] 보상 체크 프로세스 시작...");
     bool isGranted = await _stampService.checkAndGrantDailyReward(user.id);
-    print("🚀 [HomePage] 지급 여부: $isGranted");
-
     if (isGranted && mounted) {
       _showRewardPopup();
     }
@@ -120,9 +113,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
   }
 
   @override
-  void didPopNext() {
-    _triggerRefresh();
-  }
+  void didPopNext() => _triggerRefresh();
 
   @override
   Widget build(BuildContext context) {
@@ -130,119 +121,74 @@ class _HomePageState extends State<HomePage> with RouteAware {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
+          // 1. 상단 고정 헤더
           HomeTravelStatusHeader(onGoToTravel: widget.onGoToTravel),
+
+          // 2. 메인 컨텐츠 (스크롤 금지 설정)
           Expanded(
-            child: Stack(
-              alignment: Alignment.bottomCenter,
-              children: [
-                Positioned(
-                  bottom: 30,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        height: 100,
-                        child: Image.asset(
-                          'assets/images/durub.png',
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.pets,
-                                size: 50,
-                                color: Colors.grey,
-                              ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "home_cat_message".tr(),
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Container(
-                        color: AppColors.background,
-                        padding: EdgeInsets.fromLTRB(27, 25, 27, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            FutureBuilder(
-                              key: ValueKey('recent-$_refreshKey'),
-                              future: TravelListService.getRecentTravels(),
-                              builder: (context, snapshot) {
-                                return AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 250),
-                                  child:
-                                      snapshot.connectionState ==
-                                          ConnectionState.waiting
-                                      ? const RecentTravelSectionSkeleton(
-                                          key: ValueKey('recent-skeleton'),
-                                        )
-                                      : RecentTravelSection(
-                                          key: const ValueKey('recent-content'),
-                                          onSeeAll: widget.onGoToTravel,
-                                        ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 24),
-                            FutureBuilder<List<Map<String, dynamic>>>(
-                              key: ValueKey('map-$_refreshKey'),
-                              future: TravelListService.getTravels(),
-                              builder: (context, snapshot) {
-                                final travels = snapshot.data ?? [];
-                                final String? travelId = travels.isNotEmpty
-                                    ? travels.first['id']
-                                    : null;
-                                return AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 250),
-                                  child:
-                                      snapshot.connectionState ==
-                                          ConnectionState.waiting
-                                      ? const TravelMapSkeleton(
-                                          key: ValueKey('map-skeleton'),
-                                        )
-                                      : Container(
-                                          key: const ValueKey('map-content'),
-                                          padding: const EdgeInsets.all(13),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.lightSurface,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
-                                            ),
-                                          ),
-                                          child: SizedBox(
-                                            height:
-                                                MediaQuery.of(
-                                                  context,
-                                                ).size.height *
-                                                0.45,
-                                            child: TravelMapPager(
-                                              travelId: travelId ?? 'preview',
-                                            ),
-                                          ),
-                                        ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 0),
-                          ],
-                        ),
-                      ),
+            child: SingleChildScrollView(
+              // 🎯 [핵심] 스크롤 기능을 완전히 끕니다. 손가락으로 밀어도 안 움직입니다.
+              physics: const NeverScrollableScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(27, 15, 27, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 최근 여행 섹션
+                    FutureBuilder(
+                      key: ValueKey('recent-$_refreshKey'),
+                      future: TravelListService.getRecentTravels(),
+                      builder: (context, snapshot) {
+                        return AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child:
+                              snapshot.connectionState ==
+                                  ConnectionState.waiting
+                              ? const RecentTravelSectionSkeleton()
+                              : RecentTravelSection(
+                                  onSeeAll: widget.onGoToTravel,
+                                ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 20),
+
+                    // 여행 지도 섹션
+                    FutureBuilder<List<Map<String, dynamic>>>(
+                      key: ValueKey('map-$_refreshKey'),
+                      future: TravelListService.getTravels(),
+                      builder: (context, snapshot) {
+                        final travels = snapshot.data ?? [];
+                        final String? travelId = travels.isNotEmpty
+                            ? travels.first['id']
+                            : null;
+                        return AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child:
+                              snapshot.connectionState ==
+                                  ConnectionState.waiting
+                              ? const TravelMapSkeleton()
+                              : Container(
+                                  padding: const EdgeInsets.all(13),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.lightSurface,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: SizedBox(
+                                    height:
+                                        MediaQuery.of(context).size.height *
+                                        0.45,
+                                    child: TravelMapPager(
+                                      travelId: travelId ?? 'preview',
+                                    ),
+                                  ),
+                                ),
+                        );
+                      },
                     ),
                   ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
