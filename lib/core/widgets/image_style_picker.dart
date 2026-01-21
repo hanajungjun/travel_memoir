@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // 🎯 패키지 추가
 import 'package:travel_memoir/models/image_style_model.dart';
 import 'package:travel_memoir/services/image_style_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
@@ -18,10 +19,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   List<ImageStyleModel> _styles = [];
   int _selectedIndex = 0;
 
-  // =========================================
   // 🔥 테스트용: 유저 프리미엄 여부
-  // false / true 바꿔가며 테스트
-  // =========================================
   final bool _isUserPremium = false;
 
   @override
@@ -65,10 +63,6 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
         itemBuilder: (_, i) {
           final style = _styles[i];
           final selected = i == _selectedIndex;
-
-          // =========================================
-          // ✅ 진짜 프리미엄 기준 (DB 컬럼)
-          // =========================================
           final bool locked = style.isPremium && !_isUserPremium;
 
           final String displayTitle =
@@ -122,15 +116,36 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                         child:
                             style.thumbnailUrl != null &&
                                 style.thumbnailUrl!.isNotEmpty
-                            ? Image.network(
-                                style.thumbnailUrl!,
+                            ? CachedNetworkImage(
+                                // 🎯 [핵심 수정] 캐싱 적용
+                                imageUrl: Uri.encodeFull(
+                                  style.thumbnailUrl!,
+                                ), // 띄어쓰기 대응
                                 fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey[100],
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(
+                                      Icons.image_not_supported,
+                                      color: Colors.grey,
+                                      size: 20,
+                                    ),
                               )
                             : const Icon(Icons.image, color: Colors.grey),
                       ),
                     ),
 
-                    // 🔒 PRO 배지 (isPremium 기준)
+                    // 🔒 PRO 배지
                     if (style.isPremium)
                       Positioned(
                         right: 4,

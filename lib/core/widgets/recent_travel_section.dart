@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // 🎯 패키지 임포트
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
@@ -74,8 +75,6 @@ class _RecentTravelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = travel['map_image_url'] as String?;
-
-    // 🎯 [개선포인트 1 & 3] 목적지 이름 결정 로직을 헬퍼 메서드로 분리하여 정리
     final String destinationName = _getDestinationName(context, travel);
 
     return GestureDetector(
@@ -93,12 +92,33 @@ class _RecentTravelCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             child: AspectRatio(
               aspectRatio: 1,
-              child: imageUrl != null
-                  ? Image.network(
-                      imageUrl,
+              child: (imageUrl != null && imageUrl.isNotEmpty)
+                  ? CachedNetworkImage(
+                      // 🎯 [핵심 수정] Image.network 대신 사용
+                      imageUrl: Uri.encodeFull(imageUrl), // 띄어쓰기 대응
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Container(color: AppColors.divider),
+                      // 이미지를 불러오는 동안 보여줄 화면 (깜빡임 방지)
+                      placeholder: (context, url) => Container(
+                        color: AppColors.lightSurface,
+                        child: const Center(
+                          child: SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.divider,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // 에러 발생 시(네트워크 없음 등) 보여줄 화면
+                      errorWidget: (context, url, error) => Container(
+                        color: AppColors.divider,
+                        child: const Icon(
+                          Icons.map_outlined,
+                          color: Colors.white,
+                        ),
+                      ),
                     )
                   : Container(color: AppColors.divider),
             ),
@@ -113,10 +133,6 @@ class _RecentTravelCard extends StatelessWidget {
                   style: AppTextStyles.body.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    // 미국 여행일 경우 글자색에 포인트를 줄 수도 있습니다 (선택사항)
-                    // color: travel['travel_type'] == 'usa'
-                    //     ? const Color(0xFFE74C3C)
-                    //     : null,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -137,7 +153,6 @@ class _RecentTravelCard extends StatelessWidget {
     );
   }
 
-  /// 🎯 [목적지 이름 결정 헬퍼] 타입별/언어별 로직 통합 관리
   String _getDestinationName(
     BuildContext context,
     Map<String, dynamic> travel,
@@ -145,25 +160,16 @@ class _RecentTravelCard extends StatelessWidget {
     final String type = travel['travel_type'] ?? 'domestic';
     final bool isKo = context.locale.languageCode == 'ko';
 
-    // 1. 미국 지도 구매 여행 (travel_type == 'usa')
     if (type == 'usa') {
-      // 주 이름(Arizona 등)이 담긴 region_name을 최우선으로, 없으면 region_key나 기본 국가명 표시
       return travel['region_name'] ??
           travel['region_key'] ??
           (isKo ? '미국' : 'USA');
     }
-
-    // 2. 국내 여행 (travel_type == 'domestic')
     if (type == 'domestic') {
       if (isKo) return travel['region_name'] ?? 'unknown_destination'.tr();
-
-      // 영문 모드일 때 region_key(예: kr_seoul)에서 마지막 단어만 추출
       final String rawKey = travel['region_key'] ?? '';
       return rawKey.isNotEmpty ? rawKey.split('_').last : 'Korea';
     }
-
-    // 3. 일반 해외 여행 (그 외 모든 경우)
-    // 존재하지 않는 display_country_name 컬럼은 제거하고 실제 컬럼 기반으로 수정
     return isKo
         ? (travel['country_name_ko'] ?? 'unknown_destination'.tr())
         : (travel['country_name_en'] ??
@@ -176,10 +182,8 @@ class _RecentTravelCard extends StatelessWidget {
     final end = DateTime.tryParse(travel['end_date'] ?? '');
     if (start == null) return '';
     if (end == null || start.isAtSameMomentAs(end)) return 'day_trip'.tr();
-
     final days = end.difference(start).inDays + 1;
     final nights = days - 1;
-
     return 'travel_period_format'.tr(
       args: [nights.toString(), days.toString()],
     );
@@ -188,7 +192,6 @@ class _RecentTravelCard extends StatelessWidget {
 
 class _EmptyTravelCard extends StatelessWidget {
   const _EmptyTravelCard();
-
   @override
   Widget build(BuildContext context) {
     return Column(

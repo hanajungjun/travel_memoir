@@ -1,74 +1,68 @@
-/// Supabase Storage 경로 규칙 모음
-/// ⚠️ 이 파일은 절대 임의로 수정하지 말 것
-/// (계정 삭제 / 이미지 재생성 / 유료 기능 전부 이 규칙에 의존)
-
+/// Supabase Storage 경로 및 URL 규칙 통합 관리 클래스
 class StoragePaths {
-  StoragePaths._(); // static only
+  StoragePaths._();
+
+  static const String _projectId = 'tpgfnqbtioxmvartxjii';
+  static const String _basePublicUrl =
+      'https://$_projectId.supabase.co/storage/v1/object/public';
+
+  // 모든 URL 생성 시 인코딩 및 기본 주소 결합
+  static String _toFullUrl(String path) {
+    final String url = '$_basePublicUrl/$path';
+    return Uri.encodeFull(url);
+  }
 
   // =====================================================
-  // 🔹 User Root
+  // 🎨 System (공용 지도 리소스 - 각자 버킷이 다름)
   // =====================================================
-  static String userRoot(String userId) => 'users/$userId';
+  static String domesticMap(String regionKey) =>
+      _toFullUrl('map_images/$regionKey.png');
+
+  static String globalMap(String countryCode) =>
+      _toFullUrl('global_map_image/$countryCode.png');
+
+  static String usaMap(String regionKey) =>
+      _toFullUrl('usa_map_image/$regionKey.png');
+
+  static String styleThumbnail(String styleId) =>
+      _toFullUrl('system/style_thumbnails/$styleId.png');
 
   // =====================================================
-  // 👤 Profile
+  // 👤 User & Travels (사용자 개별 데이터 - 모두 'travel_images' 버킷 사용)
   // =====================================================
+
+  // 🎯 모든 사용자 경로 앞에 'travel_images/'를 명시적으로 추가했습니다.
+  static String userRoot(String userId) => 'travel_images/users/$userId';
+
   static String profileRoot(String userId) => '${userRoot(userId)}/profile';
 
   static String profileAvatar(String userId) =>
-      '${profileRoot(userId)}/avatar.png';
+      _toFullUrl('${profileRoot(userId)}/avatar.png');
 
-  // =====================================================
-  // ✈️ Travels
-  // =====================================================
   static String travelRoot(String userId, String travelId) =>
       '${userRoot(userId)}/travels/$travelId';
 
-  /// 여행 대표 이미지
   static String travelCover(String userId, String travelId) =>
-      '${travelRoot(userId, travelId)}/cover.png';
+      _toFullUrl('${travelRoot(userId, travelId)}/cover.png');
 
-  /// 🔥 유료 기능: 타임라인 이미지
   static String travelTimeline(String userId, String travelId) =>
-      '${travelRoot(userId, travelId)}/timeline.png';
+      _toFullUrl('${travelRoot(userId, travelId)}/timeline.png');
 
-  // =====================================================
-  // 📅 Day Images
-  // =====================================================
   static String travelDaysRoot(String userId, String travelId) =>
       '${travelRoot(userId, travelId)}/days';
 
-  /// AI 생성 일자 이미지 (예: 2025-01-01.png)
   static String travelDayImage(
     String userId,
     String travelId,
-    String diaryId, // 날짜 대신 고유 ID(UUID)를 받습니다.
-  ) => '${travelDaysRoot(userId, travelId)}/$diaryId.png';
+    String diaryId,
+  ) => _toFullUrl('${travelDaysRoot(userId, travelId)}/$diaryId.png');
 
-  /// 사용자가 직접 업로드한 사진
   static String travelUserPhoto(
     String userId,
     String travelId,
     String fileName,
-  ) => '${travelDaysRoot(userId, travelId)}/photos/$fileName';
+  ) => _toFullUrl('${travelDaysRoot(userId, travelId)}/photos/$fileName');
 
-  // =====================================================
-  // 🧪 Temporary (AI 미리보기 등)
-  // =====================================================
-  static String tempRoot(String userId) => '${userRoot(userId)}/temp';
-
-  static String tempAiPreview(String userId) =>
-      '${tempRoot(userId)}/ai_preview.png';
-
-  // =====================================================
-  // 🎨 System (공용 리소스)
-  // =====================================================
-  static const String systemRoot = 'system';
-
-  static String styleThumbnail(String styleId) =>
-      '$systemRoot/style_thumbnails/$styleId.png';
-
-  /// 여행 지도 이미지
   static String travelMap(String userId, String travelId) =>
-      '${travelRoot(userId, travelId)}/map.png';
+      _toFullUrl('${travelRoot(userId, travelId)}/map.png');
 }

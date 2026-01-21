@@ -20,7 +20,7 @@ class USTravelDatePage extends StatefulWidget {
 class _USTravelDatePageState extends State<USTravelDatePage> {
   DateTime? _startDate;
   DateTime? _endDate;
-  String? _selectedState;
+  String? _selectedState; // 🎯 여기서 선택된 주 이름이 저장됩니다.
 
   final CountryModel _usa = CountryModel(
     code: 'US',
@@ -32,7 +32,6 @@ class _USTravelDatePageState extends State<USTravelDatePage> {
     flagUrl: 'https://flagcdn.com/w320/us.png',
   );
 
-  // ✅ 모든 정보가 입력되어야 버튼 활성화
   bool get _canCreate =>
       _startDate != null && _endDate != null && _selectedState != null;
 
@@ -71,21 +70,24 @@ class _USTravelDatePageState extends State<USTravelDatePage> {
         fullscreenDialog: true,
       ),
     );
-    if (range != null)
+    if (range != null) {
       setState(() {
         _startDate = range.start;
         _endDate = range.end;
       });
+    }
   }
 
   Future<void> _createTravel() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
+    // 🎯 [핵심 수정] widget.stateName 대신 로컬 변수 _selectedState를 사용합니다.
     final travel = await TravelCreateService.createUSATravel(
       userId: user.id,
       country: _usa,
-      stateName: _selectedState!,
+      regionKey: _selectedState!, // 👈 선택된 주 이름 (예: Arizona)
+      stateName: _selectedState!, // 👈 화면 표시용 이름
       startDate: _startDate!,
       endDate: _endDate!,
     );
@@ -155,7 +157,6 @@ class _USTravelDatePageState extends State<USTravelDatePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 1. 여행 날짜 선택
                         _buildLabel('when_is_trip'.tr()),
                         _buildInputField(
                           text: _startDate == null
@@ -164,10 +165,7 @@ class _USTravelDatePageState extends State<USTravelDatePage> {
                           isSelected: _startDate != null,
                           onTap: _pickDateRange,
                         ),
-
                         const SizedBox(height: 24),
-
-                        // 2. 여행 주(State) 선택 ✅ 다시 추가됨
                         _buildLabel('select_state'.tr()),
                         _buildInputField(
                           text: _selectedState ?? 'select_state_hint'.tr(),

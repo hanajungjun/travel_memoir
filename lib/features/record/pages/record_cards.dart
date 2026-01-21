@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // 🎯 반드시 pubspec.yaml에 추가되어 있어야 합니다.
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/features/travel_album/pages/travel_album_page.dart';
 
-// 🧭 상단 요약 히어로 카드 (기존 유지)
+// =====================================================
+// 🧭 [1] 상단 요약 히어로 카드
+// =====================================================
 class SummaryHeroCard extends StatelessWidget {
   final int totalCount;
   final Map<String, dynamic> lastTravel;
@@ -18,6 +21,7 @@ class SummaryHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 마지막 여행 날짜 추출 및 포맷팅
     final endDateStr = lastTravel['end_date']?.toString() ?? '';
     final end = DateTime.tryParse(endDateStr) ?? DateTime.now();
 
@@ -28,22 +32,31 @@ class SummaryHeroCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Spacer(),
+            // 페이지 타이틀 (예: "당신의 모든 기록")
             Text('memory_hero_title'.tr(), style: AppTextStyles.pageTitle),
             const SizedBox(height: 24),
+
+            // 총 여행 횟수
             Text(
               'total_travels_format'.tr(args: [totalCount.toString()]),
               style: AppTextStyles.body,
             ),
             const SizedBox(height: 8),
+
+            // 마지막 여행 일자
             Text(
               'last_travel_format'.tr(args: [DateUtilsHelper.formatYMD(end)]),
               style: AppTextStyles.body,
             ),
+
+            // "방금 전", "3일 전" 등 시간 경과 표시
             Text(
               DateUtilsHelper.memoryTimeAgo(end),
               style: AppTextStyles.bodyMuted,
             ),
             const Spacer(),
+
+            // 하단 스크롤 유도 아이콘
             const Center(
               child: Icon(
                 Icons.keyboard_arrow_up,
@@ -58,7 +71,9 @@ class SummaryHeroCard extends StatelessWidget {
   }
 }
 
-// 🧳 개별 여행 레코드 카드
+// =====================================================
+// 🧳 [2] 개별 여행 레코드 카드
+// =====================================================
 class TravelRecordCard extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onReturn;
@@ -74,17 +89,16 @@ class TravelRecordCard extends StatelessWidget {
     final isKo = context.locale.languageCode == 'ko';
     final type = travel['travel_type'] ?? 'domestic';
 
-    // ✅ 목적지 표시 텍스트 결정 로직 (실제 컬럼 기반)
+    // 🎯 목적지 표시 이름 결정 로직 (국내/미국/해외 통합)
     String destination;
-
     if (type == 'usa') {
-      // 1. 미국 여행 (Arizona 등 표시)
+      // 🇺🇸 미국: 주 이름(Arizona 등) 우선 표시
       destination =
           travel['region_name'] ??
           travel['region_key'] ??
           (isKo ? '미국' : 'USA');
     } else if (type == 'domestic') {
-      // 2. 국내 여행
+      // 🇰🇷 국내: 지역명 표시
       if (isKo) {
         destination = travel['region_name'] ?? 'unknown_destination'.tr();
       } else {
@@ -92,7 +106,7 @@ class TravelRecordCard extends StatelessWidget {
         destination = rawKey.isNotEmpty ? rawKey.split('_').last : 'Korea';
       }
     } else {
-      // 3. 일반 해외 여행 (해당 국가명 표시)
+      // 🌍 기타 해외: 국가명 표시
       destination = isKo
           ? (travel['country_name_ko'] ?? 'unknown_destination'.tr())
           : (travel['country_name_en'] ??
@@ -100,10 +114,15 @@ class TravelRecordCard extends StatelessWidget {
                 'unknown_destination'.tr());
     }
 
-    final coverUrl = travel['cover_image_url'] as String?;
-    final summary = (travel['ai_cover_summary'] ?? '').toString().trim();
-    final hasCover = coverUrl != null;
-    final hasSummary = summary.isNotEmpty;
+    // 이미지 및 요약 데이터 준비
+    final String? coverUrl = travel['cover_image_url'] as String?;
+    final String summary = (travel['ai_cover_summary'] ?? '').toString().trim();
+
+    // 🎯 이미지 주소 생성 (타임스탬프를 통한 캐시 갱신 대응)
+    String finalImageUrl = coverUrl ?? '';
+    if (finalImageUrl.isNotEmpty && travel['completed_at'] != null) {
+      finalImageUrl = '$finalImageUrl?t=${travel['completed_at']}';
+    }
 
     return SafeArea(
       child: Padding(
@@ -121,18 +140,37 @@ class TravelRecordCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             child: Stack(
               children: [
+                // 🎯 [이미지 영역] CachedNetworkImage 적용 및 띄어쓰기 인코딩
                 Positioned.fill(
-                  child: hasCover
-                      ? Image.network(
-                          '$coverUrl?t=${travel['completed_at']}',
+                  child: finalImageUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: Uri.encodeFull(
+                            finalImageUrl,
+                          ), // 띄어쓰기 안전하게 변환
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              Container(color: AppColors.divider),
+                          // 로딩 중 표시
+                          placeholder: (context, url) => Container(
+                            color: AppColors.lightSurface,
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppColors.divider,
+                              ),
+                            ),
+                          ),
+                          // 에러 발생 시 처리
+                          errorWidget: (context, url, error) => Container(
+                            color: AppColors.divider,
+                            child: const Icon(
+                              Icons.broken_image,
+                              color: Colors.white,
+                            ),
+                          ),
                         )
                       : Container(color: AppColors.divider),
                 ),
 
-                // ✅ 여행지 이름 (상단)
+                // 🏷️ 여행지 이름 레이블 (상단 고정)
                 Positioned(
                   top: 24,
                   left: 20,
@@ -142,7 +180,7 @@ class TravelRecordCard extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 32,
-                      fontWeight: FontWeight.w900, // 에러 없는 가장 두꺼운 두께
+                      fontWeight: FontWeight.w900,
                       letterSpacing: -1.0,
                       shadows: [
                         Shadow(
@@ -155,9 +193,11 @@ class TravelRecordCard extends StatelessWidget {
                   ),
                 ),
 
-                if (hasCover && !hasSummary)
+                // 🤖 AI 요약 정보 레이블 (하단 고정)
+                if (finalImageUrl.isNotEmpty && summary.isEmpty)
                   BottomLabel(text: 'ai_organizing'.tr()),
-                if (hasSummary) BottomLabel(text: summary, gradient: true),
+                if (summary.isNotEmpty)
+                  BottomLabel(text: summary, gradient: true),
               ],
             ),
           ),
@@ -167,10 +207,13 @@ class TravelRecordCard extends StatelessWidget {
   }
 }
 
-// 🏷️ 하단 텍스트 라벨 (공통 - 기존 유지)
+// =====================================================
+// 🏷️ [3] 하단 텍스트 라벨 (공통 위젯)
+// =====================================================
 class BottomLabel extends StatelessWidget {
   final String text;
   final bool gradient;
+
   const BottomLabel({super.key, required this.text, this.gradient = false});
 
   @override

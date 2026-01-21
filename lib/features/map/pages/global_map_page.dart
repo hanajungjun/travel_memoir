@@ -105,7 +105,7 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     // 만약 글자가 가려진다면 출력된 ID 중 'label'이 포함된 다른 ID를 찾아보세요.
     final layers = await _map!.style.getStyleLayers();
     for (var layer in layers) {
-      if (layer != null) debugPrint('🔍 Layer ID: ${layer.id}');
+      // if (layer != null) debugPrint('🔍 Layer ID: ${layer.id}');
     }
 
     try {
