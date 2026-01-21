@@ -8,6 +8,8 @@ import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/screens/onboarding_screen.dart';
 import 'package:easy_localization/easy_localization.dart';
 
+import 'package:travel_memoir/app/text_theme_utils.dart';
+
 class TravelMemoirApp extends StatefulWidget {
   final bool showOnboarding;
 
@@ -44,6 +46,7 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
         useMaterial3: true,
         fontFamily: 'NotoSansKR',
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
+        textTheme: applyLetterSpacing(ThemeData.light().textTheme, -0.3),
 
         // ✅ 버튼 테마 설정 부분 수정
         elevatedButtonTheme: ElevatedButtonThemeData(
