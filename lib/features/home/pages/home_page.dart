@@ -127,11 +127,12 @@ class _HomePageState extends State<HomePage> with RouteAware {
           // 2. 메인 컨텐츠 영역
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(27, 15, 27, 0),
+              // 🎯 [수정] 상단 여백을 15에서 0으로 줄여서 간격을 좁혔습니다.
+              padding: const EdgeInsets.fromLTRB(25, 10, 25, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 최근 여행 섹션 (기존 유지)
+                  // 최근 여행 섹션
                   FutureBuilder(
                     key: ValueKey('recent-$_refreshKey'),
                     future: TravelListService.getRecentTravels(),
@@ -147,15 +148,14 @@ class _HomePageState extends State<HomePage> with RouteAware {
                       );
                     },
                   ),
-                  const SizedBox(height: 20),
 
-                  // 🎯 [핵심 수정] 여행 지도 섹션
-                  // Expanded를 사용하여 화면 높이에 따라 지도가 유연하게 늘어남
+                  // 섹션 간 간격 (너무 넓으면 10 정도로 줄여보세요)
+                  const SizedBox(height: 15),
+
+                  // 여행 지도 섹션
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: 20,
-                      ), // 하단 바와의 최소 간격
+                      padding: const EdgeInsets.only(bottom: 10),
                       child: FutureBuilder<List<Map<String, dynamic>>>(
                         key: ValueKey('map-$_refreshKey'),
                         future: TravelListService.getTravels(),
@@ -177,7 +177,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
                                       color: AppColors.lightSurface,
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    // 🎯 내부 영역을 꽉 채우도록 함
                                     child: TravelMapPager(
                                       travelId: travelId ?? 'preview',
                                     ),
