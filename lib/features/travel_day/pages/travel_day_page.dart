@@ -78,6 +78,9 @@ class _TravelDayPageState extends State<TravelDayPage>
   int _dailyStamps = 0;
   int _paidStamps = 0;
   bool _usePaidStampMode = false;
+
+  // ✅ 여행 타입 로딩 상태 및 변수
+  bool _isTripTypeLoaded = false;
   String _travelType = 'domestic';
 
   RewardedAd? _rewardedAd;
@@ -139,8 +142,15 @@ class _TravelDayPageState extends State<TravelDayPage>
         .select('travel_type')
         .eq('id', _cleanTravelId)
         .maybeSingle();
-    if (!mounted || tripData == null) return;
-    setState(() => _travelType = tripData['travel_type'] ?? 'domestic');
+
+    if (!mounted) return;
+
+    setState(() {
+      if (tripData != null) {
+        _travelType = tripData['travel_type'] ?? 'domestic';
+      }
+      _isTripTypeLoaded = true;
+    });
   }
 
   Future<void> _loadDiary() async {
@@ -286,7 +296,6 @@ class _TravelDayPageState extends State<TravelDayPage>
     try {
       final gemini = GeminiService();
 
-      // 1. [영어 최적화] 사진과 일기를 분석하여 시각적 묘사 생성
       final summary = await gemini.generateSummary(
         finalPrompt:
             '''
@@ -301,7 +310,6 @@ class _TravelDayPageState extends State<TravelDayPage>
 
       _summaryText = summary;
 
-      // 2. [영어 최적화] 최종 이미지 생성
       final image = await gemini.generateImage(
         finalPrompt:
             '''
@@ -325,8 +333,6 @@ class _TravelDayPageState extends State<TravelDayPage>
       rethrow;
     }
   }
-
-  // --- [생략없음] 이하 UI 및 저장 로직 전체 유지 ---
 
   void _showCoinEmptyDialog() {
     showDialog(
@@ -449,9 +455,18 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = _travelType == 'domestic'
-        ? AppColors.travelingBlue
-        : const Color(0xFF9B59B6);
+    // ✅ 앱바 테마 색상 (로딩 전: 흰색 -> 로딩 후: 국가별 색상)
+    Color themeColor;
+    if (!_isTripTypeLoaded) {
+      themeColor = Colors.white;
+    } else {
+      themeColor = _travelType == 'domestic'
+          ? AppColors.travelingBlue
+          : _travelType == 'usa'
+          ? const Color(0xFFE74C3C)
+          : const Color(0xFF9B59B6);
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: GestureDetector(
@@ -463,16 +478,24 @@ class _TravelDayPageState extends State<TravelDayPage>
               slivers: [
                 SliverAppBar(
                   pinned: true,
-                  backgroundColor: themeColor,
+                  backgroundColor: Colors.transparent,
                   elevation: 0,
                   leading: IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.arrow_back_ios_new,
-                      color: Colors.white,
+                      // 흰색 배경일 때는 아이콘이 보이도록 처리
+                      color: themeColor == Colors.white
+                          ? Colors.black54
+                          : Colors.white,
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
                   actions: [_buildAppBarStampToggle()],
+                  flexibleSpace: AnimatedContainer(
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeInOut,
+                    decoration: BoxDecoration(color: themeColor),
+                  ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
@@ -489,21 +512,26 @@ class _TravelDayPageState extends State<TravelDayPage>
                         const SizedBox(height: 30),
                         _buildSectionTitle(
                           Icons.camera_alt,
-                          '오늘의 순간들',
-                          '(최대 3장)',
+                          'todays_moments'.tr(),
+                          'max_3_photos'.tr(),
                         ),
                         const SizedBox(height: 12),
                         _buildPhotoList(),
                         const SizedBox(height: 30),
-                        _buildSectionTitle(Icons.palette, '오늘을 그리는 방식', ''),
+                        _buildSectionTitle(
+                          Icons.palette,
+                          'drawing_style'.tr(),
+                          '',
+                        ),
                         const SizedBox(height: 12),
                         ImageStylePicker(
                           onChanged: (style) =>
                               setState(() => _selectedStyle = style),
                         ),
                         const SizedBox(height: 35),
+                        // ✅ 버튼 표시 조건
                         if (_imageUrl == null && _generatedImage == null)
-                          _buildGenerateButton(),
+                          _buildGenerateButton(themeColor),
                         const SizedBox(height: 20),
                         SlideTransition(
                           position: _cardOffset,
@@ -541,14 +569,24 @@ class _TravelDayPageState extends State<TravelDayPage>
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _stampUnit("무료", _dailyStamps, Colors.blue, !_usePaidStampMode),
+            _stampUnit(
+              'stored'.tr(),
+              _dailyStamps,
+              Colors.blue,
+              !_usePaidStampMode,
+            ),
             const VerticalDivider(
               width: 15,
               thickness: 1,
               indent: 8,
               endIndent: 8,
             ),
-            _stampUnit("보관", _paidStamps, Colors.orange, _usePaidStampMode),
+            _stampUnit(
+              'stored'.tr(),
+              _paidStamps,
+              Colors.orange,
+              _usePaidStampMode,
+            ),
           ],
         ),
       ),
@@ -721,21 +759,28 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  Widget _buildGenerateButton() {
+  // ✅ [수정된 부분] 버튼 색상 분기 및 다국어 복구
+  Widget _buildGenerateButton(Color themeColor) {
     return GestureDetector(
       onTap: _loading ? null : _handleGenerateWithStamp,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
         width: double.infinity,
         height: 60,
         decoration: BoxDecoration(
-          color: const Color(0xFF3498DB),
+          // 로딩 전(흰색)에는 연한 회색 배경, 그 외에는 테마 색상 적용
+          color: themeColor == Colors.white ? Colors.grey[200] : themeColor,
           borderRadius: BorderRadius.circular(15),
         ),
-        child: const Center(
+        child: Center(
           child: Text(
-            '↓ 이 하루를 그림으로..',
+            'generate_image_button'.tr(), // 다국어 설정 복구
             style: TextStyle(
-              color: Colors.white,
+              // 로딩 전에는 회색 글자, 그 외에는 흰색 글자
+              color: themeColor == Colors.white
+                  ? Colors.grey[600]
+                  : Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
@@ -808,7 +853,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                     ),
                   )
                 : Text(
-                    '기록 저장하기'.tr(),
+                    'save_diary_button'.tr(),
                     style: const TextStyle(color: Colors.white, fontSize: 18),
                   ),
           ),

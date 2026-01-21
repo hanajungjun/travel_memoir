@@ -289,5 +289,17 @@
   "delete_diary_confirm": "Are you sure you want to delete this record?",
   "diary_reset_success": "The diary has been reset.",
   "save_reorder_error": "Error saving order: {}",
-  "active_label":"In use"
+  "active_label":"In use",
+  "login_required": "Login is required.",
+  "select_map": "Select Map",
+  "change_map": "Change Map",
+  "summary": "Summary",
+  "world": "World",
+  "japan": "Japan",
+  "france": "France",
+  "visited_states": "Visited States",
+  "state": "State",
+  "mainland": "Mainland",
+  "alaska": "Alaska",
+  "hawaii": "Hawaii"
 }

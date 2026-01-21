@@ -19,7 +19,6 @@ class RecentTravelSection extends StatelessWidget {
       builder: (context, snapshot) {
         final travels = snapshot.data ?? [];
         final displayTravels = travels.take(_maxCards).toList();
-        final emptyCount = _maxCards - displayTravels.length;
         final showSeeAll = travels.length > _maxCards;
 
         return Column(
@@ -36,7 +35,6 @@ class RecentTravelSection extends StatelessWidget {
                     style: AppTextStyles.sectionTitle,
                   ),
                 ),
-
                 if (showSeeAll)
                   GestureDetector(
                     onTap: onSeeAll,
@@ -77,32 +75,8 @@ class _RecentTravelCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final imageUrl = travel['map_image_url'] as String?;
 
-    // 🎯 [다국어 대응 핵심 로직]
-    final isDomestic = travel['travel_type'] == 'domestic';
-    final bool isKo = context.locale.languageCode == 'ko';
-
-    String destinationName = '';
-
-    if (isDomestic) {
-      if (isKo) {
-        destinationName = travel['region_name'] ?? 'unknown_destination'.tr();
-      } else {
-        // 영어 모드일 때 region_key에서 마지막 단어만 추출 (예: KR_GG_YEOJU -> YEOJU)
-        final String rawKey = travel['region_key'] ?? '';
-        destinationName = rawKey.isNotEmpty
-            ? rawKey.split('_').last
-            : (travel['region_name'] ?? 'unknown_destination'.tr());
-      }
-    } else {
-      // 해외 여행일 경우 국가명 처리
-      destinationName = isKo
-          ? (travel['country_name_ko'] ??
-                travel['display_country_name'] ??
-                'unknown_destination'.tr())
-          : (travel['country_name_en'] ??
-                travel['country_code'] ??
-                'unknown_destination'.tr());
-    }
+    // 🎯 [개선포인트 1 & 3] 목적지 이름 결정 로직을 헬퍼 메서드로 분리하여 정리
+    final String destinationName = _getDestinationName(context, travel);
 
     return GestureDetector(
       onTap: () {
@@ -139,6 +113,10 @@ class _RecentTravelCard extends StatelessWidget {
                   style: AppTextStyles.body.copyWith(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
+                    // 미국 여행일 경우 글자색에 포인트를 줄 수도 있습니다 (선택사항)
+                    // color: travel['travel_type'] == 'usa'
+                    //     ? const Color(0xFFE74C3C)
+                    //     : null,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -148,7 +126,7 @@ class _RecentTravelCard extends StatelessWidget {
                 _periodText(context, travel),
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
-                  fontSize: 13, // 카드의 좁은 공간을 위해 살짝 줄였습니다.
+                  fontSize: 13,
                   fontWeight: FontWeight.w300,
                 ),
               ),
@@ -157,6 +135,37 @@ class _RecentTravelCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// 🎯 [목적지 이름 결정 헬퍼] 타입별/언어별 로직 통합 관리
+  String _getDestinationName(
+    BuildContext context,
+    Map<String, dynamic> travel,
+  ) {
+    final String type = travel['travel_type'] ?? 'domestic';
+    final bool isKo = context.locale.languageCode == 'ko';
+
+    // 1. 미국 지도 구매 여행 (travel_type == 'usa')
+    if (type == 'usa') {
+      // 주 이름(Arizona 등)이 있으면 우선 표시, 없으면 '미국' 표시
+      return travel['region_key'] ?? (isKo ? '미국' : 'USA');
+    }
+
+    // 2. 국내 여행
+    if (type == 'domestic') {
+      if (isKo) return travel['region_name'] ?? 'unknown_destination'.tr();
+      final String rawKey = travel['region_key'] ?? '';
+      return rawKey.isNotEmpty ? rawKey.split('_').last : 'Korea';
+    }
+
+    // 3. 일반 해외 여행
+    return isKo
+        ? (travel['country_name_ko'] ??
+              travel['display_country_name'] ??
+              'unknown_destination'.tr())
+        : (travel['country_name_en'] ??
+              travel['country_code'] ??
+              'unknown_destination'.tr());
   }
 
   String _periodText(BuildContext context, Map<String, dynamic> travel) {
