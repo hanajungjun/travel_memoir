@@ -144,12 +144,28 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                 ? const TravelDiaryListSkeleton()
                 : ReorderableListView.builder(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 20,
+                      horizontal: 27,
+                      vertical: 21,
                     ),
                     itemCount: _diaries.length,
                     buildDefaultDragHandles: false,
                     onReorder: _onReorder,
+
+                    // ✅ 드래그 중 카드 스타일 제어 (핵심)
+                    proxyDecorator: (child, index, animation) {
+                      return AnimatedBuilder(
+                        animation: animation,
+                        builder: (context, _) {
+                          return Material(
+                            color: Colors.transparent, // ❌ 배경 제거
+                            elevation: 8, // ✅ 그림자만
+                            shadowColor: Colors.black.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            child: child,
+                          );
+                        },
+                      );
+                    },
                     itemBuilder: (context, index) {
                       final diary = _diaries[index];
                       final displayDate = startDate.add(Duration(days: index));
@@ -278,19 +294,29 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
         ],
       ),
       floatingActionButton: _isChanged
-          ? FloatingActionButton.extended(
-              onPressed: _saveChanges,
-              // ✅ 미국 테마 레드 컬러 적용
-              backgroundColor: travelType == 'usa'
-                  ? const Color(0xFFE74C3C)
-                  : AppColors.travelingBlue,
-              elevation: 4,
-              icon: const Icon(Icons.check, color: Colors.white),
-              label: Text(
-                'save_reorder_button'.tr(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+          ? Padding(
+              padding: const EdgeInsets.only(
+                bottom: 5, // ✅ ADD 버튼과 동일
+                right: 2,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                elevation: 14, // ✅ 그림자 동일
+                shadowColor: Colors.black.withOpacity(0.25),
+                shape: const CircleBorder(),
+                child: FloatingActionButton(
+                  elevation: 0, // Material이 그림자 담당
+                  backgroundColor: travelType == 'domestic'
+                      ? AppColors
+                            .travelingBlue // 🇰🇷 국내
+                      : travelType == 'usa'
+                      ? const Color(0xFFE74C3C) // 🇺🇸 미국 레드
+                      : AppColors.travelingPurple, // 🌍 해외 보라
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  onPressed: _saveChanges,
+                  child: const Icon(Icons.check, color: Colors.white, size: 28),
                 ),
               ),
             )
@@ -299,6 +325,12 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   }
 
   Widget _buildHeader(String travelType, String title) {
+    final writtenCount = _diaries
+        .where((e) => e['text'].toString().isNotEmpty)
+        .length;
+    final totalCount = _diaries.length;
+    final isCompleted = totalCount > 0 && writtenCount == totalCount;
+
     // ✅ 미국(Red), 한국(Blue), 세계(Purple) 구분
     Color primaryColor;
     Color secondaryColor;
@@ -306,29 +338,19 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
     if (travelType == 'usa') {
       primaryColor = const Color(0xFFE74C3C); // 미국 레드
-      secondaryColor = const Color(0xFFC0392B);
       badgeLabel = 'usa'.tr();
     } else if (travelType == 'domestic') {
       primaryColor = AppColors.travelingBlue; // 한국 블루
-      secondaryColor = const Color(0xFF2980B9);
       badgeLabel = 'domestic'.tr();
     } else {
-      primaryColor = AppColors.decoPurple; // 세계 퍼플
-      secondaryColor = const Color(0xFF8E44AD);
+      primaryColor = AppColors.travelingPurple; // 세계 퍼플
       badgeLabel = 'overseas'.tr();
     }
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
-      decoration: BoxDecoration(
-        color: primaryColor,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [primaryColor, secondaryColor],
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(27, 70, 30, 20),
+      decoration: BoxDecoration(color: primaryColor),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -342,38 +364,69 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                   'travel_diary_list_title'.tr(args: [title]),
                   style: AppTextStyles.pageTitle.copyWith(
                     color: Colors.white,
-                    fontSize: 22,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              RichText(
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w300,
+                  ),
+                  children: [
+                    // ✅ 작성된 개수
+                    TextSpan(
+                      text: writtenCount.toString(),
+                      style: TextStyle(
+                        fontWeight: isCompleted
+                            ? FontWeight.w300
+                            : FontWeight.w700,
+                        color: isCompleted
+                            ? Colors.white.withOpacity(0.6)
+                            : const Color(0xFFFFD64E), // ⭐ 작성 중 강조
+                      ),
+                    ),
+
+                    // ✅ /
+                    TextSpan(
+                      text: '/',
+                      style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                    ),
+
+                    // ✅ 전체 개수
+                    TextSpan(
+                      text: totalCount.toString(),
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+
+                    const TextSpan(text: ' '),
+
+                    // ✅ "작성" / "written"
+                    TextSpan(
+                      text: 'written_suffix'.tr(),
+                      style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 2),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 '${_travel['start_date'].toString().replaceAll('-', '.')} ~ ${_travel['end_date'].toString().replaceAll('-', '.')}',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withOpacity(0.6),
                   fontSize: 14,
-                ),
-              ),
-              Text(
-                'diary_count_format'.tr(
-                  args: [
-                    _diaries
-                        .where((e) => e['text'].toString().isNotEmpty)
-                        .length
-                        .toString(),
-                    _diaries.length.toString(),
-                  ],
-                ),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+                  fontWeight: FontWeight.w200,
                 ),
               ),
             ],
@@ -393,15 +446,15 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     int index,
   ) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -410,11 +463,11 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
         children: [
           imageUrl != null
               ? ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(5),
                   child: Image.network(
                     imageUrl,
-                    width: 64,
-                    height: 64,
+                    width: 46,
+                    height: 46,
                     fit: BoxFit.cover,
                     loadingBuilder: (context, child, loadingProgress) =>
                         loadingProgress == null ? child : _emptyThumb(),
@@ -422,23 +475,28 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                   ),
                 )
               : _emptyThumb(),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   '${DateUtilsHelper.formatMonthDay(date)} · ${'travel_day_unit'.tr(args: [dayIndex.toString()])}',
-                  style: AppTextStyles.bodyMuted.copyWith(fontSize: 13),
+                  style: AppTextStyles.bodyMuted.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w300, // 레귤러
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 0),
                 Text(
                   hasDiary ? text.split('\n').first : 'please_write_diary'.tr(),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.body.copyWith(
-                    fontWeight: hasDiary ? FontWeight.bold : FontWeight.normal,
-                    color: hasDiary ? Colors.black87 : Colors.grey,
+                    fontWeight: hasDiary ? FontWeight.w700 : FontWeight.w300,
+                    color: hasDiary
+                        ? AppColors.textColor01
+                        : AppColors.textColor07,
                   ),
                 ),
               ],
@@ -446,9 +504,13 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
           ),
           ReorderableDragStartListener(
             index: index,
-            child: const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Icon(Icons.menu, color: Color(0xFFE0E0E0), size: 24),
+            child: Padding(
+              padding: const EdgeInsets.all(5.20),
+              child: Image.asset(
+                'assets/icons/ico_Drag.png', // ✅ 네가 만든 드래그 아이콘
+                width: 13, // 필요하면 조절
+                height: 10,
+              ),
             ),
           ),
         ],
@@ -457,13 +519,10 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   }
 
   Widget _emptyThumb() => Container(
-    width: 64,
-    height: 64,
-    decoration: BoxDecoration(
-      color: const Color(0xFFF1F3F5),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: const Icon(Icons.image_outlined, color: Color(0xFFADB5BD), size: 28),
+    width: 46,
+    height: 46,
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(5)),
+    child: Image.asset('assets/icons/noImage.png', width: 46, height: 46),
   );
 }
 
@@ -473,16 +532,16 @@ class _TypeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.black.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
           color: Colors.white,
         ),
       ),

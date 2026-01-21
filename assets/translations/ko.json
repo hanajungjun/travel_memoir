@@ -304,5 +304,6 @@
   "month": "월",
   "1_month": "1개월",
   "terms_of_use": "이용약관",
-  "subscription_notice": "결제 시 iTunes 계정으로 비용이 청구됩니다. 기간 종료 24시간 전까지 해지하지 않으면 구독이 자동 갱신되며, 해지는 App Store 계정 설정에서 언제든지 가능합니다."
+  "subscription_notice": "결제 시 iTunes 계정으로 비용이 청구됩니다. 기간 종료 24시간 전까지 해지하지 않으면 구독이 자동 갱신되며, 해지는 App Store 계정 설정에서 언제든지 가능합니다.",
+  "written_suffix": "작성"  
 }

@@ -306,5 +306,6 @@
   "month": "month",
   "1_month": "1 Month",
   "terms_of_use": "Terms of Use",
-  "subscription_notice": "Payment will be charged to your iTunes account at purchase. Subscription automatically renews unless canceled at least 24-hours before the end of the current period. Manage or cancel anytime in your App Store Account Settings."
+  "subscription_notice": "Payment will be charged to your iTunes account at purchase. Subscription automatically renews unless canceled at least 24-hours before the end of the current period. Manage or cancel anytime in your App Store Account Settings.",
+  "written_suffix": "written"
 }
