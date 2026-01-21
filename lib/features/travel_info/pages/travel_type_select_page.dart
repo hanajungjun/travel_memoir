@@ -133,21 +133,6 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     ),
                     const SizedBox(height: 40),
 
-                    // 🇰🇷 국내 여행
-                    _TravelTypeCard(
-                      title: 'domestic_travel_comma'.tr(),
-                      subTitleSuffix: 'local_label'.tr(),
-                      description: 'domestic_description'.tr(),
-                      icon: Icons.location_on_rounded,
-                      iconColor: const Color(0xFF3498DB),
-                      onTap: () => _navigateToPage(
-                        context,
-                        const DomesticTravelDatePage(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
                     // 🌍 해외 여행
                     _TravelTypeCard(
                       title: 'overseas_travel_comma'.tr(),
@@ -163,6 +148,20 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
 
                     const SizedBox(height: 20),
 
+                    // 🇰🇷 국내 여행
+                    _TravelTypeCard(
+                      title: 'domestic_travel_comma'.tr(),
+                      subTitleSuffix: 'local_label'.tr(),
+                      description: 'domestic_description'.tr(),
+                      icon: Icons.location_on_rounded,
+                      iconColor: const Color(0xFF3498DB),
+                      onTap: () => _navigateToPage(
+                        context,
+                        const DomesticTravelDatePage(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
                     // 🇺🇸 미국 여행 (비구매 시 잠금 상태)
                     _TravelTypeCard(
                       title: 'us_travel_comma'.tr(),
