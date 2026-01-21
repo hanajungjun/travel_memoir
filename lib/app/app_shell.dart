@@ -20,27 +20,38 @@ class _AppShellState extends State<AppShell> {
     setState(() => _currentIndex = index);
   }
 
+  // ✅ 메뉴 아이템: 높이가 줄어든 만큼 아이콘 크기와 여백도 미세하게 축소
   BottomNavigationBarItem _buildMenuItem({
     required String iconAsset,
     required String label,
   }) {
     return BottomNavigationBarItem(
       icon: Padding(
-        padding: const EdgeInsets.only(bottom: 2), // ✅ 살짝 줄임
-        child: Image.asset(iconAsset, width: 22, height: 22),
+        padding: const EdgeInsets.only(bottom: 2), // 🎯 4 -> 2로 간격 축소
+        child: Image.asset(
+          iconAsset,
+          width: 20, // 🎯 22 -> 20으로 크기 축소
+          height: 20,
+          color: AppColors.textColor01.withOpacity(0.4),
+        ),
       ),
       activeIcon: Padding(
-        padding: const EdgeInsets.only(bottom: 2), // ✅ 살짝 줄임
+        padding: const EdgeInsets.only(bottom: 2),
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Image.asset(iconAsset, width: 22, height: 22),
+            Image.asset(
+              iconAsset,
+              width: 20,
+              height: 20,
+              color: AppColors.textColor01,
+            ),
             Positioned(
-              top: -5,
-              right: -5,
+              top: -3,
+              right: -4,
               child: Container(
-                width: 10,
-                height: 10,
+                width: 7, // 🎯 알림 점 크기도 살짝 축소
+                height: 7,
                 decoration: const BoxDecoration(
                   color: AppColors.primary,
                   shape: BoxShape.circle,
@@ -64,33 +75,39 @@ class _AppShellState extends State<AppShell> {
     ];
 
     return Scaffold(
+      extendBody: false,
       body: IndexedStack(index: _currentIndex, children: pages),
 
-      // ✅ 핵심: BottomNavigationBarTheme로 내부 레이아웃까지 안정적으로 잡는다
-      bottomNavigationBar: BottomNavigationBarTheme(
-        data: const BottomNavigationBarThemeData(
-          backgroundColor: AppColors.background,
-          selectedItemColor: AppColors.textColor01,
-          unselectedItemColor: AppColors.textColor01,
-
-          // ✅ 오버플로우 방지 포인트
-          selectedLabelStyle: TextStyle(fontSize: 11, height: 1.0),
-          unselectedLabelStyle: TextStyle(fontSize: 11, height: 1.0),
+      // ✅ [하단 영역 슬림화 버전]
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          // 🎯 그림자(boxShadow)를 완전히 제거하여 매끄럽게 만듦
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
         ),
         child: SafeArea(
           top: false,
           child: SizedBox(
-            height: 72, // ✅ 80 -> 72 정도가 안정적 (원하면 76도 OK)
+            height: 45, // 🎯 64 -> 52로 높이 대폭 축소 (아이콘+텍스트 최소 영역)
             child: BottomNavigationBar(
               key: ValueKey(context.locale.toString()),
               currentIndex: _currentIndex,
               onTap: _onTabSelected,
               type: BottomNavigationBarType.fixed,
-
-              // ✅ 여기 숫자도 너무 키우면 다시 overflow 날 수 있음
-              selectedFontSize: 11,
+              backgroundColor: Colors.transparent, // 컨테이너 색상 사용
+              elevation: 0, // 🎯 기본 그림자 효과 완전히 제거
+              selectedFontSize: 11, // 🎯 글자 크기 11 -> 10 축소
               unselectedFontSize: 11,
-
+              selectedItemColor: AppColors.textColor01,
+              unselectedItemColor: AppColors.textColor01.withOpacity(0.4),
+              selectedLabelStyle: const TextStyle(
+                height: 1.0,
+                fontWeight: FontWeight.bold,
+              ),
+              unselectedLabelStyle: const TextStyle(height: 1.0),
               items: [
                 _buildMenuItem(
                   iconAsset: 'assets/icons/nav_home.png',

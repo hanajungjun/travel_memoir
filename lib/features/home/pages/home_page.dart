@@ -124,70 +124,70 @@ class _HomePageState extends State<HomePage> with RouteAware {
           // 1. 상단 고정 헤더
           HomeTravelStatusHeader(onGoToTravel: widget.onGoToTravel),
 
-          // 2. 메인 컨텐츠 (스크롤 금지 설정)
+          // 2. 메인 컨텐츠 영역
           Expanded(
-            child: SingleChildScrollView(
-              // 🎯 [핵심] 스크롤 기능을 완전히 끕니다. 손가락으로 밀어도 안 움직입니다.
-              physics: const NeverScrollableScrollPhysics(),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(27, 15, 27, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 최근 여행 섹션
-                    FutureBuilder(
-                      key: ValueKey('recent-$_refreshKey'),
-                      future: TravelListService.getRecentTravels(),
-                      builder: (context, snapshot) {
-                        return AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 250),
-                          child:
-                              snapshot.connectionState ==
-                                  ConnectionState.waiting
-                              ? const RecentTravelSectionSkeleton()
-                              : RecentTravelSection(
-                                  onSeeAll: widget.onGoToTravel,
-                                ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(27, 15, 27, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 최근 여행 섹션 (기존 유지)
+                  FutureBuilder(
+                    key: ValueKey('recent-$_refreshKey'),
+                    future: TravelListService.getRecentTravels(),
+                    builder: (context, snapshot) {
+                      return AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child:
+                            snapshot.connectionState == ConnectionState.waiting
+                            ? const RecentTravelSectionSkeleton()
+                            : RecentTravelSection(
+                                onSeeAll: widget.onGoToTravel,
+                              ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
-                    // 여행 지도 섹션
-                    FutureBuilder<List<Map<String, dynamic>>>(
-                      key: ValueKey('map-$_refreshKey'),
-                      future: TravelListService.getTravels(),
-                      builder: (context, snapshot) {
-                        final travels = snapshot.data ?? [];
-                        final String? travelId = travels.isNotEmpty
-                            ? travels.first['id']
-                            : null;
-                        return AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 250),
-                          child:
-                              snapshot.connectionState ==
-                                  ConnectionState.waiting
-                              ? const TravelMapSkeleton()
-                              : Container(
-                                  padding: const EdgeInsets.all(13),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.lightSurface,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: SizedBox(
-                                    height:
-                                        MediaQuery.of(context).size.height *
-                                        0.45,
+                  // 🎯 [핵심 수정] 여행 지도 섹션
+                  // Expanded를 사용하여 화면 높이에 따라 지도가 유연하게 늘어남
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: 20,
+                      ), // 하단 바와의 최소 간격
+                      child: FutureBuilder<List<Map<String, dynamic>>>(
+                        key: ValueKey('map-$_refreshKey'),
+                        future: TravelListService.getTravels(),
+                        builder: (context, snapshot) {
+                          final travels = snapshot.data ?? [];
+                          final String? travelId = travels.isNotEmpty
+                              ? travels.first['id']
+                              : null;
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 250),
+                            child:
+                                snapshot.connectionState ==
+                                    ConnectionState.waiting
+                                ? const TravelMapSkeleton()
+                                : Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.all(13),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.lightSurface,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    // 🎯 내부 영역을 꽉 채우도록 함
                                     child: TravelMapPager(
                                       travelId: travelId ?? 'preview',
                                     ),
                                   ),
-                                ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

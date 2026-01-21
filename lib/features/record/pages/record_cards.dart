@@ -72,15 +72,33 @@ class TravelRecordCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isKo = context.locale.languageCode == 'ko';
+    final type = travel['travel_type'] ?? 'domestic';
 
-    final String destination = travel['travel_type'] == 'domestic'
-        ? (isKo
-              ? (travel['region_name'] ?? '')
-              : (travel['region_id']?.toString().split('_').last ??
-                    '')) // 👈 region_name_en 대신 이거!
-        : (isKo
-              ? (travel['country_name_ko'] ?? '')
-              : (travel['country_name_en'] ?? ''));
+    // ✅ 목적지 표시 텍스트 결정 로직 (실제 컬럼 기반)
+    String destination;
+
+    if (type == 'usa') {
+      // 1. 미국 여행 (Arizona 등 표시)
+      destination =
+          travel['region_name'] ??
+          travel['region_key'] ??
+          (isKo ? '미국' : 'USA');
+    } else if (type == 'domestic') {
+      // 2. 국내 여행
+      if (isKo) {
+        destination = travel['region_name'] ?? 'unknown_destination'.tr();
+      } else {
+        final String rawKey = travel['region_key'] ?? '';
+        destination = rawKey.isNotEmpty ? rawKey.split('_').last : 'Korea';
+      }
+    } else {
+      // 3. 일반 해외 여행 (해당 국가명 표시)
+      destination = isKo
+          ? (travel['country_name_ko'] ?? 'unknown_destination'.tr())
+          : (travel['country_name_en'] ??
+                travel['country_code'] ??
+                'unknown_destination'.tr());
+    }
 
     final coverUrl = travel['cover_image_url'] as String?;
     final summary = (travel['ai_cover_summary'] ?? '').toString().trim();

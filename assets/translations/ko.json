@@ -75,7 +75,7 @@
   "rate_app": "앱 평가하기",
   "legal": "이용약관",
   "privacy_policy": "개인정보처리방침",
-  "terms_of_service": "서비스 약관",
+  "terms_of_service": "서비스이용약관",
   "open_source_licenses": "타사 라이선스",
   "accessibility_policy": "접근성 정책",
   "app_brand_name": "날씨좋다",
@@ -300,5 +300,9 @@
   "mainland": "본토",
   "alaska": "알래스카",
   "hawaii": "하와이",
-  "pull_to_discover":"쭉쭉"
+  "pull_to_discover":"쭉쭉",
+  "month": "월",
+  "1_month": "1개월",
+  "terms_of_use": "이용약관",
+  "subscription_notice": "결제 시 iTunes 계정으로 비용이 청구됩니다. 기간 종료 24시간 전까지 해지하지 않으면 구독이 자동 갱신되며, 해지는 App Store 계정 설정에서 언제든지 가능합니다."
 }

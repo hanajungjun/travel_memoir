@@ -147,22 +147,25 @@ class _RecentTravelCard extends StatelessWidget {
 
     // 1. 미국 지도 구매 여행 (travel_type == 'usa')
     if (type == 'usa') {
-      // 주 이름(Arizona 등)이 있으면 우선 표시, 없으면 '미국' 표시
-      return travel['region_key'] ?? (isKo ? '미국' : 'USA');
+      // 주 이름(Arizona 등)이 담긴 region_name을 최우선으로, 없으면 region_key나 기본 국가명 표시
+      return travel['region_name'] ??
+          travel['region_key'] ??
+          (isKo ? '미국' : 'USA');
     }
 
-    // 2. 국내 여행
+    // 2. 국내 여행 (travel_type == 'domestic')
     if (type == 'domestic') {
       if (isKo) return travel['region_name'] ?? 'unknown_destination'.tr();
+
+      // 영문 모드일 때 region_key(예: kr_seoul)에서 마지막 단어만 추출
       final String rawKey = travel['region_key'] ?? '';
       return rawKey.isNotEmpty ? rawKey.split('_').last : 'Korea';
     }
 
-    // 3. 일반 해외 여행
+    // 3. 일반 해외 여행 (그 외 모든 경우)
+    // 존재하지 않는 display_country_name 컬럼은 제거하고 실제 컬럼 기반으로 수정
     return isKo
-        ? (travel['country_name_ko'] ??
-              travel['display_country_name'] ??
-              'unknown_destination'.tr())
+        ? (travel['country_name_ko'] ?? 'unknown_destination'.tr())
         : (travel['country_name_en'] ??
               travel['country_code'] ??
               'unknown_destination'.tr());
