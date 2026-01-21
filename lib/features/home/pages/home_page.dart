@@ -127,12 +127,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
           // 2. 메인 컨텐츠 영역
           Expanded(
             child: Padding(
-<<<<<<< HEAD
-              // 🎯 [수정] 상단 여백을 15에서 0으로 줄여서 간격을 좁혔습니다.
-              padding: const EdgeInsets.fromLTRB(25, 10, 25, 0),
-=======
               padding: const EdgeInsets.fromLTRB(27, 15, 27, 82),
->>>>>>> dda4149 (디자인수정)
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -153,40 +148,8 @@ class _HomePageState extends State<HomePage> with RouteAware {
                     },
                   ),
 
-<<<<<<< HEAD
                   // 섹션 간 간격 (너무 넓으면 10 정도로 줄여보세요)
                   const SizedBox(height: 15),
-
-                  // 여행 지도 섹션
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: FutureBuilder<List<Map<String, dynamic>>>(
-                        key: ValueKey('map-$_refreshKey'),
-                        future: TravelListService.getTravels(),
-                        builder: (context, snapshot) {
-                          final travels = snapshot.data ?? [];
-                          final String? travelId = travels.isNotEmpty
-                              ? travels.first['id']
-                              : null;
-                          return AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
-                            child:
-                                snapshot.connectionState ==
-                                    ConnectionState.waiting
-                                ? const TravelMapSkeleton()
-                                : Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(13),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.lightSurface,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: TravelMapPager(
-                                      travelId: travelId ?? 'preview',
-                                    ),
-=======
-                  const SizedBox(height: 20),
 
                   // ✅ [핵심] 지도 섹션은 남은 공간 전부 차지하게 Expanded로 감싼다
                   Expanded(
@@ -215,11 +178,10 @@ class _HomePageState extends State<HomePage> with RouteAware {
                                   // ✅ 변경: 남은 공간을 그대로 채우게 그냥 넣는다
                                   child: TravelMapPager(
                                     travelId: travelId ?? 'preview',
->>>>>>> dda4149 (디자인수정)
                                   ),
-                          );
-                        },
-                      ),
+                                ),
+                        );
+                      },
                     ),
                   ),
                 ],
