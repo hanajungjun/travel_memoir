@@ -62,6 +62,8 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       floatingActionButton: _buildFab(),
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.endFloat, // ⭐⭐⭐ 이게 핵심
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
         builder: (context, snapshot) {
@@ -116,16 +118,6 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                       );
                     },
               ),
-              SliverAppBar(
-                backgroundColor: const Color(0xFFF8F9FA),
-                elevation: 0,
-                pinned: true,
-                centerTitle: true,
-                title: Text(
-                  'travel_records'.tr(),
-                  style: AppTextStyles.sectionTitle,
-                ),
-              ),
               if (snapshot.connectionState == ConnectionState.waiting)
                 const SliverToBoxAdapter(child: TravelInfoListSkeleton())
               else if (!snapshot.hasData || snapshot.data!.isEmpty)
@@ -140,15 +132,17 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
+                  padding: const EdgeInsets.fromLTRB(
+                    27,
+                    65,
+                    27,
+                    0, // FAB + 네비 안전 영역
                   ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
                       final travel = snapshot.data![index];
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.only(bottom: 13),
                         child: _SwipeDeleteItem(
                           travel: travel,
                           onDelete: () async {
@@ -201,30 +195,40 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   }
 
   Widget _buildFab() {
-    return SizedBox(
-      width: 60,
-      height: 60,
-      child: FloatingActionButton(
-        elevation: 8,
-        backgroundColor: AppColors.travelingBlue,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-        onPressed: () async {
-          final created = await Navigator.push<Map<String, dynamic>>(
-            context,
-            MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
-          );
-          if (created != null && mounted) {
-            _refresh();
-            await Navigator.push(
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 75, // 네비 위
+        right: 2,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        elevation: 14, // ⭐ 그림자 세기
+        shadowColor: Colors.black.withOpacity(0.25), // 여기서 조절
+        shape: const CircleBorder(),
+        child: FloatingActionButton(
+          elevation: 0, // ⭐ Material이 그림자 담당
+          backgroundColor: AppColors.travelingBlue,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(50),
+          ),
+          onPressed: () async {
+            final created = await Navigator.push<Map<String, dynamic>>(
               context,
-              MaterialPageRoute(
-                builder: (_) => TravelDiaryListPage(travel: created),
-              ),
+              MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
             );
-            _refresh();
-          }
-        },
-        child: const Icon(Icons.add, color: Colors.white, size: 32),
+            if (created != null && mounted) {
+              _refresh();
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TravelDiaryListPage(travel: created),
+                ),
+              );
+              _refresh();
+            }
+          },
+          child: const Icon(Icons.add, color: Colors.white, size: 32),
+        ),
       ),
     );
   }
@@ -234,6 +238,7 @@ class _SwipeDeleteItem extends StatelessWidget {
   final Map<String, dynamic> travel;
   final VoidCallback onDelete;
   final VoidCallback onTap;
+
   const _SwipeDeleteItem({
     required this.travel,
     required this.onDelete,
@@ -246,14 +251,30 @@ class _SwipeDeleteItem extends StatelessWidget {
       key: ValueKey(travel['id']),
       endActionPane: ActionPane(
         motion: const StretchMotion(),
-        extentRatio: 0.22,
+        extentRatio: 0.18, // 버튼 + 여백 영역
         children: [
-          SlidableAction(
+          const SizedBox(width: 13), // 카드 ↔ 버튼 간격
+          CustomSlidableAction(
             onPressed: (_) => onDelete(),
-            backgroundColor: AppColors.error,
-            foregroundColor: Colors.white,
-            icon: Icons.delete,
-            borderRadius: BorderRadius.circular(20),
+            backgroundColor: Colors.transparent, // ⭐ 핵심
+            padding: EdgeInsets.zero,
+            child: Center(
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: AppColors.error, // 🔴 여기만 빨강
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Image.asset(
+                  'assets/icons/ico_delete.png',
+                  width: 19,
+                  height: 19,
+                  color: Colors.white,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -305,7 +326,7 @@ class _TravelListItem extends StatelessWidget {
         String badgeText;
 
         if (completed) {
-          badgeColor = const Color(0xFF9E9E9E);
+          badgeColor = const Color(0xFFBCBCBC);
           badgeText = isUSA
               ? 'usa'.tr()
               : (isDomestic ? 'domestic'.tr() : 'overseas'.tr());
@@ -313,10 +334,10 @@ class _TravelListItem extends StatelessWidget {
           badgeColor = const Color(0xFFE74C3C); // 미국 레드
           badgeText = 'usa'.tr();
         } else if (isDomestic) {
-          badgeColor = const Color(0xFF4A90E2); // 국내 블루
+          badgeColor = const Color(0xFF289AEB); // 국내 블루
           badgeText = 'domestic'.tr();
         } else {
-          badgeColor = const Color(0xFF9B51E0); // 해외 퍼플
+          badgeColor = const Color(0xFF7C5FF6); // 해외 퍼플
           badgeText = 'overseas'.tr();
         }
 
@@ -325,84 +346,83 @@ class _TravelListItem extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
+                  blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
+              padding: const EdgeInsets.fromLTRB(24, 22, 22, 22),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
+                        decoration: BoxDecoration(
+                          color: badgeColor,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.textColor02,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: AppTextStyles.sectionTitle.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textColor01,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text.rich(
+                        TextSpan(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: badgeColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                badgeText, // ✅ 동적 텍스트 적용
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: badgeColor,
-                                ),
+                            TextSpan(
+                              text: '$written',
+                              style: TextStyle(
+                                fontWeight: completed
+                                    ? FontWeight.w300
+                                    : FontWeight.w700,
+                                color: completed ? Colors.grey : Colors.black,
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                title,
-                                style: AppTextStyles.sectionTitle.copyWith(
-                                  fontSize: 18,
-                                  color: completed
-                                      ? Colors.grey
-                                      : Colors.black87,
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            TextSpan(
+                              text: 'written_days_format'.tr(
+                                args: [totalDays.toString()],
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
-                        Text(
-                          '$start ~ $end',
-                          style: AppTextStyles.bodyMuted.copyWith(fontSize: 13),
+                        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w300,
+                          color: const Color(0xFFA7A7A7),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(color: Colors.grey, fontSize: 13),
-                      children: [
-                        TextSpan(
-                          text: '$written',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: completed ? Colors.grey : Colors.black,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'written_days_format'.tr(
-                            args: [totalDays.toString()],
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 2),
+                  Text(
+                    '$start ~ $end',
+                    style: AppTextStyles.bodyMuted.copyWith(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w200,
                     ),
                   ),
                 ],

@@ -21,6 +21,7 @@ class AppColors {
   static const textColor03 = Color(0xFF666666); // 폰트색상
   static const textColor04 = Color(0xFFCBCBCB); // 폰트색상
   static const textColor05 = Color(0xFF424242); // 폰트색상
+  static const textColor06 = Color(0xFFBCBCBC); // 폰트색상
 
   // =========================
   // 🌈 login
@@ -44,7 +45,7 @@ class AppColors {
   // =========================
   static const success = Color(0xFF4CAF50);
   static const warning = Color(0xFFFFB300);
-  static const error = Color(0xFFE53935);
+  static const error = Color(0xFFEB5757);
 
   // =========================
   // 🎈 Decorative (Login / Background Shapes)
@@ -75,6 +76,7 @@ class AppColors {
   static const lightBackground = Color(0xFFFFFFFF);
   static const lightSurface = Color(0xFFEEEEEE);
   static const lightDivider = Color(0xFFE5E5E5);
+  static const lightGrayBackground = Color(0xFFF6F6F6);
 
   // 텍스트 (라이트)
   static const lightTextPrimary = Color(0xFF111111);

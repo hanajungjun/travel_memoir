@@ -27,6 +27,7 @@ class _AppShellState extends State<AppShell> {
   }) {
     return BottomNavigationBarItem(
       icon: Padding(
+<<<<<<< HEAD
         padding: const EdgeInsets.only(bottom: 2), // 🎯 4 -> 2로 간격 축소
         child: Image.asset(
           iconAsset,
@@ -37,6 +38,13 @@ class _AppShellState extends State<AppShell> {
       ),
       activeIcon: Padding(
         padding: const EdgeInsets.only(bottom: 2),
+=======
+        padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
+        child: Image.asset(iconAsset, width: 22, height: 22),
+      ),
+      activeIcon: Padding(
+        padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
+>>>>>>> dda4149 (디자인수정)
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -75,7 +83,11 @@ class _AppShellState extends State<AppShell> {
     ];
 
     return Scaffold(
+<<<<<<< HEAD
       extendBody: false,
+=======
+      extendBody: true, // ✅ 이 줄 추가 (진짜 핵심)
+>>>>>>> dda4149 (디자인수정)
       body: IndexedStack(index: _currentIndex, children: pages),
 
       // ✅ [하단 영역 슬림화 버전]
@@ -89,6 +101,7 @@ class _AppShellState extends State<AppShell> {
           ),
         ),
         child: SafeArea(
+          bottom: false,
           top: false,
           child: SizedBox(
             height: 45, // 🎯 64 -> 52로 높이 대폭 축소 (아이콘+텍스트 최소 영역)
