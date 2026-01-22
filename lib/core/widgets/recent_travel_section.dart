@@ -161,14 +161,19 @@ class _RecentTravelCard extends StatelessWidget {
     final bool isKo = context.locale.languageCode == 'ko';
 
     if (type == 'usa') {
-      return travel['region_name'] ??
+      // 뒤에 .toUpperCase()를 붙여서 항상 대문자로 리턴
+      String name =
+          travel['region_name'] ??
           travel['region_key'] ??
           (isKo ? '미국' : 'USA');
+      return name.toUpperCase();
     }
+
     if (type == 'domestic') {
       if (isKo) return travel['region_name'] ?? 'unknown_destination'.tr();
       final String rawKey = travel['region_key'] ?? '';
-      return rawKey.isNotEmpty ? rawKey.split('_').last : 'Korea';
+      // 마지막 단어를 추출한 뒤 .toUpperCase()로 대문자 고정
+      return rawKey.isNotEmpty ? rawKey.split('_').last.toUpperCase() : 'KOREA';
     }
     return isKo
         ? (travel['country_name_ko'] ?? 'unknown_destination'.tr())

@@ -5,17 +5,12 @@ import 'package:travel_memoir/storage_paths.dart';
 class TravelDayService {
   static final SupabaseClient _supabase = Supabase.instance.client;
 
-  // 모든 보이지 않는 문자(공백, 줄바꿈, 탭 등)를 완전히 제거하는 핵심 함수
   static String _clean(String? input) {
     if (input == null) return '';
     return input.replaceAll(RegExp(r'[\s\n\r\t]+'), '').trim();
   }
 
-  /// yyyy-MM-dd 형식 반환
-  static String _dateOnly(DateTime d) => d
-      .toIso8601String()
-      .substring(0, 10)
-      .replaceAll(RegExp(r'[\s\n\r\t]+'), '');
+  static String _dateOnly(DateTime d) => d.toIso8601String().substring(0, 10);
 
   // =====================================================
   // 🛡️ travel_day 데이터 정규화
@@ -39,25 +34,19 @@ class TravelDayService {
     required String travelId,
     required DateTime date,
   }) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return null;
-
-    final String tid = _clean(travelId);
-
     final res = await _supabase
         .from('travel_days')
         .select()
-        .eq('travel_id', tid)
+        .eq('travel_id', _clean(travelId))
         .eq('date', _dateOnly(date))
         .maybeSingle();
 
     if (res == null) return null;
-
     return _normalizeDay(Map<String, dynamic>.from(res));
   }
 
   // =====================================================
-  // 💾 일기 저장 (GitHub 버전: ai_image_url 컬럼 없음)
+  // 💾 일기 저장
   // =====================================================
   static Future<Map<String, dynamic>> upsertDiary({
     required String travelId,
@@ -67,15 +56,10 @@ class TravelDayService {
     String? aiSummary,
     String? aiStyle,
   }) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) throw Exception('로그인이 필요합니다.');
-
-    final String tid = _clean(travelId);
-
     final res = await _supabase
         .from('travel_days')
         .upsert({
-          'travel_id': tid,
+          'travel_id': _clean(travelId),
           'day_index': dayIndex,
           'date': _dateOnly(date),
           'text': text.trim(),
@@ -89,35 +73,18 @@ class TravelDayService {
   }
 
   // =====================================================
-  // 🤖 AI 이미지 URL (새 표준: ai_generated.png 고정)
+  // 🤖 AI 이미지 URL (path → UI에서 URL 변환)
   // =====================================================
-  static String? getAiImageUrl({
+  static String? getAiImagePath({
+    required String userId,
     required String travelId,
     required String diaryId,
   }) {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return null;
-
-    final uid = _clean(user.id);
-    final tid = _clean(travelId);
-    final did = _clean(diaryId);
-
-    // ✅ 우리가 약속한 새 경로로 강제 고정
-    final String cleanPath =
-        'users/$uid/travels/$tid/diaries/$did/ai_generated.png';
-
-    try {
-      final url = _supabase.storage
-          .from('travel_images')
-          .getPublicUrl(cleanPath);
-
-      final cleanUrl = _clean(url);
-      if (cleanUrl.isEmpty) return null;
-
-      return cleanUrl;
-    } catch (_) {
-      return null;
-    }
+    return StoragePaths.travelDayImagePath(
+      _clean(userId),
+      _clean(travelId),
+      _clean(diaryId),
+    );
   }
 
   // =====================================================
@@ -127,10 +94,7 @@ class TravelDayService {
     required String travelId,
     required DateTime date,
   }) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return false;
-
-    final String tid = _clean(travelId);
+    final tid = _clean(travelId);
 
     await _supabase
         .from('travel_days')
@@ -170,13 +134,13 @@ class TravelDayService {
   }
 
   static Future<int> getWrittenDayCount({required String travelId}) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) return 0;
     final res = await _supabase
         .from('travel_days')
         .select('text')
         .eq('travel_id', _clean(travelId));
+
     if (res is! List) return 0;
+
     return res
         .where((row) => (row['text'] ?? '').toString().trim().isNotEmpty)
         .length;
@@ -190,6 +154,7 @@ class TravelDayService {
         .select()
         .eq('travel_id', _clean(travelId))
         .order('date');
+
     return List<Map<String, dynamic>>.from(res);
   }
 
@@ -200,82 +165,68 @@ class TravelDayService {
         .from('travel_days')
         .select('date, ai_summary')
         .eq('travel_id', _clean(travelId))
-        .order('date', ascending: true);
+        .order('date');
+
     if (res is! List) return [];
+
     return res
         .where((e) => e['date'] != null)
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
   }
 
-  static Future<Map<String, dynamic>> getTravelById(String travelId) async {
-    return await _supabase
-        .from('travels')
-        .select()
-        .eq('id', _clean(travelId))
-        .single();
-  }
-
   static Future<void> updateDiaryPhotos({
     required String travelId,
     required DateTime date,
-    required List<String> photoUrls,
+    required List<String> photoPaths,
   }) async {
     await _supabase
         .from('travel_days')
-        .update({'photo_urls': photoUrls})
+        .update({'photo_urls': photoPaths})
         .eq('travel_id', _clean(travelId))
         .eq('date', _dateOnly(date));
   }
 
   static Future<void> clearDiaryRecord({
+    required String userId,
     required String travelId,
     required String date,
-    List<dynamic>? photoUrls,
+    List<String>? photoPaths,
   }) async {
-    final supabase = Supabase.instance.client;
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
     final tid = _clean(travelId);
-    final uid = _clean(user.id);
-    List<String> pathsToDelete = [];
+    final uid = _clean(userId);
+
+    final List<String> pathsToDelete = [];
+
     try {
-      final diary = await supabase
+      final diary = await _supabase
           .from('travel_days')
           .select('id')
           .eq('travel_id', tid)
           .eq('date', date.trim())
           .maybeSingle();
+
       if (diary != null) {
         pathsToDelete.add(
-          _clean(StoragePaths.travelDayImage(uid, tid, diary['id'].toString())),
+          StoragePaths.travelDayImagePath(uid, tid, diary['id'].toString()),
         );
       }
-    } catch (e) {}
-    pathsToDelete.add(_clean(StoragePaths.travelCover(uid, tid)));
-    pathsToDelete.add(_clean(StoragePaths.travelMap(uid, tid)));
-    if (photoUrls != null) {
-      for (var url in photoUrls) {
-        try {
-          final uri = Uri.parse(url.toString());
-          pathsToDelete.add(
-            _clean(
-              uri.pathSegments
-                  .skip(uri.pathSegments.indexOf('travel_images') + 1)
-                  .join('/'),
-            ),
-          );
-        } catch (e) {}
-      }
+    } catch (_) {}
+
+    pathsToDelete.add(StoragePaths.travelCoverPath(uid, tid));
+    pathsToDelete.add(StoragePaths.travelMapPath(uid, tid));
+
+    if (photoPaths != null) {
+      pathsToDelete.addAll(photoPaths.map(_clean));
     }
+
     if (pathsToDelete.isNotEmpty) {
-      try {
-        await supabase.storage
-            .from('travel_images')
-            .remove(pathsToDelete.toSet().toList());
-      } catch (e) {}
+      await _supabase.storage
+          .from('travel_images')
+          .remove(pathsToDelete.toSet().toList());
     }
-    await supabase
+
+    await _supabase
         .from('travel_days')
         .update({
           'text': '',
@@ -286,5 +237,18 @@ class TravelDayService {
         })
         .eq('travel_id', tid)
         .eq('date', date.trim());
+  }
+
+  static String? getAiImageUrl({
+    required String userId,
+    required String travelId,
+    required String diaryId,
+  }) {
+    final path =
+        'users/$userId/travels/$travelId/diaries/$diaryId/ai_generated.png';
+    final url = Supabase.instance.client.storage
+        .from('travel_images')
+        .getPublicUrl(path);
+    return url;
   }
 }

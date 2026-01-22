@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/storage_urls.dart';
 
 class TravelCard extends StatelessWidget {
   final Map<String, dynamic> travel;
@@ -12,14 +12,27 @@ class TravelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String city = travel['city'] ?? travel['region_name'] ?? 'Unknown';
+    debugPrint('--- 📸 [TravelCard] Build Started for: $city ---');
+
     final isCompleted = travel['is_completed'] == true;
-    final coverUrl = _coverImageUrl(travel);
+
+    // ✅ 새 규칙: DB에는 path, UI에서만 URL 생성
+    final String? coverPath = travel['cover_image_url'];
+    final String? coverUrl = coverPath != null
+        ? StorageUrls.travelImage(coverPath)
+        : null;
+
+    debugPrint('🔗 [TravelCard] Final Image URL: $coverUrl');
 
     final DecorationImage image = isCompleted && coverUrl != null
         ? DecorationImage(
             image: NetworkImage(coverUrl),
             fit: BoxFit.cover,
-            onError: (_, __) {},
+            onError: (exception, stackTrace) {
+              debugPrint('❌ [TravelCard] Image Load Error: $exception');
+              debugPrint('❌ [TravelCard] Failed URL: $coverUrl');
+            },
           )
         : const DecorationImage(
             image: AssetImage('assets/images/travel_placeholder.png'),
@@ -37,11 +50,19 @@ class TravelCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 image: image,
               ),
+              child: isCompleted && coverUrl == null
+                  ? const Center(
+                      child: Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey,
+                      ),
+                    )
+                  : null,
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            'travel_with_city'.tr(args: [travel['city'] ?? '']),
+            'travel_with_city'.tr(args: [city]),
             style: AppTextStyles.sectionTitle,
           ),
           const SizedBox(height: 6),
@@ -52,18 +73,5 @@ class TravelCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String? _coverImageUrl(Map<String, dynamic> travel) {
-    final userId = travel['user_id'];
-    final travelId = travel['id'];
-
-    if (userId == null || travelId == null) return null;
-
-    final path = 'users/$userId/travels/$travelId/cover.png';
-
-    return Supabase.instance.client.storage
-        .from('travel_images')
-        .getPublicUrl(path);
   }
 }

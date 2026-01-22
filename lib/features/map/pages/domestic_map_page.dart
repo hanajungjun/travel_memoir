@@ -13,11 +13,16 @@ class DomesticMapPage extends StatefulWidget {
   const DomesticMapPage({super.key});
 
   @override
-  State<DomesticMapPage> createState() => _DomesticMapPageState();
+  State<DomesticMapPage> createState() => DomesticMapPageState(); // ✅ '_' 제거
 }
 
-class _DomesticMapPageState extends State<DomesticMapPage> {
+// ✅ '_' 제거 및 AutomaticKeepAliveClientMixin 추가
+class DomesticMapPageState extends State<DomesticMapPage>
+    with AutomaticKeepAliveClientMixin {
   MapboxMap? _map;
+
+  @override
+  bool get wantKeepAlive => true; // ✅ 탭 전환 시 지도 상태(위치 등) 유지
 
   static const _sigSourceId = 'korea-sig-source';
   static const _visitedSigLayer = 'visited-sig-layer';
@@ -37,11 +42,20 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     "48120": ["48121", "48123", "48125", "48127", "48129"],
   };
 
+  // ✅ Pager에서 상세 페이지 복귀 시 호출할 데이터 갱신 함수
+  Future<void> refreshData() async {
+    debugPrint('🇰🇷 [DOMESTIC MAP] refreshData called');
+    if (_map != null) {
+      await _drawMapData();
+    }
+  }
+
   String _toHex(Color color) =>
       '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // ✅ mixin 사용 시 필수
     return Scaffold(
       body: MapWidget(
         styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
@@ -88,13 +102,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
           .eq('travel_type', 'domestic');
 
       debugPrint('🗺️ [MAP] travels count=${travels.length}');
-      for (final t in travels) {
-        debugPrint(
-          '🗺️ [MAP] region_id=${t['region_id']} '
-          'completed=${t['is_completed']} '
-          'map_image_url=${t['map_image_url']}',
-        );
-      }
 
       final Set<String> allSgg = {};
       final Set<String> completedSgg = {};
@@ -102,8 +109,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
       for (final t in travels) {
         final regId = t['region_id']?.toString() ?? '';
         final codeInfo = SggCodeMap.fromRegionId(regId);
-
-        debugPrint('🔎 [SGG] region_id=$regId → sggCd=${codeInfo.sggCd}');
 
         if (codeInfo.sggCd != null) {
           final sgg = codeInfo.sggCd!;
@@ -171,16 +176,12 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     final map = _map;
     if (map == null) return;
 
-    debugPrint('👆 [MAP TAP]');
-
     try {
       final screen = await map.pixelForCoordinate(context.point);
       final features = await map.queryRenderedFeatures(
         RenderedQueryGeometry.fromScreenCoordinate(screen),
         RenderedQueryOptions(layerIds: [_visitedSigLayer]),
       );
-
-      debugPrint('👆 [MAP TAP] features=${features.length}');
 
       if (features.isEmpty) return;
 
@@ -189,19 +190,14 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
       if (props == null) return;
 
       final sggCode = props['SGG_CD']?.toString() ?? '';
-      debugPrint('👆 [MAP TAP] sgg=$sggCode');
-
       String lookup = sggCode;
       majorCityMapping.forEach((parent, children) {
         if (children.contains(sggCode)) {
           lookup = parent;
-          debugPrint('🔁 [REVERSE] child=$sggCode → parent=$parent');
         }
       });
 
       final regId = SggCodeMap.getRegionIdFromSggCd(lookup);
-      debugPrint('🔁 [REVERSE] lookup=$lookup → region_id=$regId');
-
       if (regId.isNotEmpty) {
         _handlePopup(regId);
       }
@@ -214,8 +210,6 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    debugPrint('🪟 [POPUP] query region_id=$regId');
-
     final res = await Supabase.instance.client
         .from('travels')
         .select()
@@ -223,11 +217,7 @@ class _DomesticMapPageState extends State<DomesticMapPage> {
         .eq('region_id', regId)
         .maybeSingle();
 
-    debugPrint('🪟 [POPUP] result=$res');
-
     if (res != null && res['is_completed'] == true) {
-      debugPrint('🖼️ [POPUP OPEN] map_image_url=${res['map_image_url']}');
-
       showGeneralDialog(
         context: context,
         barrierDismissible: true,

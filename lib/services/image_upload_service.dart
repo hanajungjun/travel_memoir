@@ -20,7 +20,7 @@ class ImageUploadService {
     final fileName =
         '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
 
-    final path = StoragePaths.travelUserPhoto(userId, travelId, fileName);
+    final path = StoragePaths.travelUserPhotoPath(userId, travelId, fileName);
 
     final bytes = await file.readAsBytes();
 
@@ -35,12 +35,12 @@ class ImageUploadService {
           ),
         );
 
-    return _supabase.storage.from('travel_images').getPublicUrl(path);
+    // ✅ URL ❌, path ⭕
+    return path;
   }
 
   // =====================================================
-  // 🤖 AI 생성 이미지 업로드 (TravelDayPage에서 호출하는 이름)
-  // ✅ [추가 및 수정] 이 메서드가 없어서 에러가 났던 것입니다.
+  // 🤖 AI 생성 이미지 업로드
   // =====================================================
   static Future<String> uploadAiImage({
     required String path,
@@ -58,8 +58,8 @@ class ImageUploadService {
             ),
           );
 
-      // 업로드 후 DB에 저장할 수 있도록 publicUrl을 반환해야 합니다.
-      return _supabase.storage.from('travel_images').getPublicUrl(path);
+      // ✅ path 반환
+      return path;
     } catch (e) {
       print('❌ [AI IMAGE UPLOAD] 실패: $e');
       rethrow;
@@ -67,7 +67,7 @@ class ImageUploadService {
   }
 
   // =====================================================
-  // 🤖 일기 이미지 업로드 (기존 로직 유지)
+  // 🤖 일기 이미지 업로드
   // =====================================================
   static Future<void> uploadDiaryImage({
     required String userId,
@@ -75,7 +75,7 @@ class ImageUploadService {
     required String diaryId,
     required Uint8List imageBytes,
   }) async {
-    final path = StoragePaths.travelDayImage(userId, travelId, diaryId);
+    final path = StoragePaths.travelDayImagePath(userId, travelId, diaryId);
 
     print('-----------------------------------------');
     print('📤 [STORAGE UPLOAD] 시작');
@@ -105,7 +105,7 @@ class ImageUploadService {
     required String travelId,
     required Uint8List imageBytes,
   }) async {
-    final path = StoragePaths.travelCover(userId, travelId);
+    final path = StoragePaths.travelCoverPath(userId, travelId);
 
     await _supabase.storage
         .from('travel_images')
@@ -118,11 +118,12 @@ class ImageUploadService {
           ),
         );
 
-    return _supabase.storage.from('travel_images').getPublicUrl(path);
+    // ✅ path 반환
+    return path;
   }
 
   // =====================================================
-  // 🗑 publicUrl → storage path 변환
+  // 🗑 publicUrl → storage path 변환 (유지)
   // =====================================================
   static String getPathFromPublicUrl(String publicUrl) {
     final uri = Uri.parse(publicUrl);
@@ -132,7 +133,7 @@ class ImageUploadService {
   }
 
   // =====================================================
-  // 🗑 사진 삭제 (URL 기준)
+  // 🗑 사진 삭제 (URL 기준, 유지)
   // =====================================================
   static Future<void> deleteUserImageByUrl(String publicUrl) async {
     final path = getPathFromPublicUrl(publicUrl);

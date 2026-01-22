@@ -24,7 +24,6 @@ class _UsaMapPageState extends State<UsaMapPage> {
   static const _usaFill = 'usa-states-fill';
   static const _usaGeo = 'assets/geo/processed/usa_states_standard.json';
 
-  // 🎯 각 지역별 카메라 좌표 정의
   final _mainland = CameraOptions(
     center: Point(coordinates: Position(-98.5, 39.5)),
     zoom: 2.5,
@@ -41,7 +40,6 @@ class _UsaMapPageState extends State<UsaMapPage> {
   String _hex(Color c) =>
       '#${c.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
 
-  // 🎯 버튼 클릭 시 카메라 이동 함수
   void _moveCamera(CameraOptions options) {
     _map?.flyTo(options, MapAnimationOptions(duration: 800));
   }
@@ -52,7 +50,7 @@ class _UsaMapPageState extends State<UsaMapPage> {
       children: [
         MapWidget(
           styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
-          cameraOptions: _mainland, // 기본값 본토
+          cameraOptions: _mainland,
           gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
             Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
             Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
@@ -60,15 +58,11 @@ class _UsaMapPageState extends State<UsaMapPage> {
           onMapCreated: (map) => _map = map,
           onStyleLoadedListener: _onStyleLoaded,
         ),
-
-        // 🎯 1. 로딩 인디케이터
         if (!_ready)
           const ColoredBox(
             color: Colors.white,
             child: Center(child: CircularProgressIndicator()),
           ),
-
-        // 🎯 2. [신규] 지역 이동 버튼 (알래스카, 하와이, 본토)
         if (_ready)
           Positioned(
             top: 10,
@@ -87,7 +81,6 @@ class _UsaMapPageState extends State<UsaMapPage> {
     );
   }
 
-  // 버튼 UI 빌더
   Widget _buildMapButton(String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -113,7 +106,9 @@ class _UsaMapPageState extends State<UsaMapPage> {
     if (_init || _map == null) return;
     _init = true;
 
-    // 🎯 [핵심] 평면 지도로 설정 (Mercator 투영)
+    // ✅ 1. 안정적인 로드를 위해 지연 시간 추가
+    await Future.delayed(const Duration(milliseconds: 200));
+
     try {
       await _map!.style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
@@ -128,7 +123,6 @@ class _UsaMapPageState extends State<UsaMapPage> {
     if (mounted) setState(() => _ready = true);
   }
 
-  // ... _drawVisitedStates 및 _localizeLabels 로직은 이전과 동일하게 유지 ...
   Future<void> _drawVisitedStates() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null || _map == null) return;
@@ -145,18 +139,22 @@ class _UsaMapPageState extends State<UsaMapPage> {
     for (final t in (travels as List)) {
       final stateName = t['region_name']?.toString();
       if (stateName != null) {
-        visitedStates.add(stateName);
-        if (t['is_completed'] == true) completedStates.add(stateName);
+        // ✅ 2. DB 데이터를 대문자로 처리하여 세트에 저장
+        final upperName = stateName.toUpperCase();
+        visitedStates.add(upperName);
+        if (t['is_completed'] == true) completedStates.add(upperName);
       }
     }
 
     final style = _map!.style;
     final usaJson = await rootBundle.loadString(_usaGeo);
 
-    if (await style.styleSourceExists(_usaSource))
+    if (await style.styleSourceExists(_usaSource)) {
       await style.removeStyleSource(_usaSource);
-    if (await style.styleLayerExists(_usaFill))
+    }
+    if (await style.styleLayerExists(_usaFill)) {
       await style.removeStyleLayer(_usaFill);
+    }
 
     await style.addSource(GeoJsonSource(id: _usaSource, data: usaJson));
     await style.addLayer(FillLayer(id: _usaFill, sourceId: _usaSource));
@@ -164,16 +162,23 @@ class _UsaMapPageState extends State<UsaMapPage> {
     final doneColor = _hex(AppColors.mapOverseaVisitedFill);
     final activeColor = _hex(const Color(0xFFE74C3C).withOpacity(0.4));
 
+    // ✅ 3. GeoJSON의 NAME도 대문자로 변환(['upcase'])하여 비교
     await style.setStyleLayerProperty(_usaFill, 'filter', [
       'in',
-      ['get', 'NAME'],
+      [
+        'upcase',
+        ['get', 'NAME'],
+      ],
       ['literal', visitedStates.toList()],
     ]);
     await style.setStyleLayerProperty(_usaFill, 'fill-color', [
       'case',
       [
         'in',
-        ['get', 'NAME'],
+        [
+          'upcase',
+          ['get', 'NAME'],
+        ],
         ['literal', completedStates.toList()],
       ],
       doneColor,

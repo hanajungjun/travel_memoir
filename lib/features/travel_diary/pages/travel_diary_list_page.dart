@@ -10,6 +10,8 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_diary_list_skeleton.dart';
 
+import 'package:travel_memoir/storage_urls.dart';
+
 class TravelDiaryListPage extends StatefulWidget {
   final Map<String, dynamic> travel;
 
@@ -112,7 +114,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   Widget build(BuildContext context) {
     final startDate = DateTime.parse(_travel['start_date']);
 
-    // ✅ 여행 타입 구분 (domestic, usa, overseas)
     final travelType = _travel['travel_type'] ?? '';
     final isDomestic = travelType == 'domestic';
     final isUSA = travelType == 'usa';
@@ -121,7 +122,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
     String title = '';
 
-    // ✅ 미국 여행이거나 한국 여행일 때 region_name(예: Colorado, 경기도)을 제목으로 사용
     if (isUSA || isDomestic) {
       title =
           _travel['region_name'] ??
@@ -138,7 +138,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       backgroundColor: const Color(0xFFF8F9FA),
       body: Column(
         children: [
-          _buildHeader(travelType, title), // ✅ travelType 전달하여 색상 결정
+          _buildHeader(travelType, title),
           Expanded(
             child: _loading
                 ? const TravelDiaryListSkeleton()
@@ -150,15 +150,13 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                     itemCount: _diaries.length,
                     buildDefaultDragHandles: false,
                     onReorder: _onReorder,
-
-                    // ✅ 드래그 중 카드 스타일 제어 (핵심)
                     proxyDecorator: (child, index, animation) {
                       return AnimatedBuilder(
                         animation: animation,
                         builder: (context, _) {
                           return Material(
-                            color: Colors.transparent, // ❌ 배경 제거
-                            elevation: 8, // ✅ 그림자만
+                            color: Colors.transparent,
+                            elevation: 8,
                             shadowColor: Colors.black.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(12),
                             child: child,
@@ -175,14 +173,28 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
                       String? imageUrl;
                       if (hasDiary) {
-                        final rawUrl = TravelDayService.getAiImageUrl(
-                          travelId: _travel['id'].toString(),
-                          diaryId: diary['id'].toString(),
-                        );
+                        //  debugPrint('🧪 [THUMB] diary id = ${diary['id']}');
 
-                        if (rawUrl != null) {
-                          imageUrl =
-                              '$rawUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+                        final userId = _travel['user_id']?.toString();
+                        final travelId = _travel['id']?.toString();
+                        final diaryId = diary['id']?.toString();
+
+                        //debugPrint(
+                        //   '🧪 [THUMB] userId=$userId travelId=$travelId diaryId=$diaryId',
+                        //);
+
+                        if (userId != null &&
+                            travelId != null &&
+                            diaryId != null) {
+                          final rawUrl = TravelDayService.getAiImageUrl(
+                            userId: userId,
+                            travelId: travelId,
+                            diaryId: diaryId,
+                          );
+                          if (rawUrl != null && rawUrl.isNotEmpty) {
+                            imageUrl =
+                                '$rawUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+                          }
                         }
                       }
 
@@ -226,13 +238,18 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
                                 setState(() => _loading = true);
                                 try {
+                                  // ✅ 새 시그니처에 맞춤: userId 필수, photoPaths 사용
                                   await TravelDayService.clearDiaryRecord(
-                                    travelId: _travel['id'],
-                                    date: diaryData['date'],
-                                    photoUrls: diaryData['photo_urls'],
+                                    userId: _travel['user_id'].toString(),
+                                    travelId: _travel['id'].toString(),
+                                    date: diaryData['date'].toString(),
+                                    photoPaths:
+                                        (diaryData['photo_urls'] as List?)
+                                            ?.map((e) => e.toString())
+                                            .toList(),
                                   );
                                   await _loadAllDiaries();
-                                  if (mounted)
+                                  if (mounted) {
                                     messenger.showSnackBar(
                                       SnackBar(
                                         content: Text(
@@ -240,6 +257,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                         ),
                                       ),
                                     );
+                                  }
                                 } catch (e) {
                                   messenger.showSnackBar(
                                     SnackBar(
@@ -274,8 +292,9 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                 ),
                               ),
                             );
-                            if (changed == true && mounted)
+                            if (changed == true && mounted) {
                               await _loadAllDiaries();
+                            }
                           },
                           child: _buildListItem(
                             diary,
@@ -295,23 +314,19 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       ),
       floatingActionButton: _isChanged
           ? Padding(
-              padding: const EdgeInsets.only(
-                bottom: 5, // ✅ ADD 버튼과 동일
-                right: 2,
-              ),
+              padding: const EdgeInsets.only(bottom: 5, right: 2),
               child: Material(
                 color: Colors.transparent,
-                elevation: 14, // ✅ 그림자 동일
+                elevation: 14,
                 shadowColor: Colors.black.withOpacity(0.25),
                 shape: const CircleBorder(),
                 child: FloatingActionButton(
-                  elevation: 0, // Material이 그림자 담당
+                  elevation: 0,
                   backgroundColor: travelType == 'domestic'
-                      ? AppColors
-                            .travelingBlue // 🇰🇷 국내
+                      ? AppColors.travelingBlue
                       : travelType == 'usa'
-                      ? const Color(0xFFE74C3C) // 🇺🇸 미국 레드
-                      : AppColors.travelingPurple, // 🌍 해외 보라
+                      ? const Color(0xFFE74C3C)
+                      : AppColors.travelingPurple,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50),
                   ),
@@ -331,19 +346,17 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     final totalCount = _diaries.length;
     final isCompleted = totalCount > 0 && writtenCount == totalCount;
 
-    // ✅ 미국(Red), 한국(Blue), 세계(Purple) 구분
     Color primaryColor;
-    Color secondaryColor;
     String badgeLabel;
 
     if (travelType == 'usa') {
-      primaryColor = const Color(0xFFE74C3C); // 미국 레드
+      primaryColor = const Color(0xFFE74C3C);
       badgeLabel = 'usa'.tr();
     } else if (travelType == 'domestic') {
-      primaryColor = AppColors.travelingBlue; // 한국 블루
+      primaryColor = AppColors.travelingBlue;
       badgeLabel = 'domestic'.tr();
     } else {
-      primaryColor = AppColors.travelingPurple; // 세계 퍼플
+      primaryColor = AppColors.travelingPurple;
       badgeLabel = 'overseas'.tr();
     }
 
@@ -360,7 +373,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  // ✅ Localization에서 {0} 여행 형태로 정의되어 있다면 Colorado 여행으로 표시됨
                   'travel_diary_list_title'.tr(args: [title]),
                   style: AppTextStyles.pageTitle.copyWith(
                     color: Colors.white,
@@ -377,7 +389,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                     fontWeight: FontWeight.w300,
                   ),
                   children: [
-                    // ✅ 작성된 개수
                     TextSpan(
                       text: writtenCount.toString(),
                       style: TextStyle(
@@ -386,17 +397,13 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                             : FontWeight.w700,
                         color: isCompleted
                             ? Colors.white.withOpacity(0.6)
-                            : const Color(0xFFFFD64E), // ⭐ 작성 중 강조
+                            : const Color(0xFFFFD64E),
                       ),
                     ),
-
-                    // ✅ /
                     TextSpan(
                       text: '/',
                       style: TextStyle(color: Colors.white.withOpacity(0.6)),
                     ),
-
-                    // ✅ 전체 개수
                     TextSpan(
                       text: totalCount.toString(),
                       style: TextStyle(
@@ -404,10 +411,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                         fontWeight: FontWeight.w300,
                       ),
                     ),
-
                     const TextSpan(text: ' '),
-
-                    // ✅ "작성" / "written"
                     TextSpan(
                       text: 'written_suffix'.tr(),
                       style: TextStyle(color: Colors.white.withOpacity(0.6)),
@@ -484,10 +488,9 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                   '${DateUtilsHelper.formatMonthDay(date)} · ${'travel_day_unit'.tr(args: [dayIndex.toString()])}',
                   style: AppTextStyles.bodyMuted.copyWith(
                     fontSize: 13,
-                    fontWeight: FontWeight.w300, // 레귤러
+                    fontWeight: FontWeight.w300,
                   ),
                 ),
-                const SizedBox(height: 0),
                 Text(
                   hasDiary ? text.split('\n').first : 'please_write_diary'.tr(),
                   maxLines: 1,
@@ -507,8 +510,8 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
             child: Padding(
               padding: const EdgeInsets.all(5.20),
               child: Image.asset(
-                'assets/icons/ico_Drag.png', // ✅ 네가 만든 드래그 아이콘
-                width: 13, // 필요하면 조절
+                'assets/icons/ico_Drag.png',
+                width: 13,
                 height: 10,
               ),
             ),

@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
       debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
     }
 
-    bool isGranted = await _stampService.checkAndGrantDailyReward(user.id);
+    final isGranted = await _stampService.checkAndGrantDailyReward(user.id);
     if (isGranted && mounted) {
       _showRewardPopup();
     }
@@ -121,17 +121,17 @@ class _HomePageState extends State<HomePage> with RouteAware {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // 1. 상단 고정 헤더
+          // 1. 상단 헤더
           HomeTravelStatusHeader(onGoToTravel: widget.onGoToTravel),
 
-          // 2. 메인 컨텐츠 영역
+          // 2. 메인 컨텐츠
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(27, 15, 27, 82),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 최근 여행 섹션
+                  // 최근 여행
                   FutureBuilder(
                     key: ValueKey('recent-$_refreshKey'),
                     future: TravelListService.getRecentTravels(),
@@ -148,19 +148,29 @@ class _HomePageState extends State<HomePage> with RouteAware {
                     },
                   ),
 
-                  // 섹션 간 간격 (너무 넓으면 10 정도로 줄여보세요)
                   const SizedBox(height: 15),
 
-                  // ✅ [핵심] 지도 섹션은 남은 공간 전부 차지하게 Expanded로 감싼다
+                  // ✅ 지도 섹션 (travelType을 실제 데이터에서 추출)
                   Expanded(
                     child: FutureBuilder<List<Map<String, dynamic>>>(
                       key: ValueKey('map-$_refreshKey'),
                       future: TravelListService.getTravels(),
                       builder: (context, snapshot) {
                         final travels = snapshot.data ?? [];
-                        final String? travelId = travels.isNotEmpty
-                            ? travels.first['id']
-                            : null;
+
+                        final String travelId = travels.isNotEmpty
+                            ? travels.first['id']?.toString() ?? 'preview'
+                            : 'preview';
+
+                        // ⭐ 핵심: widget이 아니라 travels에서 직접 꺼낸다
+                        final String travelType = travels.isNotEmpty
+                            ? travels.first['travel_type']?.toString() ??
+                                  'overseas'
+                            : 'overseas';
+
+                        debugPrint(
+                          '🧭 [HomePage] travelId=$travelId travelType=$travelType',
+                        );
 
                         return AnimatedSwitcher(
                           duration: const Duration(milliseconds: 250),
@@ -174,10 +184,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
                                     color: AppColors.lightSurface,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
-                                  // ✅ 기존: height 0.45 고정 (여백 원인)
-                                  // ✅ 변경: 남은 공간을 그대로 채우게 그냥 넣는다
                                   child: TravelMapPager(
-                                    travelId: travelId ?? 'preview',
+                                    travelId: travelId,
+                                    travelType: travelType, // ✅ 진짜 값 전달
                                   ),
                                 ),
                         );

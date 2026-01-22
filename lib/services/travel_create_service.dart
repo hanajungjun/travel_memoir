@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/models/country_model.dart';
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
 import 'package:travel_memoir/core/constants/korea/sgg_code_map.dart';
-import 'package:travel_memoir/storage_paths.dart'; // 🎯 경로 관리 클래스 임포트
+import 'package:travel_memoir/storage_paths.dart';
 
 class TravelCreateService {
   static final SupabaseClient _supabase = Supabase.instance.client;
@@ -20,11 +20,6 @@ class TravelCreateService {
   }) async {
     final String regionKey = region.id;
 
-    debugPrint("🚀 [Domestic] regionKey: $regionKey");
-
-    // ✅ StoragePaths를 통해 한국 지도 버킷 URL 획득
-    final String mapImageUrl = StoragePaths.domesticMap(regionKey);
-
     final travel = await _supabase
         .from('travels')
         .insert({
@@ -38,7 +33,7 @@ class TravelCreateService {
           'region_id': region.id,
           'region_name': region.name,
           'region_key': regionKey,
-          'map_image_url': mapImageUrl, // 🎯 주입
+          'map_image_url': 'map_images/$regionKey.png',
           'province': region.province,
           'region_lat': region.lat,
           'region_lng': region.lng,
@@ -81,9 +76,6 @@ class TravelCreateService {
   }) async {
     final String countryCode = country.code.toUpperCase();
 
-    // ✅ StoragePaths를 통해 글로벌 지도 버킷 URL 획득
-    final String mapImageUrl = StoragePaths.globalMap(countryCode);
-
     final travel = await _supabase
         .from('travels')
         .insert({
@@ -96,7 +88,7 @@ class TravelCreateService {
           'country_lat': country.lat,
           'country_lng': country.lng,
           'region_key': countryCode,
-          'map_image_url': mapImageUrl, // 🎯 주입
+          'map_image_url': 'global_map_image/$countryCode.png',
           'start_date': startDate.toIso8601String().substring(0, 10),
           'end_date': endDate.toIso8601String().substring(0, 10),
           'is_completed': false,
@@ -114,25 +106,19 @@ class TravelCreateService {
   }
 
   // ============================
-  // 🇺🇸 미국 여행 생성 (최종 수정본)
+  // 🇺🇸 미국 여행 생성
   // ============================
   static Future<Map<String, dynamic>> createUSATravel({
     required String userId,
     required CountryModel country,
-    required String regionKey, // 🎯 이미지 경로 및 DB 로직용 키 (예: Arizona)
-    required String stateName, // 🎯 화면 표시용 이름 (예: Arizona)
+    required String regionKey,
+    required String stateName,
     required DateTime startDate,
     required DateTime endDate,
   }) async {
     final String countryCode = country.code.toUpperCase();
+    final String safeKey = regionKey.replaceAll(' ', '_').toUpperCase();
 
-    // 1️⃣ StoragePaths를 통해 정확한 주(State) 지도 URL 생성
-    // 결과: .../usa_map_image/Arizona.png
-    final String mapImageUrl = StoragePaths.usaMap(regionKey);
-
-    debugPrint("🇺🇸 [미국 여행 생성] regionKey: $regionKey, stateName: $stateName");
-
-    // 2️⃣ 여행 기록 인서트
     final travel = await _supabase
         .from('travels')
         .insert({
@@ -141,12 +127,12 @@ class TravelCreateService {
           'country_code': countryCode,
           'country_name_ko': country.nameKo,
           'country_name_en': country.nameEn,
-          'region_name': stateName, // 화면에 보여줄 이름
-          'region_key': regionKey, // 🎯 이미지 매칭 및 로직용 키
+          'region_name': stateName,
+          'region_key': regionKey,
           'continent': country.continent,
           'country_lat': country.lat,
           'country_lng': country.lng,
-          'map_image_url': mapImageUrl, // 🎯 생성된 URL 주입
+          'map_image_url': 'usa_map_image/$safeKey.png',
           'start_date': startDate.toIso8601String().substring(0, 10),
           'end_date': endDate.toIso8601String().substring(0, 10),
           'is_completed': false,
@@ -154,7 +140,6 @@ class TravelCreateService {
         .select()
         .single();
 
-    // 3️⃣ 빈 일기 칸 선발행
     await _createEmptyDays(
       travelId: travel['id'],
       startDate: startDate,
@@ -165,7 +150,7 @@ class TravelCreateService {
   }
 
   // ============================
-  // 📦 [헬퍼] 빈 일기 로우 배치 인서트 (기존 유지)
+  // 📦 빈 일기 생성
   // ============================
   static Future<void> _createEmptyDays({
     required String travelId,
@@ -173,7 +158,7 @@ class TravelCreateService {
     required DateTime endDate,
   }) async {
     final int totalDays = endDate.difference(startDate).inDays + 1;
-    List<Map<String, dynamic>> batchData = [];
+    final List<Map<String, dynamic>> batchData = [];
 
     for (int i = 0; i < totalDays; i++) {
       final currentDate = startDate.add(Duration(days: i));
@@ -191,7 +176,7 @@ class TravelCreateService {
   }
 
   // ============================
-  // ❌ 여행 삭제 (기존 유지)
+  // ❌ 여행 삭제
   // ============================
   static Future<void> deleteTravel(String travelId) async {
     final res = await _supabase.functions.invoke(

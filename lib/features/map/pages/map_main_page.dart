@@ -4,13 +4,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/features/map/pages/domestic_map_page.dart';
 import 'package:travel_memoir/features/map/pages/global_map_page.dart';
-import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart'; // ✅ 설정 페이지 추가
+import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
 class MapMainPage extends StatefulWidget {
-  final int? initialIndex;
   final String travelId;
+  final String travelType; // domestic / overseas / usa
 
-  const MapMainPage({super.key, required this.travelId, this.initialIndex});
+  const MapMainPage({
+    super.key,
+    required this.travelId,
+    required this.travelType,
+  });
 
   @override
   State<MapMainPage> createState() => _MapMainPageState();
@@ -18,38 +22,64 @@ class MapMainPage extends StatefulWidget {
 
 class _MapMainPageState extends State<MapMainPage> {
   final String _userId = Supabase.instance.client.auth.currentUser!.id;
-  int _currentIndex = 0;
 
-  // ✅ 활성화된 지도 ID 리스트 (초기값은 기본 제공 맵)
-  List<String> _activeMapIds = ['world', 'ko'];
+  int _currentIndex = 0;
   bool _loading = true;
+
+  /// 활성화된 지도 ID
+  /// world = 세계 / ko = 한국
+  List<String> _activeMapIds = ['world', 'ko'];
 
   @override
   void initState() {
     super.initState();
-    _loadActiveMaps(); // ✅ 페이지 진입 시 활성 맵 로드
+    _loadActiveMaps();
   }
 
-  /// ✅ 사용자의 활성화된 지도 목록 로드
+  /// 사용자 설정에서 활성 지도 불러오기
   Future<void> _loadActiveMaps() async {
     setState(() => _loading = true);
     try {
       final res = await Supabase.instance.client
           .from('users')
           .select('active_maps')
-          .eq('auth_uid', _userId) // ✅ auth_uid 컬럼 기준
+          .eq('auth_uid', _userId)
           .maybeSingle();
 
       if (res != null && res['active_maps'] != null) {
-        setState(() {
-          _activeMapIds = List<String>.from(res['active_maps']);
-        });
+        _activeMapIds = List<String>.from(res['active_maps']);
       }
     } catch (e) {
-      debugPrint('❌ [MapMainPage] Load Maps Error: $e');
+      debugPrint('❌ [MapMainPage] loadActiveMaps error: $e');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        _buildInitialIndex(); // ⭐ travelType 기준 초기 탭 결정
+        setState(() => _loading = false);
+      }
     }
+  }
+
+  /// ⭐ travelType + activeMaps 기준으로 초기 탭 결정
+  void _buildInitialIndex() {
+    _currentIndex = 0;
+
+    // 실제 탭 생성 순서와 동일
+    final List<String> order = [];
+    if (_activeMapIds.contains('world')) order.add('world');
+    if (_activeMapIds.contains('ko')) order.add('ko');
+
+    if (widget.travelType == 'domestic') {
+      final koIndex = order.indexOf('ko');
+      if (koIndex != -1) _currentIndex = koIndex;
+    } else if (widget.travelType == 'usa' || widget.travelType == 'overseas') {
+      final worldIndex = order.indexOf('world');
+      if (worldIndex != -1) _currentIndex = worldIndex;
+    }
+
+    debugPrint(
+      '🧭 [MapMainPage] travelType=${widget.travelType}, '
+      'activeMaps=$_activeMapIds, initialIndex=$_currentIndex',
+    );
   }
 
   void _move(int i) {
@@ -63,23 +93,28 @@ class _MapMainPageState extends State<MapMainPage> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // 🎯 [핵심] activeMapIds에 따라 탭과 페이지를 동적으로 생성
-    final List<Map<String, dynamic>> dynamicConfigs = [];
+    /// ⭐ 동적 탭 구성
+    final List<Map<String, dynamic>> configs = [];
 
-    // 1. 세계/미국 지도는 항상 포함 ('world')
     if (_activeMapIds.contains('world')) {
-      dynamicConfigs.add({
+      configs.add({
+        'id': 'world',
         'label': 'overseas'.tr(),
         'page': const GlobalMapPage(key: ValueKey('GlobalMap_Main')),
       });
     }
 
-    // 2. 한국 지도는 리스트에 'ko'가 있을 때만 추가 ✅
     if (_activeMapIds.contains('ko')) {
-      dynamicConfigs.add({
+      configs.add({
+        'id': 'ko',
         'label': 'korea'.tr(),
         'page': const DomesticMapPage(key: ValueKey('DomesticMap_Main')),
       });
+    }
+
+    /// 🛡️ 활성 지도 하나도 없을 때 방어
+    if (configs.isEmpty) {
+      return const Scaffold(body: Center(child: Text('활성화된 지도가 없습니다')));
     }
 
     return Scaffold(
@@ -93,26 +128,25 @@ class _MapMainPageState extends State<MapMainPage> {
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () async {
-              // ✅ 설정 페이지 갔다 오면 리스트 다시 불러오기
               await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const MapManagementPage()),
               );
-              _loadActiveMaps();
+              _loadActiveMaps(); // 설정 복귀 후 재계산
             },
           ),
         ],
       ),
       body: Column(
         children: [
-          // 🗺️ 탭 선택 영역: 탭이 2개 이상일 때만 노출
-          if (dynamicConfigs.length > 1)
+          /// 탭 영역 (2개 이상일 때만)
+          if (configs.length > 1)
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
-                children: List.generate(dynamicConfigs.length, (index) {
+                children: List.generate(configs.length, (index) {
                   return _Tab(
-                    label: dynamicConfigs[index]['label'],
+                    label: configs[index]['label'],
                     selected: _currentIndex == index,
                     onTap: () => _move(index),
                   );
@@ -120,14 +154,11 @@ class _MapMainPageState extends State<MapMainPage> {
               ),
             ),
 
-          // 🗺️ 지도 표시 영역
+          /// 지도 영역
           Expanded(
             child: IndexedStack(
-              // 탭이 하나면 무조건 0번 인덱스 노출
-              index: dynamicConfigs.length > 1 ? _currentIndex : 0,
-              children: dynamicConfigs
-                  .map((config) => config['page'] as Widget)
-                  .toList(),
+              index: configs.length > 1 ? _currentIndex : 0,
+              children: configs.map((e) => e['page'] as Widget).toList(),
             ),
           ),
         ],

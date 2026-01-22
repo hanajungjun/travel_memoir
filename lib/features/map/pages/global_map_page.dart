@@ -11,16 +11,25 @@ import 'package:travel_memoir/core/widgets/ai_map_popup.dart';
 
 class GlobalMapPage extends StatefulWidget {
   final bool isReadOnly;
-  const GlobalMapPage({super.key, this.isReadOnly = false});
+  final bool showLastTravelFocus;
+  const GlobalMapPage({
+    super.key,
+    this.isReadOnly = false,
+    this.showLastTravelFocus = false,
+  });
 
   @override
-  State<GlobalMapPage> createState() => _GlobalMapPageState();
+  State<GlobalMapPage> createState() => GlobalMapPageState(); // 외부 호출을 위해 public 설정
 }
 
-class _GlobalMapPageState extends State<GlobalMapPage> {
+class GlobalMapPageState extends State<GlobalMapPage>
+    with AutomaticKeepAliveClientMixin {
   MapboxMap? _map;
   bool _init = false;
   bool _ready = false;
+
+  @override
+  bool get wantKeepAlive => true; // 탭 전환 시 지도 상태 유지
 
   static const _worldSource = 'world-source';
   static const _worldFill = 'world-fill';
@@ -40,8 +49,15 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     setState(fn);
   }
 
+  // 외부(Pager)에서 호출하여 지도 데이터만 다시 그리는 함수
+  Future<void> refreshData() async {
+    if (_map == null) return;
+    await _drawAll();
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // mixin 사용 시 필수
     return Stack(
       children: [
         MapWidget(
@@ -99,15 +115,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     if (_init || _map == null) return;
     _init = true;
 
-    debugPrint('🧭 [GLOBAL MAP] style loaded');
-
-    // 🔍 [디버깅] 사용 중인 스타일의 모든 레이어 ID를 출력합니다.
-    // 만약 글자가 가려진다면 출력된 ID 중 'label'이 포함된 다른 ID를 찾아보세요.
-    final layers = await _map!.style.getStyleLayers();
-    for (var layer in layers) {
-      // if (layer != null) debugPrint('🔍 Layer ID: ${layer.id}');
-    }
-
     try {
       await _map!.style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
@@ -118,19 +125,52 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     await _loadUserMapAccess();
     await _drawAll();
 
+    // 메인 화면일 때만 마지막 여행지로 스으윽 이동
+    if (widget.showLastTravelFocus) {
+      await _focusOnLastTravel();
+    }
+
     _safeSetState(() => _ready = true);
+  }
+
+  Future<void> _focusOnLastTravel() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null || _map == null) return;
+
+    final lastTravel = await Supabase.instance.client
+        .from('travels')
+        .select('region_lat, region_lng, country_lat, country_lng')
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false)
+        .limit(1)
+        .maybeSingle();
+
+    if (lastTravel != null) {
+      double? lat =
+          (lastTravel['region_lat'] ?? lastTravel['country_lat']) as double?;
+      double? lng =
+          (lastTravel['region_lng'] ?? lastTravel['country_lng']) as double?;
+
+      if (lat != null && lng != null) {
+        await _map!.flyTo(
+          CameraOptions(
+            center: Point(coordinates: Position(lng, lat)),
+            zoom: 3.5,
+          ),
+          MapAnimationOptions(duration: 2500),
+        );
+      }
+    }
   }
 
   Future<void> _loadUserMapAccess() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-
     final res = await Supabase.instance.client
         .from('users')
         .select('active_maps')
         .eq('auth_uid', user.id)
         .maybeSingle();
-
     final List activeMaps = (res?['active_maps'] as List?) ?? [];
     _hasUsaAccess = activeMaps.contains('us');
   }
@@ -138,7 +178,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   Future<void> _drawAll() async {
     final map = _map;
     if (map == null) return;
-
     final style = map.style;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -147,7 +186,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         .from('travels')
         .select('country_code, region_name, is_completed, travel_type')
         .eq('user_id', user.id);
-
     final Set<String> visitedCountries = {};
     final Set<String> completedCountries = {};
     final Set<String> visitedStates = {};
@@ -169,13 +207,11 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
       }
     }
 
-    /// ===== WORLD LAYER =====
     final worldJson = await rootBundle.loadString(_worldGeo);
     await _rm(style, _worldFill, _worldSource);
     await style.addSource(GeoJsonSource(id: _worldSource, data: worldJson));
     await style.addLayer(FillLayer(id: _worldFill, sourceId: _worldSource));
 
-    // ✅ 국가 라벨 아래로 이동 (없을 경우 대비하여 try-catch)
     try {
       if (await style.styleLayerExists('country-label')) {
         await style.moveStyleLayer(
@@ -262,46 +298,41 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     await style.setStyleLayerProperty(_worldFill, 'fill-color', worldColorExpr);
     await style.setStyleLayerProperty(_worldFill, 'fill-opacity', 0.7);
 
-    /// ===== USA STATES LAYER =====
     if (_hasUsaAccess) {
       try {
         final usaJson = await rootBundle.loadString(_usaGeo);
         await _rm(style, _usaFill, _usaSource);
         await style.addSource(GeoJsonSource(id: _usaSource, data: usaJson));
         await style.addLayer(FillLayer(id: _usaFill, sourceId: _usaSource));
-
-        // ✅ 주 라벨 아래로 이동
         try {
           if (await style.styleLayerExists('state-label')) {
             await style.moveStyleLayer(
               _usaFill,
               LayerPosition(below: 'state-label'),
             );
-          } else if (await style.styleLayerExists('settlement-major-label')) {
-            // state-label이 없으면 더 상위 라벨 아래로 시도
-            await style.moveStyleLayer(
-              _usaFill,
-              LayerPosition(below: 'settlement-major-label'),
-            );
           }
         } catch (_) {}
-
         await style.setStyleLayerProperty(_usaFill, 'filter', [
           'in',
-          ['get', 'NAME'],
+          [
+            'upcase',
+            ['get', 'NAME'],
+          ],
           ['literal', visitedStates.toList()],
         ]);
         await style.setStyleLayerProperty(_usaFill, 'fill-color', [
           'case',
           [
             'in',
-            ['get', 'NAME'],
+            [
+              'upcase',
+              ['get', 'NAME'],
+            ],
             ['literal', completedStates.toList()],
           ],
           doneHex,
           _hex(const Color.fromARGB(255, 228, 176, 180).withOpacity(0.4)),
         ]);
-        // 🎯 가독성을 위해 투명도를 더 낮춤
         await style.setStyleLayerProperty(_usaFill, 'fill-opacity', 0.45);
       } catch (e) {
         debugPrint('❌ Error loading states: $e');
@@ -313,7 +344,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
     final map = _map;
     if (map == null) return;
     final screen = await map.pixelForCoordinate(ctx.point);
-
     if (_hasUsaAccess) {
       final usa = await map.queryRenderedFeatures(
         RenderedQueryGeometry.fromScreenCoordinate(screen),
@@ -323,24 +353,21 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
         final props = usa.first?.queriedFeature.feature['properties'] as Map?;
         final stateName = (props?['NAME'] ?? props?['name'])?.toString();
         if (stateName != null) {
-          _showPopup(countryCode: 'US', regionName: stateName);
+          _showPopup(countryCode: 'US', regionName: stateName.toUpperCase());
           return;
         }
       }
     }
-
     final world = await map.queryRenderedFeatures(
       RenderedQueryGeometry.fromScreenCoordinate(screen),
       RenderedQueryOptions(layerIds: [_worldFill]),
     );
     if (world.isEmpty) return;
-
     final props = world.first?.queriedFeature.feature['properties'] as Map?;
     final code = (props?['ISO_A2_EH'] ?? props?['iso_a2'] ?? props?['ISO_A2'])
         ?.toString()
         .toUpperCase();
     if (code == null) return;
-
     final isKo = context.locale.languageCode == 'ko';
     final name = isKo
         ? (props?['NAME_KO'] ??
@@ -353,7 +380,6 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
                   props?['NAME_KO'] ??
                   props?['name_ko'])
               ?.toString();
-
     if (name != null) _showPopup(countryCode: code, regionName: name);
   }
 
@@ -363,40 +389,22 @@ class _GlobalMapPageState extends State<GlobalMapPage> {
   }) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-
-    debugPrint(
-      '🧭 [GLOBAL MAP] Popup Search Start: country=$countryCode, region=$regionName',
-    );
-
-    // 1. 기본 쿼리 생성 (유저 ID와 국가 코드는 필수)
     var query = Supabase.instance.client
         .from('travels')
         .select('map_image_url, ai_cover_summary, is_completed')
         .eq('user_id', user.id)
         .eq('country_code', countryCode);
-
-    // 2. 검색 조건 분기 ✅
     if (countryCode == 'US') {
-      // 미국은 주(State) 이름이 DB의 region_name과 일치해야 함
       query = query.eq('travel_type', 'usa').eq('region_name', regionName);
     } else {
-      // 일반 해외 국가는 travel_type만 확인 (region_name이 null이어도 국가코드로 검색됨)
       query = query.eq('travel_type', 'overseas');
     }
-
-    // 3. 데이터 가져오기 (최신 완료된 여행 우선)
     final res = await query
         .eq('is_completed', true)
         .order('completed_at', ascending: false)
         .limit(1)
         .maybeSingle();
-
-    if (res == null) {
-      debugPrint('🧭 [GLOBAL MAP] No completed data found for $countryCode');
-      return;
-    }
-
-    // 4. 팝업 호출
+    if (res == null) return;
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
