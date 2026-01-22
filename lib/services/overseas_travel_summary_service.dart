@@ -3,23 +3,42 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'country_service.dart';
 
 class OverseasTravelSummaryService {
   static final _supabase = Supabase.instance.client;
 
+  // 🔥 [추가] 전체 국가 수 캐시 변수
+  static int? _totalCountryCountCache;
+
   // =====================================================
-  // 🌍 전체 국가 수
+  // 🌍 전체 국가 수 (지도 필터링 반영 + 캐시 적용)
   // =====================================================
   static Future<int> getTotalCountryCount() async {
-    final uri = Uri.parse('https://restcountries.com/v3.1/all?fields=cca2');
-    final res = await http.get(uri);
-
-    if (res.statusCode != 200) {
-      throw Exception('Failed to fetch countries');
+    // 1. 캐시된 값이 있다면 즉시 반환
+    if (_totalCountryCountCache != null) {
+      debugPrint("💾 [SummaryService] 캐시된 국가 수 반환: $_totalCountryCountCache");
+      return _totalCountryCountCache!;
     }
 
-    final List list = jsonDecode(res.body);
-    return list.length;
+    try {
+      debugPrint("📡 [SummaryService] 필터링된 국가 수 조회를 위해 CountryService 호출...");
+
+      // 2. CountryService의 fetchAll()을 사용하여
+      // GeoJSON에 실제 존재하는 국가 리스트만 가져옵니다.
+      final countries = await CountryService.fetchAll();
+
+      // 3. 결과값을 캐시에 저장
+      _totalCountryCountCache = countries.length;
+
+      debugPrint("📊 [SummaryService] 전체 국가 수 캐싱 완료: $_totalCountryCountCache");
+      return _totalCountryCountCache!;
+    } catch (e) {
+      debugPrint("❌ [SummaryService] 국가 수 조회 실패: $e");
+
+      // 에러 발생 시 기존처럼 API에서 직접 가져오는 로직(Fallback) 혹은 0 반환
+      return 0;
+    }
   }
 
   // =====================================================
@@ -145,5 +164,10 @@ class OverseasTravelSummaryService {
       final names = nameMap[e.key];
       return isKo ? (names?['ko'] ?? e.key) : (names?['en'] ?? e.key);
     }).toList();
+  }
+
+  // 🔥 [추가] 로그아웃 등을 할 때 캐시를 비워야 한다면 사용하세요.
+  static void clearCache() {
+    _totalCountryCountCache = null;
   }
 }

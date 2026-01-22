@@ -27,11 +27,15 @@ class _AppShellState extends State<AppShell> {
   }) {
     return BottomNavigationBarItem(
       icon: Padding(
-        padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
+        //padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
+        padding: const EdgeInsets.only(
+          top: 5,
+        ), // ✅ bottom 대신 top 패딩을 주면 아래로 내려옵니다.
         child: Image.asset(iconAsset, width: 22, height: 22),
       ),
       activeIcon: Padding(
-        padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
+        // padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
+        padding: const EdgeInsets.only(top: 5), // ✅ 여기도 동일하게 적용
         child: Stack(
           clipBehavior: Clip.none,
           children: [
@@ -78,7 +82,8 @@ class _AppShellState extends State<AppShell> {
           splashFactory: NoSplash.splashFactory,
         ),
         child: Container(
-          height: 72, // ✅ 네비 버튼 영역 높이 고정
+          //height: 70, // ✅ 네비 버튼 영역 높이 고정
+          height: MediaQuery.of(context).padding.bottom + 53,
           color: AppColors.background, // ✅ 여기서 배경색 지정
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
@@ -89,6 +94,7 @@ class _AppShellState extends State<AppShell> {
 
             // ✅ 폰트 크기 통일
             selectedFontSize: 12,
+            unselectedFontSize: 12,
 
             // ✅ 글자 색상 통일
             selectedItemColor: AppColors.textColor01,
