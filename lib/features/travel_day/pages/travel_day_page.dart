@@ -380,15 +380,18 @@ class _TravelDayPageState extends State<TravelDayPage>
         _imageUrl == null &&
         _contentController.text.trim().isEmpty)
       return;
+
     setState(() {
       _loading = true;
       _loadingMessage = "saving_diary".tr();
     });
+
     try {
       final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
       );
+
       final diaryData = await TravelDayService.upsertDiary(
         travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
@@ -397,37 +400,60 @@ class _TravelDayPageState extends State<TravelDayPage>
         aiSummary: _summaryText,
         aiStyle: _selectedStyle?.id ?? 'default',
       );
+
       final String diaryId = diaryData['id'].toString().replaceAll(
         RegExp(r'[\s\n\r\t]+'),
         '',
       );
 
+      // =========================================================
+      // 📸 [핵심 수정 구간] 로컬 사진 업로드 + DB(photo_urls) 동기화
+      // =========================================================
       if (_localPhotos.isNotEmpty) {
+        final storage = Supabase.instance.client.storage.from('travel_images');
+
         for (int i = 0; i < _localPhotos.length; i++) {
           final String fileName =
               'moment_${DateTime.now().millisecondsSinceEpoch}_$i.png';
+
           final String fullPath =
               'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/$fileName';
-          await Supabase.instance.client.storage
-              .from('travel_images')
-              .upload(fullPath, _localPhotos[i]);
+
+          // 1️⃣ Storage 업로드
+          await storage.upload(fullPath, _localPhotos[i]);
+
+          // 2️⃣ public URL 생성
+          final String imageUrl = storage.getPublicUrl(fullPath);
+
+          // 3️⃣ DB(travel_days.photo_urls)에 반드시 반영
+          await appendPhotoUrlToTravelDay(
+            travelDayId: diaryId,
+            imageUrl: imageUrl,
+          );
         }
       }
+      // =========================================================
+
+      // 🤖 AI 이미지 업로드 (유저 업로드 아님 → photo_urls에 넣지 않음)
       if (_generatedImage != null) {
         final String aiPath =
             'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
+
         await ImageUploadService.uploadAiImage(
           path: aiPath,
           imageBytes: _generatedImage!,
         );
       }
+
       final writtenDays = await TravelDayService.getWrittenDayCount(
         travelId: _cleanTravelId,
       );
+
       final totalDays = widget.endDate.difference(widget.startDate).inDays + 1;
 
       if (mounted) {
         setState(() => _loading = false);
+
         if (writtenDays >= totalDays) {
           Navigator.push(
             context,
@@ -449,7 +475,7 @@ class _TravelDayPageState extends State<TravelDayPage>
       }
     } catch (e) {
       debugPrint('❌ 저장 실패: $e');
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -879,5 +905,29 @@ class _TravelDayPageState extends State<TravelDayPage>
         ),
       ),
     );
+  }
+
+  static Future<void> appendPhotoUrlToTravelDay({
+    required String travelDayId,
+    required String imageUrl,
+  }) async {
+    final client = Supabase.instance.client;
+
+    final data = await client
+        .from('travel_days')
+        .select('photo_urls')
+        .eq('id', travelDayId)
+        .single();
+
+    final List<String> urls = List<String>.from(data['photo_urls'] ?? []);
+
+    if (urls.contains(imageUrl)) return;
+
+    urls.add(imageUrl);
+
+    await client
+        .from('travel_days')
+        .update({'photo_urls': urls})
+        .eq('id', travelDayId);
   }
 }

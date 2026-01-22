@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // 🎯 반드시 pubspec.yaml에 추가되어 있어야 합니다.
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';

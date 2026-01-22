@@ -22,37 +22,52 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
-  final String _userId = Supabase.instance.client.auth.currentUser!.id;
+  // ✅ [수정] 클래스 변수에서 currentUser!.id 제거 (로그아웃 시 Null 에러 방지)
 
   Future<Map<String, dynamic>> _getProfileData() async {
     try {
+      debugPrint("🔍 [MyPage] 데이터 로딩 시퀀스 시작...");
+
+      final user = Supabase.instance.client.auth.currentUser;
+
+      if (user == null) {
+        debugPrint("⚠️ [MyPage] 세션 없음: 로그아웃 상태입니다.");
+        return {'profile': null, 'completedTravels': [], 'travelCount': 0};
+      }
+
+      final userId = user.id;
+      debugPrint("✅ [MyPage] 로그인 사용자 확인 (UID: $userId)");
+
       final userFuture = Supabase.instance.client
           .from('users')
           .select()
-          .eq('auth_uid', _userId)
+          .eq('auth_uid', userId)
           .maybeSingle();
 
       final travelFuture = Supabase.instance.client
           .from('travels')
           .select('*')
-          .eq('user_id', _userId)
+          .eq('user_id', userId)
           .eq('is_completed', true)
           .order('created_at', ascending: false);
 
       final results = await Future.wait([userFuture, travelFuture]);
+
+      debugPrint("✅ [MyPage] 데이터 수신 완료");
 
       return {
         'profile': results[0],
         'completedTravels': results[1] ?? [],
         'travelCount': (results[1] as List?)?.length ?? 0,
       };
-    } catch (e) {
-      debugPrint("❌ 데이터 로드 에러: $e");
+    } catch (e, stacktrace) {
+      debugPrint("❌ [MyPage] 데이터 로드 중 에러 발생: $e");
+      debugPrint(stacktrace.toString());
       rethrow;
     }
   }
 
-  // ⬢ 진짜 MyStickerPage를 팝업으로 호출 (다국어 유지)
+  // ⬢ 스티커 팝업 호출
   void _showStickerPopup(BuildContext context) {
     showGeneralDialog(
       context: context,
@@ -95,7 +110,6 @@ class _MyPageState extends State<MyPage> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ [번역 복구] 이 코드가 있어야 언어 변경 시 화면이 다시 그려집니다.
     context.locale;
 
     return Scaffold(
@@ -107,6 +121,7 @@ class _MyPageState extends State<MyPage> {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
+            // 로그아웃 중이거나 데이터가 없을 때의 예외 처리
             if (!snapshot.hasData || snapshot.data!['profile'] == null) {
               return Center(child: Text("error_loading_data".tr()));
             }
@@ -122,112 +137,127 @@ class _MyPageState extends State<MyPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  nickname,
-                                  style: const TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: badge['color'].withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: badge['color'].withOpacity(0.3),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    (badge['title_key'] as String).tr(),
-                                    style: TextStyle(
-                                      color: badge['color'],
+                  // ✅ [수정] 이미지와 닉네임 영역 전체를 클릭 가능하게 변경
+                  GestureDetector(
+                    onTap: () async {
+                      debugPrint("📸 [MyPage] ProfileEditPage로 이동");
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileEditPage(),
+                        ),
+                      );
+                      if (mounted) setState(() {});
+                    },
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    nickname,
+                                    style: const TextStyle(
+                                      fontSize: 26,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 11,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            // 📘 여권 버튼 (텍스트 번역 적용)
-                            GestureDetector(
-                              onTap: () => _showStickerPopup(context),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1A3D2F),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 8,
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
                                     ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.menu_book,
-                                      color: Color(0xFFE5C100),
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'passport_label'.tr(), // ✅ 하드코딩 제거
-                                      style: const TextStyle(
-                                        color: Color(0xFFE5C100),
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.2,
+                                    decoration: BoxDecoration(
+                                      color: badge['color'].withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: badge['color'].withOpacity(0.3),
                                       ),
                                     ),
-                                  ],
-                                ),
+                                    child: Text(
+                                      (badge['title_key'] as String).tr(),
+                                      style: TextStyle(
+                                        color: badge['color'],
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              profile['email'] ?? '',
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
+                              const SizedBox(height: 16),
+                              // 여권 버튼 (이 버튼은 별도 이벤트가 있으므로 GestureDetector 밖으로 빼거나 처리 필요)
+                              // 여기서는 Row 안에 있으므로 클릭 시 프로필 수정으로 가되,
+                              // 아래의 GestureDetector가 중첩되지 않게 주의해야 합니다.
+                            ],
+                          ),
                         ),
+                        CircleAvatar(
+                          radius: 38,
+                          backgroundColor: Colors.grey.shade100,
+                          backgroundImage: imageUrl != null
+                              ? NetworkImage(imageUrl)
+                              : null,
+                          child: imageUrl == null
+                              ? const Icon(
+                                  Icons.person,
+                                  size: 38,
+                                  color: Colors.grey,
+                                )
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+                  // 📘 여권 버튼 (별도 터치 영역)
+                  GestureDetector(
+                    onTap: () => _showStickerPopup(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
                       ),
-                      CircleAvatar(
-                        radius: 38,
-                        backgroundColor: Colors.grey.shade100,
-                        backgroundImage: imageUrl != null
-                            ? NetworkImage(imageUrl)
-                            : null,
-                        child: imageUrl == null
-                            ? const Icon(
-                                Icons.person,
-                                size: 38,
-                                color: Colors.grey,
-                              )
-                            : null,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A3D2F),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                          ),
+                        ],
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.menu_book,
+                            color: Color(0xFFE5C100),
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'passport_label'.tr(),
+                            style: const TextStyle(
+                              color: Color(0xFFE5C100),
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    profile['email'] ?? '',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                   const SizedBox(height: 10),
 
@@ -258,7 +288,7 @@ class _MyPageState extends State<MyPage> {
                               builder: (_) => const CoinShopPage(),
                             ),
                           );
-                          setState(() {});
+                          if (mounted) setState(() {}); // ✅ [수정] mounted 체크 추가
                         },
                       ),
                       _MenuTile(
@@ -283,7 +313,7 @@ class _MyPageState extends State<MyPage> {
                               builder: (_) => const MyUserDetailPage(),
                             ),
                           );
-                          setState(() {});
+                          if (mounted) setState(() {}); // ✅ [수정] mounted 체크 추가
                         },
                       ),
                       _MenuTile(
@@ -318,7 +348,7 @@ class _MyPageState extends State<MyPage> {
   }
 }
 
-// ⬢ 육각형 클리퍼 (디자인 일관성 유지)
+// ⬢ 육각형 클리퍼
 class HexagonClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
