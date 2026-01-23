@@ -83,13 +83,13 @@ class _AppShellState extends State<AppShell> {
         ),
         child: Container(
           //height: 70, // ✅ 네비 버튼 영역 높이 고정
-          height: MediaQuery.of(context).padding.bottom + 53,
+          height: MediaQuery.of(context).padding.bottom + 70,
           color: AppColors.background, // ✅ 여기서 배경색 지정
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
             onTap: _onTabSelected,
             type: BottomNavigationBarType.fixed,
-            backgroundColor: Colors.transparent,
+            backgroundColor: AppColors.background,
             elevation: 0,
 
             // ✅ 폰트 크기 통일
@@ -102,7 +102,7 @@ class _AppShellState extends State<AppShell> {
 
             // ✅ 라벨 스타일 통일
             selectedLabelStyle: const TextStyle(
-              height: 1.2,
+              height: 1.7,
               fontWeight: FontWeight.w400,
             ),
             items: [

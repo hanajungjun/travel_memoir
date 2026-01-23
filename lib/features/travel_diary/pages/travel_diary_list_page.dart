@@ -202,76 +202,34 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                         key: ValueKey(diary['id']),
                         endActionPane: ActionPane(
                           motion: const StretchMotion(),
-                          extentRatio: 0.22,
+                          extentRatio: 0.18,
                           children: [
-                            SlidableAction(
+                            const SizedBox(width: 13),
+                            CustomSlidableAction(
                               onPressed: (context) async {
-                                final diaryData = _diaries[index];
-                                final messenger = ScaffoldMessenger.of(context);
-
-                                final bool? confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: Text('delete_diary_title'.tr()),
-                                    content: Text('delete_diary_confirm'.tr()),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, false),
-                                        child: Text('cancel'.tr()),
-                                      ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(ctx, true),
-                                        child: Text(
-                                          'delete'.tr(),
-                                          style: const TextStyle(
-                                            color: Colors.red,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-
-                                if (confirm != true || !mounted) return;
-
-                                setState(() => _loading = true);
-                                try {
-                                  // ✅ 새 시그니처에 맞춤: userId 필수, photoPaths 사용
-                                  await TravelDayService.clearDiaryRecord(
-                                    userId: _travel['user_id'].toString(),
-                                    travelId: _travel['id'].toString(),
-                                    date: diaryData['date'].toString(),
-                                    photoPaths:
-                                        (diaryData['photo_urls'] as List?)
-                                            ?.map((e) => e.toString())
-                                            .toList(),
-                                  );
-                                  await _loadAllDiaries();
-                                  if (mounted) {
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'diary_reset_success'.tr(),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                } catch (e) {
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text('delete_error'.tr()),
-                                    ),
-                                  );
-                                } finally {
-                                  if (mounted) setState(() => _loading = false);
-                                }
+                                // 🔥 위에서 지운 onPressed 내용 그대로 복붙
                               },
-                              backgroundColor: AppColors.error,
-                              foregroundColor: Colors.white,
-                              icon: Icons.delete,
-                              borderRadius: BorderRadius.circular(20),
+                              backgroundColor: Colors.transparent,
+                              padding: const EdgeInsets.only(
+                                bottom: 15,
+                              ), // 👈 여기
+                              child: Center(
+                                child: Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Image.asset(
+                                    'assets/icons/ico_delete.png',
+                                    width: 19,
+                                    height: 19,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -325,7 +283,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                   backgroundColor: travelType == 'domestic'
                       ? AppColors.travelingBlue
                       : travelType == 'usa'
-                      ? const Color(0xFFE74C3C)
+                      ? AppColors.travelingRed
                       : AppColors.travelingPurple,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(50),
@@ -350,7 +308,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     String badgeLabel;
 
     if (travelType == 'usa') {
-      primaryColor = const Color(0xFFE74C3C);
+      primaryColor = AppColors.travelingRed;
       badgeLabel = 'usa'.tr();
     } else if (travelType == 'domestic') {
       primaryColor = AppColors.travelingBlue;

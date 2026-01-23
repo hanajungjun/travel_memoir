@@ -94,6 +94,7 @@ class AppColors {
   static const travelingBlue = Color(0xFF289AEB); // 피그마 파랑
   static const travelReadyGray = Color(0xFFA8A8A8); // 피그마 회색
   static const travelingPurple = Color(0xFF7C5FF6); // 피그마 보라
+  static const travelingRed = Color(0xFFEB5757); // 피그마 레드
 
   // =========================
   // 🗺 Map / Tab

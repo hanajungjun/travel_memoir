@@ -127,7 +127,13 @@ class _HomePageState extends State<HomePage> with RouteAware {
           // 2. 메인 컨텐츠
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(27, 15, 27, 82),
+              padding: EdgeInsets.fromLTRB(
+                27,
+                20,
+                27,
+                MediaQuery.of(context).padding.bottom + 10,
+              ),
+
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -148,7 +154,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                     },
                   ),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 20),
 
                   // ✅ 지도 섹션 (travelType을 실제 데이터에서 추출)
                   Expanded(

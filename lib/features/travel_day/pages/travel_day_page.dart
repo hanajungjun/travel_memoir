@@ -81,7 +81,7 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   // ✅ 여행 타입 로딩 상태 및 변수
   bool _isTripTypeLoaded = false;
-  String _travelType = 'domestic';
+  String? _travelType;
 
   RewardedAd? _rewardedAd;
   bool _isAdLoaded = false;
@@ -481,96 +481,161 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 앱바 테마 색상 (로딩 전: 흰색 -> 로딩 후: 국가별 색상)
-    Color themeColor;
-    if (!_isTripTypeLoaded) {
-      themeColor = Colors.white;
-    } else {
-      themeColor = _travelType == 'domestic'
-          ? AppColors.travelingBlue
-          : _travelType == 'usa'
-          ? const Color(0xFFE74C3C)
-          : const Color(0xFF9B59B6);
-    }
+    // ✅ 앱바 테마 색상 (로딩 전: 흰색 -> 로딩 후: 국가별 색상) 안쓸꺼임
+    final bool hasAiImage = _imageUrl != null || _generatedImage != null;
+
+    // ✅ 생성 버튼 전용 테마 컬러
+    final Color generateButtonColor = !_isTripTypeLoaded
+        ? const Color(0xFFC2C2C2) // 로딩 중 회색
+        : _travelType == 'domestic'
+        ? AppColors.travelingBlue
+        : _travelType == 'usa'
+        ? AppColors.travelingRed
+        : AppColors.travelingPurple;
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: GestureDetector(
-        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-        behavior: HitTestBehavior.opaque,
+      backgroundColor: const Color(0xFFF2F3F5),
+      body: SafeArea(
+        bottom: false,
         child: Stack(
           children: [
-            CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  pinned: true,
-                  backgroundColor: Colors.transparent,
-                  elevation: 0,
-                  leading: IconButton(
-                    icon: Icon(
-                      Icons.arrow_back_ios_new,
-                      // 흰색 배경일 때는 아이콘이 보이도록 처리
-                      color: themeColor == Colors.white
-                          ? Colors.black54
-                          : Colors.white,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  actions: [_buildAppBarStampToggle()],
-                  flexibleSpace: AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeInOut,
-                    decoration: BoxDecoration(color: themeColor),
-                  ),
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 20,
-                    ),
+            Column(
+              children: [
+                // ============================
+                // 🔹 상단 스크롤 영역
+                // ============================
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(27, 15, 27, 0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildDayHeader(),
-                        const SizedBox(height: 15),
-                        _buildDiaryInput(),
-                        const SizedBox(height: 30),
-                        _buildSectionTitle(
-                          Icons.camera_alt,
-                          'todays_moments'.tr(),
-                          'max_3_photos'.tr(),
+                        // ============================
+                        // ✅ 흰색 카드 (스크린샷 그대로)
+                        // ============================
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(22),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.08),
+                                blurRadius: 18,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // ============================
+                              // ✅ 카드 우상단 스탬프 토글
+                              // ============================
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // DAY 01
+                                  Text(
+                                    'DAY ${DateUtilsHelper.calculateDayNumber(startDate: widget.startDate, currentDate: widget.date).toString().padLeft(2, '0')}',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF444444),
+                                    ),
+                                  ),
+
+                                  const SizedBox(width: 12),
+
+                                  // 날짜 · 장소
+                                  Expanded(
+                                    child: Text(
+                                      '${DateFormat('yyyy.MM.dd').format(widget.date)} · ${widget.placeName}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // 스탬프 토글
+                                  _buildAppBarStampToggle(),
+                                ],
+                              ),
+
+                              const SizedBox(height: 14),
+
+                              _buildDiaryInput(),
+                              const SizedBox(height: 22),
+
+                              _buildSectionTitle(
+                                Icons.camera_alt,
+                                'todays_moments'.tr(),
+                                'max_3_photos'.tr(),
+                              ),
+                              const SizedBox(height: 10),
+                              _buildPhotoList(),
+
+                              const SizedBox(height: 22),
+                              _buildSectionTitle(
+                                Icons.palette,
+                                'drawing_style'.tr(),
+                                '',
+                              ),
+                              const SizedBox(height: 10),
+                              ImageStylePicker(
+                                onChanged: (style) =>
+                                    setState(() => _selectedStyle = style),
+                              ),
+
+                              const SizedBox(height: 18),
+
+                              // 파란 버튼 (카드 하단)
+                              _buildGenerateButton(generateButtonColor),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        _buildPhotoList(),
-                        const SizedBox(height: 30),
-                        _buildSectionTitle(
-                          Icons.palette,
-                          'drawing_style'.tr(),
-                          '',
-                        ),
-                        const SizedBox(height: 12),
-                        ImageStylePicker(
-                          onChanged: (style) =>
-                              setState(() => _selectedStyle = style),
-                        ),
-                        const SizedBox(height: 35),
-                        // ✅ 버튼 표시 조건
-                        if (_imageUrl == null && _generatedImage == null)
-                          _buildGenerateButton(themeColor),
+
                         const SizedBox(height: 20),
-                        SlideTransition(
-                          position: _cardOffset,
-                          child: _buildAiResultCard(),
-                        ),
+
+                        // ============================
+                        // ✅ AI 생성 이미지 (카드 밖)
+                        // ============================
+                        if (hasAiImage)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: AspectRatio(
+                              aspectRatio: 4 / 3,
+                              child: _imageUrl != null
+                                  ? Image.network(
+                                      _imageUrl!,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                    )
+                                  : Image.memory(
+                                      _generatedImage!,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                    ),
+                            ),
+                          ),
+
                         const SizedBox(height: 120),
                       ],
                     ),
                   ),
                 ),
+
+                // ============================
+                // ✅ 하단 고정 버튼
+                // ============================
+                _buildFixedBottomSaveBar(),
               ],
             ),
-            _buildFixedBottomSaveBar(),
+
+            // ============================
+            // 🔄 로딩 오버레이
+            // ============================
             if (_loading) _buildLoadingOverlay(),
           ],
         ),
@@ -789,14 +854,12 @@ class _TravelDayPageState extends State<TravelDayPage>
   Widget _buildGenerateButton(Color themeColor) {
     return GestureDetector(
       onTap: _loading ? null : _handleGenerateWithStamp,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
+      child: Container(
         width: double.infinity,
         height: 60,
         decoration: BoxDecoration(
           // 로딩 전(흰색)에는 연한 회색 배경, 그 외에는 테마 색상 적용
-          color: themeColor == Colors.white ? Colors.grey[200] : themeColor,
+          color: themeColor,
           borderRadius: BorderRadius.circular(15),
         ),
         child: Center(
