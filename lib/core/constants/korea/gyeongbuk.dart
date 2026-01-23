@@ -127,7 +127,18 @@ const List<KoreaRegion> gyeongbukRegions = [
     mapRegionId: "KR_SPECIAL_ULLEUNG",
     mapRegionType: MapRegionType.special,
   ),
-
+  // ⭐ 독도 (특별 취급)
+  KoreaRegion(
+    id: "KR_GB_DOKDO",
+    name: "독도",
+    nameEn: "DOKDO",
+    province: "경상북도",
+    type: KoreaRegionType.county,
+    lat: 37.2411,
+    lng: 131.8645,
+    mapRegionId: "KR_SPECIAL_DOKDO",
+    mapRegionType: MapRegionType.special,
+  ),
   KoreaRegion(
     id: "KR_GB_YEONGYANG",
     name: "영양",

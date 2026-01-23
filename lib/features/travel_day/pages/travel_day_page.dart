@@ -2,8 +2,8 @@
 /// 🚩 MASTER RULES FOR THIS PAGE:
 /// 1. PARALLEL PROCESSING: Background AI tasks and foreground Ads must run
 ///    concurrently. Never 'await' AI generation before showing Ads.
-/// 2. PHOTO-CENTRIC: AI summary must prioritize visual analysis of uploaded
-///    photos over text diary to ensure visual consistency.
+/// 2. BALANCED (50/50): AI summary must give EQUAL importance to visual
+///    analysis of photos and narrative details of the text diary.
 /// 3. NO OMISSION: All logic blocks, including UI, Services, and State
 ///    management, must be fully preserved during updates.
 /// ****************************************************************************
@@ -79,7 +79,6 @@ class _TravelDayPageState extends State<TravelDayPage>
   int _paidStamps = 0;
   bool _usePaidStampMode = false;
 
-  // ✅ 여행 타입 로딩 상태 및 변수
   bool _isTripTypeLoaded = false;
   String? _travelType;
 
@@ -89,7 +88,6 @@ class _TravelDayPageState extends State<TravelDayPage>
   late AnimationController _cardController;
   late Animation<Offset> _cardOffset;
 
-  // ✅ 병렬 처리용 플래그
   bool _isAiDone = false;
   bool _isAdDone = false;
 
@@ -226,16 +224,17 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  // 🚀 [병렬유지] 광고와 AI 동시 출발
+  // 🚀 [병렬유지] 광고와 AI 동시 출발 + 콜백 보강
   Future<void> _handleGenerateWithStamp() async {
     FocusScope.of(context).unfocus();
     if (_selectedStyle == null || _contentController.text.trim().isEmpty)
       return;
 
-    if (!_usePaidStampMode && _dailyStamps <= 0 && _paidStamps > 0)
+    if (!_usePaidStampMode && _dailyStamps <= 0 && _paidStamps > 0) {
       setState(() => _usePaidStampMode = true);
-    else if (_usePaidStampMode && _paidStamps <= 0 && _dailyStamps > 0)
+    } else if (_usePaidStampMode && _paidStamps <= 0 && _dailyStamps > 0) {
       setState(() => _usePaidStampMode = false);
+    }
 
     int currentCoins = _usePaidStampMode ? _paidStamps : _dailyStamps;
     if (currentCoins <= 0) {
@@ -257,12 +256,27 @@ class _TravelDayPageState extends State<TravelDayPage>
           if (mounted) setState(() => _loading = false);
         });
 
-    // 🔴 [병렬 2] 광고 즉시 송출
+    // 🔴 [병렬 2] 광고 즉시 송출 (콜백 보강)
     if (!_usePaidStampMode && _isAdLoaded && _rewardedAd != null) {
-      _rewardedAd!.show(
-        onUserEarnedReward: (ad, reward) {
+      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          debugPrint("🚩 광고 종료/닫힘");
+          ad.dispose();
+          _loadAds();
           _isAdDone = true;
           _checkSync();
+        },
+        onAdFailedToShowFullScreenContent: (ad, error) {
+          debugPrint("❌ 광고 표시 실패: $error");
+          ad.dispose();
+          _isAdDone = true;
+          _checkSync();
+        },
+      );
+
+      _rewardedAd!.show(
+        onUserEarnedReward: (ad, reward) {
+          debugPrint("💎 보상 획득 완료");
         },
       );
     } else {
@@ -283,7 +297,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     }
   }
 
-  // ✅ [사진유지 + 영어 프롬프트] 최적화된 AI 생성 로직
+  // ✅ [수정] PromptCache 시스템 + 50:50 로직 + 디버깅 로그 통합
   Future<void> _startAiGeneration() async {
     if (mounted)
       setState(() {
@@ -296,38 +310,43 @@ class _TravelDayPageState extends State<TravelDayPage>
     try {
       final gemini = GeminiService();
 
+      // 1️⃣ 요약 단계 프롬프트 구성 및 로그 출력
+      final String summaryPrompt =
+          '${PromptCache.textPrompt.content}\n'
+          '[Information]\n'
+          'Location: ${widget.placeName}\n'
+          'Diary Content: ${_contentController.text}';
+
+      //debugPrint("🔍 [1. 요약용 최종 프롬프트]:\n$summaryPrompt"); // 👈 finalPrompt 로그
+
       final summary = await gemini.generateSummary(
-        finalPrompt:
-            '''
-          Analyze the provided travel diary and photos. 
-          Create a highly detailed visual description suitable for 3D isometric miniature scene generation. 
-          PRIORITY: Focus on the color palette, lighting, and key subjects found in the photos to maintain visual consistency. 
-          Location: ${widget.placeName} 
-          Diary Content: ${_contentController.text}
-        ''',
+        finalPrompt: summaryPrompt,
         photos: _localPhotos,
       );
 
       _summaryText = summary;
+      //debugPrint("📝 [2. AI 요약 결과]:\n$_summaryText"); // 👈 _summaryText 로그
 
-      final image = await gemini.generateImage(
-        finalPrompt:
-            '''
-          Render a high-quality 3D isometric miniature scene. 
-          Style: ${_selectedStyle!.prompt} 
-          Visual Context: $summary 
-          Instruction: The final image must reflect the unique atmosphere and visual details from the original photos provided. 
-          Use soft global illumination and vibrant colors.
-        ''',
-      );
+      // 2️⃣ 생성 단계 프롬프트 구성 및 로그 출력
+      final String imagePrompt =
+          '${PromptCache.imagePrompt.content}\n'
+          'Style: ${_selectedStyle!.prompt}\n'
+          '[Context from Diary Summary]: $summary\n';
+
+      // debugPrint("🎨 [3. 이미지 생성용 최종 프롬프트]:\n$imagePrompt"); // 👈 finalPrompt 로그
+
+      final image = await gemini.generateImage(finalPrompt: imagePrompt);
 
       if (image == null) throw Exception("Image generation failed");
 
+      // 이후 스탬프 차감 및 저장 로직
       await _stampService.useStamp(_userId, _usePaidStampMode);
       await _refreshStampCounts();
 
-      _generatedImage = image;
-      _imageUrl = null;
+      setState(() {
+        _generatedImage = image;
+        _imageUrl = null;
+      });
     } catch (e) {
       debugPrint("❌ AI 생성 로직 에러: $e");
       rethrow;
@@ -406,9 +425,6 @@ class _TravelDayPageState extends State<TravelDayPage>
         '',
       );
 
-      // =========================================================
-      // 📸 [핵심 수정 구간] 로컬 사진 업로드 + DB(photo_urls) 동기화
-      // =========================================================
       if (_localPhotos.isNotEmpty) {
         final storage = Supabase.instance.client.storage.from('travel_images');
 
@@ -419,22 +435,15 @@ class _TravelDayPageState extends State<TravelDayPage>
           final String fullPath =
               'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/$fileName';
 
-          // 1️⃣ Storage 업로드
           await storage.upload(fullPath, _localPhotos[i]);
-
-          // 2️⃣ public URL 생성
           final String imageUrl = storage.getPublicUrl(fullPath);
-
-          // 3️⃣ DB(travel_days.photo_urls)에 반드시 반영
           await appendPhotoUrlToTravelDay(
             travelDayId: diaryId,
             imageUrl: imageUrl,
           );
         }
       }
-      // =========================================================
 
-      // 🤖 AI 이미지 업로드 (유저 업로드 아님 → photo_urls에 넣지 않음)
       if (_generatedImage != null) {
         final String aiPath =
             'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
@@ -481,12 +490,10 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   @override
   Widget build(BuildContext context) {
-    // ✅ 앱바 테마 색상 (로딩 전: 흰색 -> 로딩 후: 국가별 색상) 안쓸꺼임
     final bool hasAiImage = _imageUrl != null || _generatedImage != null;
 
-    // ✅ 생성 버튼 전용 테마 컬러
     final Color generateButtonColor = !_isTripTypeLoaded
-        ? const Color(0xFFC2C2C2) // 로딩 중 회색
+        ? const Color(0xFFC2C2C2)
         : _travelType == 'domestic'
         ? AppColors.travelingBlue
         : _travelType == 'usa'
@@ -501,17 +508,11 @@ class _TravelDayPageState extends State<TravelDayPage>
           children: [
             Column(
               children: [
-                // ============================
-                // 🔹 상단 스크롤 영역
-                // ============================
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.fromLTRB(27, 15, 27, 0),
                     child: Column(
                       children: [
-                        // ============================
-                        // ✅ 흰색 카드 (스크린샷 그대로)
-                        // ============================
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
@@ -529,13 +530,9 @@ class _TravelDayPageState extends State<TravelDayPage>
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // ============================
-                              // ✅ 카드 우상단 스탬프 토글
-                              // ============================
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  // DAY 01
                                   Text(
                                     'DAY ${DateUtilsHelper.calculateDayNumber(startDate: widget.startDate, currentDate: widget.date).toString().padLeft(2, '0')}',
                                     style: const TextStyle(
@@ -544,10 +541,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                                       color: Color(0xFF444444),
                                     ),
                                   ),
-
                                   const SizedBox(width: 12),
-
-                                  // 날짜 · 장소
                                   Expanded(
                                     child: Text(
                                       '${DateFormat('yyyy.MM.dd').format(widget.date)} · ${widget.placeName}',
@@ -557,17 +551,12 @@ class _TravelDayPageState extends State<TravelDayPage>
                                       ),
                                     ),
                                   ),
-
-                                  // 스탬프 토글
                                   _buildAppBarStampToggle(),
                                 ],
                               ),
-
                               const SizedBox(height: 14),
-
                               _buildDiaryInput(),
                               const SizedBox(height: 22),
-
                               _buildSectionTitle(
                                 Icons.camera_alt,
                                 'todays_moments'.tr(),
@@ -575,7 +564,6 @@ class _TravelDayPageState extends State<TravelDayPage>
                               ),
                               const SizedBox(height: 10),
                               _buildPhotoList(),
-
                               const SizedBox(height: 22),
                               _buildSectionTitle(
                                 Icons.palette,
@@ -587,20 +575,12 @@ class _TravelDayPageState extends State<TravelDayPage>
                                 onChanged: (style) =>
                                     setState(() => _selectedStyle = style),
                               ),
-
                               const SizedBox(height: 18),
-
-                              // 파란 버튼 (카드 하단)
                               _buildGenerateButton(generateButtonColor),
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 20),
-
-                        // ============================
-                        // ✅ AI 생성 이미지 (카드 밖)
-                        // ============================
                         if (hasAiImage)
                           ClipRRect(
                             borderRadius: BorderRadius.circular(18),
@@ -619,23 +599,14 @@ class _TravelDayPageState extends State<TravelDayPage>
                                     ),
                             ),
                           ),
-
                         const SizedBox(height: 120),
                       ],
                     ),
                   ),
                 ),
-
-                // ============================
-                // ✅ 하단 고정 버튼
-                // ============================
                 _buildFixedBottomSaveBar(),
               ],
             ),
-
-            // ============================
-            // 🔄 로딩 오버레이
-            // ============================
             if (_loading) _buildLoadingOverlay(),
           ],
         ),
@@ -704,26 +675,6 @@ class _TravelDayPageState extends State<TravelDayPage>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDayHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'DAY ${DateUtilsHelper.calculateDayNumber(startDate: widget.startDate, currentDate: widget.date).toString().padLeft(2, '0')}',
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF444444),
-          ),
-        ),
-        Text(
-          '${DateFormat('yyyy.MM.dd').format(widget.date)} · ${widget.placeName}',
-          style: const TextStyle(fontSize: 14, color: Colors.grey),
-        ),
-      ],
     );
   }
 
@@ -850,7 +801,6 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  // ✅ [수정된 부분] 버튼 색상 분기 및 다국어 복구
   Widget _buildGenerateButton(Color themeColor) {
     return GestureDetector(
       onTap: _loading ? null : _handleGenerateWithStamp,
@@ -858,15 +808,13 @@ class _TravelDayPageState extends State<TravelDayPage>
         width: double.infinity,
         height: 60,
         decoration: BoxDecoration(
-          // 로딩 전(흰색)에는 연한 회색 배경, 그 외에는 테마 색상 적용
           color: themeColor,
           borderRadius: BorderRadius.circular(15),
         ),
         child: Center(
           child: Text(
-            'generate_image_button'.tr(), // 다국어 설정 복구
+            'generate_image_button'.tr(),
             style: TextStyle(
-              // 로딩 전에는 회색 글자, 그 외에는 흰색 글자
               color: themeColor == Colors.white
                   ? Colors.grey[600]
                   : Colors.white,
@@ -875,47 +823,6 @@ class _TravelDayPageState extends State<TravelDayPage>
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildAiResultCard() {
-    if (_imageUrl == null && _generatedImage == null)
-      return const SizedBox.shrink();
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 15),
-        ],
-      ),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(25),
-            child: _imageUrl != null
-                ? Image.network(_imageUrl!, fit: BoxFit.cover)
-                : Image.memory(_generatedImage!, fit: BoxFit.cover),
-          ),
-          Positioned(
-            top: 15,
-            right: 15,
-            child: IconButton(
-              icon: const CircleAvatar(
-                backgroundColor: Colors.black54,
-                child: Icon(Icons.close, color: Colors.white),
-              ),
-              onPressed: () => _cardController.reverse().then(
-                (_) => setState(() {
-                  _generatedImage = null;
-                  _imageUrl = null;
-                }),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -975,7 +882,6 @@ class _TravelDayPageState extends State<TravelDayPage>
     required String imageUrl,
   }) async {
     final client = Supabase.instance.client;
-
     final data = await client
         .from('travel_days')
         .select('photo_urls')
@@ -983,11 +889,8 @@ class _TravelDayPageState extends State<TravelDayPage>
         .single();
 
     final List<String> urls = List<String>.from(data['photo_urls'] ?? []);
-
     if (urls.contains(imageUrl)) return;
-
     urls.add(imageUrl);
-
     await client
         .from('travel_days')
         .update({'photo_urls': urls})
