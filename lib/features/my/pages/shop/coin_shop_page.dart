@@ -116,13 +116,13 @@ class _CoinShopPageState extends State<CoinShopPage> {
                 // 🎯 가이드라인 3.1.2 대응: 구독 기간(1개월) 명시
                 _buildSubscriptionCard(
                   title: 'premium_title'.tr(),
-                  price: '₩4,900',
+                  price: '₩2,900',
                   period: '1_month'.tr(), // "1개월" 또는 "1 Month"
                   benefits: [
-                    'benefit_stickers'.tr(),
-                    'benefit_no_ads'.tr(),
+                    'benefit_ai_picker'.tr(),
                     'benefit_monthly_coins'.tr(),
-                    'benefit_gold_badge'.tr(),
+                    'benefit_ai_extra_image'.tr(),
+                    'benefit_stickers'.tr(),
                   ],
                   onTap: () => _showPurchaseSheet(context),
                 ),

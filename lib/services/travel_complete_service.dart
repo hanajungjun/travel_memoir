@@ -19,32 +19,61 @@ class TravelCompleteService {
     required DateTime endDate,
   }) async {
     debugPrint('==================================================');
-    debugPrint('🚀 [COMPLETE_SERVICE] 작업 시작: $travelId');
+    debugPrint('🚀 [COMPLETE_SERVICE] START travelId=$travelId');
 
     final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      debugPrint('⛔️ [COMPLETE_SERVICE] user == null');
+      return;
+    }
     final userId = user.id;
 
     try {
+      debugPrint('➡️ [COMPLETE_SERVICE] fetch travel');
       final travel = await _supabase
           .from('travels')
           .select()
           .eq('id', travelId)
           .single();
 
-      if (travel['is_completed'] == true) return;
+      debugPrint(
+        '➡️ [COMPLETE_SERVICE] travel fetched is_completed=${travel['is_completed']}',
+      );
 
+      if (travel['is_completed'] == true) {
+        debugPrint('⛔️ [COMPLETE_SERVICE] already completed → return');
+        return;
+      }
+
+      debugPrint('➡️ [COMPLETE_SERVICE] count written days');
       final writtenDays = await TravelDayService.getWrittenDayCount(
         travelId: travelId,
       );
-      final totalDays = endDate.difference(startDate).inDays + 1;
-      if (writtenDays < totalDays) return;
+
+      // 🔥 의심 지점 수정: 날짜만 기준으로 계산
+      final start = DateTime(startDate.year, startDate.month, startDate.day);
+      final end = DateTime(endDate.year, endDate.month, endDate.day);
+      final totalDays = end.difference(start).inDays + 1;
+
+      debugPrint(
+        '🧾 [COMPLETE_SERVICE] writtenDays=$writtenDays / totalDays=$totalDays',
+      );
+
+      if (writtenDays < totalDays) {
+        debugPrint('⛔️ [COMPLETE_SERVICE] not enough written days → return');
+        return;
+      }
 
       final String travelType = travel['travel_type'] ?? 'domestic';
       final String? regionId = travel['region_id'];
       final bool isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
 
-      // 1️⃣ 완료 처리
+      debugPrint(
+        '➡️ [COMPLETE_SERVICE] travelType=$travelType regionId=$regionId',
+      );
+
+      // 1️⃣ 여행 완료 처리
+      debugPrint('➡️ [COMPLETE_SERVICE] update travel completed');
       await _supabase
           .from('travels')
           .update({
@@ -57,6 +86,7 @@ class TravelCompleteService {
 
       // 2️⃣ 국내 지역 upsert
       if (travelType == 'domestic' && regionId != null) {
+        debugPrint('➡️ [COMPLETE_SERVICE] upsert domestic region');
         final code = SggCodeMap.fromRegionId(regionId);
         await _supabase.from('domestic_travel_regions').upsert({
           'travel_id': travelId,
@@ -70,6 +100,32 @@ class TravelCompleteService {
         }, onConflict: 'user_id,region_id');
       }
 
+      // 2️⃣-1️⃣ 해외 방문 국가 스티커 upsert (이미지 없음 → UI에서 도장 준비중)
+      if (travelType != 'domestic') {
+        final String? countryCode = travel['country_code']; // ISO_A2
+        final String? countryName = isKo
+            ? travel['country_name_ko']
+            : travel['country_name_en'];
+
+        debugPrint(
+          '➡️ [COMPLETE_SERVICE] overseas countryCode=$countryCode countryName=$countryName',
+        );
+
+        if (countryCode != null && countryName != null) {
+          await _supabase.rpc(
+            'upsert_visited_country',
+            params: {
+              'p_user_id': userId,
+              'p_country_code': countryCode,
+              'p_country_name': countryName,
+            },
+          );
+          debugPrint('✅ [COMPLETE_SERVICE] visited_countries upsert done');
+        } else {
+          debugPrint('⛔️ [COMPLETE_SERVICE] countryCode/name null');
+        }
+      }
+
       final String placeName =
           (travelType == 'domestic'
                   ? travel['region_name']
@@ -80,6 +136,7 @@ class TravelCompleteService {
           '여행';
 
       // 3️⃣ AI 커버 생성 + 업로드
+      debugPrint('➡️ [COMPLETE_SERVICE] generate AI cover');
       try {
         final promptRow = await _supabase
             .from('ai_cover_map_prompts')
@@ -88,23 +145,34 @@ class TravelCompleteService {
             .eq('is_active', true)
             .maybeSingle();
 
+        debugPrint(
+          '➡️ [COMPLETE_SERVICE] promptRow exists=${promptRow != null}',
+        );
+
         if (promptRow?['content'] != null) {
           final bytes = await GeminiService().generateImage(
             finalPrompt: '${promptRow!['content']}\nPlace: $placeName',
           );
+          debugPrint(
+            '➡️ [COMPLETE_SERVICE] cover bytes length=${bytes.length}',
+          );
+
           if (bytes.isNotEmpty) {
             await ImageUploadService.uploadTravelCover(
               userId: userId,
               travelId: travelId,
               imageBytes: bytes,
             );
+            debugPrint('✅ [COMPLETE_SERVICE] cover uploaded');
           }
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('❌ [COMPLETE_SERVICE] cover error $e');
+      }
 
       // 4️⃣ path 저장
+      debugPrint('➡️ [COMPLETE_SERVICE] update cover/map path');
       final coverPath = StoragePaths.travelCoverPath(userId, travelId);
-
       final Map<String, dynamic> finalUpdate = {'cover_image_url': coverPath};
 
       if (travelType == 'domestic' && regionId != null) {
@@ -112,6 +180,7 @@ class TravelCompleteService {
       }
 
       // 5️⃣ AI 요약
+      debugPrint('➡️ [COMPLETE_SERVICE] generate summary');
       try {
         final summary = await TravelHighlightService.generateHighlight(
           travelId: travelId,
@@ -119,10 +188,14 @@ class TravelCompleteService {
         );
         if (summary != null) {
           finalUpdate['ai_cover_summary'] = summary;
+          debugPrint('✅ [COMPLETE_SERVICE] summary generated');
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('❌ [COMPLETE_SERVICE] summary error $e');
+      }
 
       await _supabase.from('travels').update(finalUpdate).eq('id', travelId);
+      debugPrint('✅ [COMPLETE_SERVICE] FINAL update done');
     } catch (e) {
       debugPrint('❌ [COMPLETE_SERVICE_ERROR] $e');
     }

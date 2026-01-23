@@ -11,6 +11,7 @@ import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
 import 'package:travel_memoir/features/my/pages/sticker/my_sticker_page.dart';
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
+import 'package:travel_memoir/core/utils/travel_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -98,16 +99,6 @@ class _MyPageState extends State<MyPage> {
     );
   }
 
-  Map<String, dynamic> _getBadge(int count) {
-    if (count >= 16)
-      return {'title_key': 'badge_earth_conqueror', 'color': Colors.deepPurple};
-    if (count >= 6)
-      return {'title_key': 'badge_pro_wanderer', 'color': Colors.blueAccent};
-    if (count >= 1)
-      return {'title_key': 'badge_newbie_traveler', 'color': Colors.green};
-    return {'title_key': 'badge_preparing_adventure', 'color': Colors.grey};
-  }
-
   @override
   Widget build(BuildContext context) {
     context.locale;
@@ -130,7 +121,7 @@ class _MyPageState extends State<MyPage> {
             final travelCount = snapshot.data!['travelCount'] as int;
             final nickname = profile['nickname'] ?? 'default_nickname'.tr();
             final imageUrl = profile['profile_image_url'];
-            final badge = _getBadge(travelCount);
+            final badge = getBadge(travelCount);
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),

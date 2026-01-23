@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:cached_network_image/cached_network_image.dart'; // 🎯 패키지 임포트
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+
+import 'package:travel_memoir/storage_urls.dart'; // ✅ 추가 (StorageUrls 사용)
 
 class RecentTravelSection extends StatelessWidget {
   final VoidCallback onSeeAll;
@@ -72,9 +74,26 @@ class _RecentTravelCard extends StatelessWidget {
   final Map<String, dynamic> travel;
   const _RecentTravelCard({required this.travel});
 
+  // ✅ map_image_url(path) → public URL 변환
+  String? _resolveMapImageUrl(Map<String, dynamic> travel) {
+    final raw = travel['map_image_url'] as String?;
+    if (raw == null || raw.isEmpty) return null;
+
+    final String type = travel['travel_type'] ?? 'domestic';
+
+    if (type == 'domestic') {
+      return StorageUrls.domesticMapFromPath(raw);
+    }
+    if (type == 'usa') {
+      return StorageUrls.usaMapFromPath(raw);
+    }
+    // overseas
+    return StorageUrls.globalMapFromPath(raw);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final imageUrl = travel['map_image_url'] as String?;
+    final imageUrl = _resolveMapImageUrl(travel); // ✅ 여기만 바뀜
     final String destinationName = _getDestinationName(context, travel);
 
     return GestureDetector(
@@ -94,10 +113,8 @@ class _RecentTravelCard extends StatelessWidget {
               aspectRatio: 1,
               child: (imageUrl != null && imageUrl.isNotEmpty)
                   ? CachedNetworkImage(
-                      // 🎯 [핵심 수정] Image.network 대신 사용
-                      imageUrl: Uri.encodeFull(imageUrl), // 띄어쓰기 대응
+                      imageUrl: Uri.encodeFull(imageUrl),
                       fit: BoxFit.cover,
-                      // 이미지를 불러오는 동안 보여줄 화면 (깜빡임 방지)
                       placeholder: (context, url) => Container(
                         color: AppColors.lightSurface,
                         child: const Center(
@@ -111,7 +128,6 @@ class _RecentTravelCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // 에러 발생 시(네트워크 없음 등) 보여줄 화면
                       errorWidget: (context, url, error) => Container(
                         color: AppColors.divider,
                         child: const Icon(
@@ -161,7 +177,6 @@ class _RecentTravelCard extends StatelessWidget {
     final bool isKo = context.locale.languageCode == 'ko';
 
     if (type == 'usa') {
-      // 뒤에 .toUpperCase()를 붙여서 항상 대문자로 리턴
       String name =
           travel['region_name'] ??
           travel['region_key'] ??
@@ -172,7 +187,6 @@ class _RecentTravelCard extends StatelessWidget {
     if (type == 'domestic') {
       if (isKo) return travel['region_name'] ?? 'unknown_destination'.tr();
       final String rawKey = travel['region_key'] ?? '';
-      // 마지막 단어를 추출한 뒤 .toUpperCase()로 대문자 고정
       return rawKey.isNotEmpty ? rawKey.split('_').last.toUpperCase() : 'KOREA';
     }
     return isKo

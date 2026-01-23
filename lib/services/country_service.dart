@@ -55,13 +55,42 @@ class CountryService {
 
       if (data['features'] != null) {
         for (var feature in data['features']) {
-          // ✅ GeoJSON의 properties['ISO_A2'] 사용
-          final String? code = feature['properties']?['ISO_A2'];
-          if (code != null && code.isNotEmpty) {
+          final props = feature['properties'] ?? {};
+
+          String? code;
+
+          // 1️⃣ ISO_A2 정상값 우선
+          final isoA2 = props['ISO_A2'];
+          if (isoA2 != null &&
+              isoA2 is String &&
+              isoA2.length == 2 &&
+              isoA2 != '-99') {
+            code = isoA2;
+          }
+
+          // 2️⃣ ISO_A2_EH fallback (France, UK, Norway 등)
+          if (code == null) {
+            final isoA2Eh = props['ISO_A2_EH'];
+            if (isoA2Eh != null && isoA2Eh is String && isoA2Eh.length == 2) {
+              code = isoA2Eh;
+            }
+          }
+
+          // 3️⃣ WB_A2 최후 fallback
+          if (code == null) {
+            final wbA2 = props['WB_A2'];
+            if (wbA2 != null && wbA2 is String && wbA2.length == 2) {
+              code = wbA2;
+            }
+          }
+
+          if (code != null) {
             codes.add(code.toUpperCase());
           }
         }
       }
+
+      debugPrint('🗺️ [GeoJSON] valid ISO_A2 count=${codes.length}');
       return codes;
     } catch (e) {
       debugPrint("❌ GeoJSON 로드 실패: $e");

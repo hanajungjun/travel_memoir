@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../env.dart';
+import 'package:travel_memoir/env.dart';
 
 import 'package:travel_memoir/models/ai_premium_prompt_model.dart';
 import 'package:travel_memoir/services/ai_premium_prompt_service.dart';
@@ -14,7 +14,7 @@ class GeminiService {
   final String _apiKey = AppEnv.geminiApiKey;
 
   // ============================
-  // ✍️ 텍스트 요약 (개별 일차용)
+  // ✍️ 텍스트 요약 (개별 일차용) - 기존 동일
   // ============================
   Future<String> generateSummary({
     required String finalPrompt,
@@ -68,7 +68,7 @@ class GeminiService {
   }
 
   // ============================
-  // 🎨 이미지 생성 (반드시 IMAGE 반환)
+  // 🎨 이미지 생성 (반드시 IMAGE 반환) - 기존 동일
   // ============================
   Future<Uint8List> generateImage({required String finalPrompt}) async {
     debugPrint('🤖 [GEMINI] image request');
@@ -91,15 +91,27 @@ $finalPrompt
   ''');
   }
 
-  // ============================
+  // ==================================================
   // ✅ 프리미엄 전용: 여행 전체 통합 인포그래픽 이미지 생성
-  //  - 하루 여행 / 여러 날 여행 자동 분기
-  // ============================
+  // [수정내용] 당일치기 vs 다일 여행 자동 분기 로직 추가
+  // ==================================================
   Future<Uint8List> generateFullTravelInfographic({
     required String travelTitle,
     required List<String> allDiaryTexts,
-    List<File>? allPhotos,
+    List<String>? photoUrls,
   }) async {
+    // 🔍 디버깅 로그 추가
+    //debugPrint('--- [GEMINI DEBUG START] ---');
+    //debugPrint('📍 여행 제목: $travelTitle');
+    //debugPrint('📍 전달된 일기 개수 (dayCount): ${allDiaryTexts.length}');
+
+    // for (int i = 0; i < allDiaryTexts.length; i++) {
+    //   debugPrint(
+    //     '   👉 [Day ${i + 1}] 내용 요약: ${allDiaryTexts[i].substring(0, math.min(20, allDiaryTexts[i].length))}...',
+    //   );
+    // }
+    //debugPrint('--- [GEMINI DEBUG END] ---');
+
     final url =
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey';
 
@@ -109,35 +121,57 @@ $finalPrompt
       throw Exception('❌ 활성 프리미엄 프롬프트 없음');
     }
 
-    String finalPrompt = premiumPrompt.prompt
-        .replaceAll('\${travelTitle}', travelTitle)
-        .replaceAll(
-          '\${allDiaryTexts.join(\'\\n\')}',
-          allDiaryTexts.join('\n'),
-        );
+    // --------------------------------------------------
+    // 1️⃣ 여행 기간에 따른 컨셉 지시문 (핵심 분기)
+    // --------------------------------------------------
+    String durationInstruction = "";
+    int dayCount = allDiaryTexts.length;
 
-    // debugPrint('🤖 [GEMINI PREMIUM PROMPT]');
-    // debugPrint(finalPrompt);
+    if (dayCount <= 1) {
+      // 당일치기 컨셉
+      durationInstruction = """
+\n[Style Focus: Day Trip Snapshot]
+- This is a single-day trip. Focus on capturing the intense mood and atmosphere of this one day.
+- Highlight the core events of the day in a centralized, large-scale infographic design.
+- Don't split the page; use a unified, high-impact layout that emphasizes the title and the key emotion.
+""";
+    } else {
+      // 다일 여행 컨셉
+      durationInstruction =
+          """
+\n[Style Focus: Multi-day Journey Timeline]
+- This is a journey of $dayCount days. Focus on the chronological flow (Day 1, Day 2, etc.).
+- Use a timeline or road-map style layout to distinguish between different days.
+- Ensure each day's highlights are summarized and visually partitioned within the graphic.
+""";
+    }
+
+    // --------------------------------------------------
+    // 2️⃣ 사진 배치 지시문 (네모네모 컨셉 반영)
+    // --------------------------------------------------
+    String photoInstruction = "";
+    if (photoUrls != null && photoUrls.isNotEmpty) {
+      photoInstruction =
+          "\n[Photo Overlay Note]: Real photos will be placed inside the top-left and bottom-right corners as stickers. Keep these areas simple to let the photos stand out.";
+    }
+
+    // --------------------------------------------------
+    // 3️⃣ 최종 프롬프트 조립
+    // --------------------------------------------------
+    String finalPrompt =
+        premiumPrompt.prompt
+            .replaceAll('\${travelTitle}', travelTitle)
+            .replaceAll(
+              '\${allDiaryTexts.join(\'\\n\')}',
+              allDiaryTexts.join('\n'),
+            ) +
+        durationInstruction +
+        photoInstruction;
 
     final parts = <Map<String, dynamic>>[
       {'text': finalPrompt},
     ];
 
-    // --------------------------------------------------
-    // 3️⃣ 사진 참고 데이터 (최대 5장)
-    // --------------------------------------------------
-    if (allPhotos != null && allPhotos.isNotEmpty) {
-      for (final file in allPhotos.take(5)) {
-        final bytes = await file.readAsBytes();
-        parts.add({
-          'inlineData': {'mimeType': 'image/jpeg', 'data': base64Encode(bytes)},
-        });
-      }
-    }
-
-    // --------------------------------------------------
-    // 4️⃣ Gemini 이미지 생성 요청
-    // --------------------------------------------------
     final res = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
@@ -160,14 +194,13 @@ $finalPrompt
     final imageBase64 =
         data['candidates'][0]['content']['parts'][0]['inlineData']['data'];
 
-    // ✅ [형님 요청 로그] 이미지 성공 시점 확인 (데이터 크기 추가)
     debugPrint('🤖 [GEMINI] image success (Size: ${imageBase64.length} bytes)');
 
     return base64Decode(imageBase64);
   }
 
   // ============================
-  // 내부 이미지 요청 (공통 헬퍼)
+  // 내부 이미지 요청 (공통 헬퍼) - 기존 동일
   // ============================
   Future<Uint8List> _requestImage(Uri uri, String prompt) async {
     final response = await http.post(

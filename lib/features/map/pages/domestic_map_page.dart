@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
-
+import 'package:travel_memoir/storage_urls.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/core/widgets/ai_map_popup.dart';
 import 'package:travel_memoir/core/constants/korea/sgg_code_map.dart';
@@ -218,6 +218,17 @@ class DomesticMapPageState extends State<DomesticMapPage>
         .maybeSingle();
 
     if (res != null && res['is_completed'] == true) {
+      // =========================
+      // ✅ map_image_url(path) → public URL 변환
+      // =========================
+      final rawPath = res['map_image_url']?.toString();
+      String imageUrl = '';
+
+      if (rawPath != null && rawPath.isNotEmpty) {
+        imageUrl = StorageUrls.domesticMapFromPath(rawPath);
+      }
+      // =========================
+
       showGeneralDialog(
         context: context,
         barrierDismissible: true,
@@ -226,7 +237,7 @@ class DomesticMapPageState extends State<DomesticMapPage>
         transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (context, anim1, anim2) => Center(
           child: AiMapPopup(
-            imageUrl: res['map_image_url'],
+            imageUrl: imageUrl, // ✅ URL로 전달
             regionName:
                 "${res['province'].toString().tr()} ${res['region_name'].toString().tr()}",
             summary: res['ai_cover_summary'] ?? "no_memories_recorded".tr(),

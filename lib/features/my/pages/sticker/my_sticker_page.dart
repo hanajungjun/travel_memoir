@@ -1,30 +1,90 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-class MyStickerPage extends StatelessWidget {
+class MyStickerPage extends StatefulWidget {
   const MyStickerPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // 1. 전체 국가 리스트 (나중에는 DB에서 전체 국가 목록을 가져오면 됩니다)
-    final List<Map<String, dynamic>> allCountries = [
-      {
-        'name': 'France',
-        'asset': 'assets/images/france.png',
-        'isUnlocked': true,
-      },
-      {'name': 'Korea', 'asset': null, 'isUnlocked': false},
-      {'name': 'Japan', 'asset': null, 'isUnlocked': false},
-      {'name': 'USA', 'asset': null, 'isUnlocked': false},
-      {'name': 'Italy', 'asset': null, 'isUnlocked': false},
-      {'name': 'UK', 'asset': null, 'isUnlocked': false},
-      {'name': 'Spain', 'asset': 'assets/images/spain.png', 'isUnlocked': true},
-      {'name': 'Canada', 'asset': null, 'isUnlocked': false},
-      {'name': 'Germany', 'asset': null, 'isUnlocked': false},
+  State<MyStickerPage> createState() => _MyStickerPageState();
+}
+
+class _MyStickerPageState extends State<MyStickerPage>
+    with SingleTickerProviderStateMixin {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
+  late Future<List<Map<String, dynamic>>> _stickersFuture;
+
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _stickersFuture = _loadStickers();
+
+    // 🔥 새 스티커 획득 연출용
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _scaleAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutBack,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  String _getStickerUrl(String countryCode) {
+    return _supabase.storage.from('stickers').getPublicUrl('$countryCode.png');
+  }
+
+  Future<List<Map<String, dynamic>>> _loadStickers() async {
+    final allCountries = [
+      {'code': 'FR', 'name': 'France'},
+      {'code': 'JP', 'name': 'Japan'},
+      {'code': 'US', 'name': 'United States'},
+      {'code': 'IT', 'name': 'Italy'},
+      {'code': 'ES', 'name': 'Spain'},
+      {'code': 'DE', 'name': 'Germany'},
+      {'code': 'CA', 'name': 'Canada'},
+      {'code': 'GB', 'name': 'United Kingdom'},
     ];
 
+    final rows = await _supabase
+        .from('visited_countries')
+        .select('country_code, country_name, sticker_image_url');
+
+    final Map<String, Map<String, dynamic>> visitedMap = {
+      for (final r in rows)
+        r['country_code']: {
+          'name': r['country_name'],
+          'asset': r['sticker_image_url'],
+          'isUnlocked': true,
+        },
+    };
+
+    return allCountries.map((c) {
+      final visited = visitedMap[c['code']];
+      return {
+        'code': c['code'],
+        'name': c['name'],
+        'asset': visited?['asset'],
+        'isUnlocked': visited != null,
+      };
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5), // 약간 회색빛 바닥면 (스티커 판 느낌)
+      backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
         title: Text('my_stickers'.tr()),
         centerTitle: true,
@@ -32,61 +92,92 @@ class MyStickerPage extends StatelessWidget {
         elevation: 0,
         foregroundColor: Colors.black,
       ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(25),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3, // 3열 배치
-          mainAxisSpacing: 25, // 세로 간격
-          crossAxisSpacing: 20, // 가로 간격
-          childAspectRatio: 0.9, // 육각형 모양에 최적화된 비율
-        ),
-        itemCount: allCountries.length,
-        itemBuilder: (context, index) {
-          final country = allCountries[index];
-          return _buildSticker(country);
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _stickersFuture,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final stickers = snapshot.data!;
+
+          return GridView.builder(
+            padding: const EdgeInsets.all(25),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 25,
+              crossAxisSpacing: 20,
+              childAspectRatio: 0.9,
+            ),
+            itemCount: stickers.length,
+            itemBuilder: (context, index) {
+              return _buildSticker(stickers[index]);
+            },
+          );
         },
       ),
     );
   }
 
   Widget _buildSticker(Map<String, dynamic> country) {
-    bool isUnlocked = country['isUnlocked'];
+    final bool isUnlocked = country['isUnlocked'];
+    final String countryCode = country['code'];
+    final String? imageUrl = country['asset'];
 
-    return Column(
-      children: [
-        Expanded(
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: ClipPath(
-              clipper: HexagonClipper(), // 육각형으로 깎기
-              child: Container(
-                decoration: BoxDecoration(
-                  color: isUnlocked ? Colors.white : Colors.grey.shade300,
-                  // 획득 못 한 곳은 연한 회색 실루엣 느낌
-                ),
-                child: isUnlocked
-                    ? Image.asset(country['asset'], fit: BoxFit.cover)
-                    : Center(
-                        child: Icon(
-                          Icons.add_photo_alternate_outlined,
-                          color: Colors.white.withOpacity(0.5),
-                          size: 30,
+    return ScaleTransition(
+      scale: isUnlocked ? _scaleAnimation : const AlwaysStoppedAnimation(1),
+      child: Column(
+        children: [
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: ClipPath(
+                clipper: HexagonClipper(),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Container(
+                      color: isUnlocked ? Colors.white : Colors.grey.shade300,
+                    ),
+
+                    // ✅ 이미지 로딩 + 실패 대비
+                    if (isUnlocked)
+                      Image.network(
+                        imageUrl ?? _getStickerUrl(countryCode),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Center(
+                          child: Icon(
+                            Icons.hourglass_top,
+                            color: Colors.grey,
+                            size: 28,
+                          ),
                         ),
                       ),
+
+                    if (!isUnlocked)
+                      const Center(
+                        child: Icon(
+                          Icons.lock,
+                          color: Colors.white70,
+                          size: 28,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          country['name'],
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: isUnlocked ? FontWeight.bold : FontWeight.normal,
-            color: isUnlocked ? Colors.black87 : Colors.grey.shade500,
+          const SizedBox(height: 8),
+          Text(
+            country['name'],
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isUnlocked ? FontWeight.bold : FontWeight.normal,
+              color: isUnlocked ? Colors.black87 : Colors.grey.shade500,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -94,18 +185,18 @@ class MyStickerPage extends StatelessWidget {
 class HexagonClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    // 👈 getPath를 getClip으로 수정했습니다!
     final path = Path();
     final w = size.width;
     final h = size.height;
 
-    path.moveTo(w * 0.5, 0); // 상단 중앙
-    path.lineTo(w, h * 0.25); // 우측 상단
-    path.lineTo(w, h * 0.75); // 우측 하단
-    path.lineTo(w * 0.5, h); // 하단 중앙
-    path.lineTo(0, h * 0.75); // 좌측 하단
-    path.lineTo(0, h * 0.25); // 좌측 상단
+    path.moveTo(w * 0.5, 0);
+    path.lineTo(w, h * 0.25);
+    path.lineTo(w, h * 0.75);
+    path.lineTo(w * 0.5, h);
+    path.lineTo(0, h * 0.75);
+    path.lineTo(0, h * 0.25);
     path.close();
+
     return path;
   }
 

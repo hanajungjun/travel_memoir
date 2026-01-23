@@ -15,6 +15,8 @@ class OverseasTravelSummaryService {
   // 🌍 전체 국가 수 (지도 필터링 반영 + 캐시 적용)
   // =====================================================
   static Future<int> getTotalCountryCount() async {
+    return 181;
+    /* 속도땀시그냥박음
     // 1. 캐시된 값이 있다면 즉시 반환
     if (_totalCountryCountCache != null) {
       debugPrint("💾 [SummaryService] 캐시된 국가 수 반환: $_totalCountryCountCache");
@@ -39,6 +41,7 @@ class OverseasTravelSummaryService {
       // 에러 발생 시 기존처럼 API에서 직접 가져오는 로직(Fallback) 혹은 0 반환
       return 0;
     }
+    */
   }
 
   // =====================================================

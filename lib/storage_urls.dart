@@ -34,35 +34,42 @@ class StorageUrls {
   ) => travelImage(StoragePaths.travelDayImagePath(userId, travelId, diaryId));
 
   // =====================================================
-  // ✅ 시스템 지도 버킷들: "path"로만 받을 때 쓰는 변환기
-  // (DB에 map_image_url로 저장된 값이 여기로 들어온다고 가정)
+  // ✅ 시스템 지도 버킷들 (DB에는 path만 저장됨)
   // =====================================================
 
-  /// map_images 버킷: path 예) "map_images/41.png" 또는 "41.png"
+  /// map_images 버킷
+  /// DB 값 예: "map_images/41.png" 또는 "41.png"
   static String domesticMapFromPath(String path) {
-    final safe = path.startsWith('map_images/') ? path : 'map_images/$path';
+    final fileName = path.startsWith('map_images/')
+        ? path.replaceFirst('map_images/', '')
+        : path;
+
     return Supabase.instance.client.storage
         .from('map_images')
-        .getPublicUrl(safe);
+        .getPublicUrl(fileName);
   }
 
-  /// global_map_image 버킷: path 예) "global_map_image/US.png" 또는 "US.png"
+  /// global_map_image 버킷
+  /// DB 값 예: "global_map_image/ES.png" 또는 "ES.png"
   static String globalMapFromPath(String path) {
-    final safe = path.startsWith('global_map_image/')
-        ? path
-        : 'global_map_image/$path';
+    final fileName = path.startsWith('global_map_image/')
+        ? path.replaceFirst('global_map_image/', '')
+        : path;
+
     return Supabase.instance.client.storage
         .from('global_map_image')
-        .getPublicUrl(safe);
+        .getPublicUrl(fileName);
   }
 
-  /// usa_map_image 버킷: path 예) "usa_map_image/ARIZONA.png" 또는 "ARIZONA.png"
+  /// usa_map_image 버킷
+  /// DB 값 예: "usa_map_image/ARIZONA.png" 또는 "ARIZONA.png"
   static String usaMapFromPath(String path) {
-    final safe = path.startsWith('usa_map_image/')
-        ? path
-        : 'usa_map_image/$path';
+    final fileName = path.startsWith('usa_map_image/')
+        ? path.replaceFirst('usa_map_image/', '')
+        : path;
+
     return Supabase.instance.client.storage
         .from('usa_map_image')
-        .getPublicUrl(safe);
+        .getPublicUrl(fileName);
   }
 }

@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
-
+import 'package:travel_memoir/storage_urls.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/core/widgets/ai_map_popup.dart';
 
@@ -146,10 +146,17 @@ class GlobalMapPageState extends State<GlobalMapPage>
         .maybeSingle();
 
     if (lastTravel != null) {
+      //double? lat = (lastTravel['region_lat'] ?? lastTravel['country_lat']) as double?;
+      //double? lng =(lastTravel['region_lng'] ?? lastTravel['country_lng']) as double?;
+
       double? lat =
-          (lastTravel['region_lat'] ?? lastTravel['country_lat']) as double?;
+          (lastTravel['region_lat'] as num? ??
+                  lastTravel['country_lat'] as num?)
+              ?.toDouble();
       double? lng =
-          (lastTravel['region_lng'] ?? lastTravel['country_lng']) as double?;
+          (lastTravel['region_lng'] as num? ??
+                  lastTravel['country_lng'] as num?)
+              ?.toDouble();
 
       if (lat != null && lng != null) {
         await _map!.flyTo(
@@ -389,22 +396,42 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
     var query = Supabase.instance.client
         .from('travels')
         .select('map_image_url, ai_cover_summary, is_completed')
         .eq('user_id', user.id)
         .eq('country_code', countryCode);
+
     if (countryCode == 'US') {
       query = query.eq('travel_type', 'usa').eq('region_name', regionName);
     } else {
       query = query.eq('travel_type', 'overseas');
     }
+
     final res = await query
         .eq('is_completed', true)
         .order('completed_at', ascending: false)
         .limit(1)
         .maybeSingle();
+
     if (res == null) return;
+
+    // =========================
+    // ✅ 여기부터 추가된 부분
+    // =========================
+    final rawPath = res['map_image_url']?.toString();
+    String imageUrl = '';
+
+    if (rawPath != null && rawPath.isNotEmpty) {
+      if (countryCode == 'US') {
+        imageUrl = StorageUrls.usaMapFromPath(rawPath);
+      } else {
+        imageUrl = StorageUrls.globalMapFromPath(rawPath);
+      }
+    }
+    // =========================
+
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -414,7 +441,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
       transitionBuilder: (_, anim, __, ___) => Opacity(
         opacity: anim.value,
         child: AiMapPopup(
-          imageUrl: res['map_image_url']?.toString() ?? '',
+          imageUrl: imageUrl, // ✅ path → public URL
           regionName: regionName,
           summary: res['ai_cover_summary']?.toString() ?? '',
         ),
