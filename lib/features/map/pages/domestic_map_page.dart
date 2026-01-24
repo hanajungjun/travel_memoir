@@ -55,17 +55,51 @@ class DomesticMapPageState extends State<DomesticMapPage>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // ✅ mixin 사용 시 필수
+    super.build(context); // mixin 필수
     return Scaffold(
       body: MapWidget(
         styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
+        // 💡 초기값은 유지하되, 실제 제어는 onMapCreated에서 합니다.
         cameraOptions: CameraOptions(
           center: Point(coordinates: Position(127.8, 36.3)),
           zoom: 5.2,
         ),
-        onMapCreated: (map) {
+        onMapCreated: (map) async {
           _map = map;
           debugPrint('🗺️ [MAP] created');
+
+          try {
+            // 1️⃣ [가두리 범위 수정] 카메라가 동쪽(오른쪽)으로 더 갈 수 있게 동쪽 벽을 135도까지 밉니다.
+            await map.setBounds(
+              CameraBoundsOptions(
+                bounds: CoordinateBounds(
+                  southwest: Point(coordinates: Position(124.0, 32.5)),
+                  northeast: Point(
+                    coordinates: Position(131.2, 40.0),
+                  ), // 💡 132 -> 135 (더 동쪽으로)
+                  infiniteBounds: false,
+                ),
+                minZoom: 5.1,
+                maxZoom: 12.0,
+              ),
+            );
+
+            // 2️⃣ [강제 이동] 카메라를 오른쪽(동쪽)으로 밀어서 지도를 왼쪽으로 보냅니다.
+            // 💡 127.8 -> 129.5 (숫자를 높일수록 지도는 화면 왼쪽으로 이동합니다!)
+            await map.setCamera(
+              CameraOptions(
+                center: Point(coordinates: Position(129.5, 36.3)),
+                zoom: 5.2,
+              ),
+            );
+
+            // 3️⃣ [제스처 설정]
+            await map.gestures.updateSettings(
+              GesturesSettings(rotateEnabled: false, pitchEnabled: false),
+            );
+          } catch (e) {
+            debugPrint('❌ [BOUNDS ERROR] $e');
+          }
         },
         onStyleLoadedListener: (data) {
           debugPrint('🎨 [MAP] style loaded');

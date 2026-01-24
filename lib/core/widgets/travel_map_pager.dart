@@ -25,9 +25,8 @@ class TravelMapPager extends StatefulWidget {
 
 class _TravelMapPagerState extends State<TravelMapPager> {
   final String _userId = Supabase.instance.client.auth.currentUser!.id;
-  late final PageController _controller;
+  late PageController _controller;
 
-  // 지도를 새로 만들지 않고 제어하기 위한 Key
   final GlobalKey<GlobalMapPageState> _globalMapKey =
       GlobalKey<GlobalMapPageState>();
   final GlobalKey<DomesticMapPageState> _domesticMapKey =
@@ -37,11 +36,11 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   List<String> _activeMapIds = ['world', 'ko'];
   bool _loading = true;
   bool _disposed = false;
-  bool _isFirstLoad = true; // 첫 로드 여부 플래그
 
   @override
   void initState() {
     super.initState();
+    // 초기에는 0으로 세팅 (나중에 _loadActiveMaps에서 해외 지도로 보정)
     _controller = PageController(initialPage: 0);
     _loadActiveMaps();
   }
@@ -68,41 +67,33 @@ class _TravelMapPagerState extends State<TravelMapPager> {
 
       if (_disposed || !mounted) return;
 
-      final next = List<String>.from(res?['active_maps'] ?? ['world', 'ko']);
+      // 💡 [해외 지도 우선순위 로직]
+      // DB에서 가져온 리스트에서 'world'를 무조건 맨 앞으로 보냅니다.
+      List<String> next = List<String>.from(
+        res?['active_maps'] ?? ['world', 'ko'],
+      );
+
+      if (next.contains('world')) {
+        next.remove('world');
+        next.insert(0, 'world'); // 무조건 0번 인덱스는 'world'
+      }
+
+      // 💡 [인덱스 강제 고정]
+      // 사용자가 요청한 대로 첫 인덱스는 무조건 'world'(해외 지도)가 되도록 0으로 설정합니다.
+      int targetIdx = 0;
 
       _safeSetState(() {
         _activeMapIds = next;
+        _index = targetIdx;
         _loading = false;
-      });
 
-      // 처음 로드일 때만 travelType 기준으로 탭 맞추기
-      if (_isFirstLoad) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_disposed || !mounted) return;
-          _applyInitialIndex();
-          _isFirstLoad = false;
-        });
-      }
+        // 기존 컨트롤러를 버리고 해외 지도가 0번인 새 컨트롤러로 교체
+        _controller.dispose();
+        _controller = PageController(initialPage: _index);
+      });
     } catch (e) {
       if (_disposed || !mounted) return;
       _safeSetState(() => _loading = false);
-    }
-  }
-
-  void _applyInitialIndex() {
-    final order = <String>[];
-    if (_activeMapIds.contains('world')) order.add('world');
-    if (_activeMapIds.contains('ko')) order.add('ko');
-
-    final desiredId = widget.travelType == 'domestic' ? 'ko' : 'world';
-    final targetIndex = order.indexOf(desiredId);
-    final resolvedIndex = targetIndex == -1 ? 0 : targetIndex;
-
-    if (_index != resolvedIndex) {
-      _safeSetState(() => _index = resolvedIndex);
-      try {
-        if (_controller.hasClients) _controller.jumpToPage(resolvedIndex);
-      } catch (_) {}
     }
   }
 
@@ -117,7 +108,6 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   }
 
   Future<void> _refreshMap() async {
-    // 상세페이지 복귀 후 호출: 인덱스는 유지하고 데이터만 갱신
     await _loadActiveMaps();
     _globalMapKey.currentState?.refreshData();
     _domesticMapKey.currentState?.refreshData();
@@ -131,22 +121,26 @@ class _TravelMapPagerState extends State<TravelMapPager> {
         child: Center(child: CircularProgressIndicator()),
       );
 
+    // 💡 현재 맵 ID 순서에 따라 페이지 구성
     final List<Map<String, dynamic>> dynamicConfigs = [];
-    if (_activeMapIds.contains('world')) {
-      dynamicConfigs.add({
-        'id': 'world',
-        'label': 'overseas'.tr(),
-        'activeColor': AppColors.travelingPurple,
-        'page': GlobalMapPage(key: _globalMapKey, showLastTravelFocus: true),
-      });
-    }
-    if (_activeMapIds.contains('ko')) {
-      dynamicConfigs.add({
-        'id': 'ko',
-        'label': 'domestic'.tr(),
-        'activeColor': AppColors.travelingBlue,
-        'page': DomesticMapPage(key: _domesticMapKey),
-      });
+    for (var id in _activeMapIds) {
+      if (id == 'world') {
+        dynamicConfigs.add({
+          'id': 'world',
+          'type': 'overseas',
+          'label': 'overseas'.tr(),
+          'activeColor': AppColors.travelingPurple,
+          'page': GlobalMapPage(key: _globalMapKey, showLastTravelFocus: true),
+        });
+      } else if (id == 'ko') {
+        dynamicConfigs.add({
+          'id': 'ko',
+          'type': 'domestic',
+          'label': 'domestic'.tr(),
+          'activeColor': AppColors.travelingBlue,
+          'page': DomesticMapPage(key: _domesticMapKey),
+        });
+      }
     }
 
     return Column(
@@ -179,23 +173,26 @@ class _TravelMapPagerState extends State<TravelMapPager> {
               children: [
                 PageView(
                   controller: _controller,
-                  physics: const NeverScrollableScrollPhysics(), // 탭으로만 이동 권장
+                  physics: const NeverScrollableScrollPhysics(),
                   onPageChanged: (i) => _safeSetState(() => _index = i),
                   children: dynamicConfigs
                       .map((c) => c['page'] as Widget)
                       .toList(),
                 ),
+                // 💡 지도를 탭했을 때 현재 인덱스의 타입에 맞는 메인 페이지로 이동
                 Positioned.fill(
                   child: Material(
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () async {
+                        final currentType = dynamicConfigs[_index]['type'];
+
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => MapMainPage(
                               travelId: widget.travelId,
-                              travelType: widget.travelType,
+                              travelType: currentType,
                             ),
                           ),
                         );
@@ -213,6 +210,7 @@ class _TravelMapPagerState extends State<TravelMapPager> {
   }
 }
 
+// 💡 탭 위젯 (버튼)
 class _Tab extends StatelessWidget {
   final String label;
   final bool selected;

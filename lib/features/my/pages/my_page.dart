@@ -8,7 +8,7 @@ import 'package:travel_memoir/features/my/pages/settings/my_settings_page.dart';
 import 'package:travel_memoir/features/my/pages/supports/my_support_page.dart';
 import 'package:travel_memoir/features/my/pages/user_details/user_details.dart';
 import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
-import 'package:travel_memoir/features/my/pages/sticker/my_sticker_page.dart';
+import 'package:travel_memoir/features/my/pages/sticker/passport_open_dialog.dart';
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
 import 'package:travel_memoir/core/utils/travel_utils.dart';
@@ -73,22 +73,12 @@ class _MyPageState extends State<MyPage> {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'StickerPopup',
-      barrierColor: Colors.black.withOpacity(0.5),
-      transitionDuration: const Duration(milliseconds: 300),
+      barrierLabel: 'PassportPopup',
+      barrierColor: Colors.black.withOpacity(0.7),
+      transitionDuration: const Duration(milliseconds: 400),
       pageBuilder: (context, anim1, anim2) {
-        return Center(
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.9,
-            height: MediaQuery.of(context).size.height * 0.75,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const MyStickerPage(),
-          ),
-        );
+        // 1번에서 만든 3D 다이얼로그 호출
+        return const PassportOpeningDialog();
       },
       transitionBuilder: (context, anim1, anim2, child) {
         return ScaleTransition(
