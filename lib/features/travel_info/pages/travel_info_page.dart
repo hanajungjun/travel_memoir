@@ -132,11 +132,14 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
+                  padding: EdgeInsets.fromLTRB(
                     27,
                     65,
                     27,
-                    0, // FAB + 네비 안전 영역
+                    100 +
+                        MediaQuery.of(
+                          context,
+                        ).padding.bottom, // 하단 탭바 높이 + 시스템 바 여백만큼 추가
                   ),
                   sliver: SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
@@ -195,23 +198,31 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   }
 
   Widget _buildFab() {
+    // 1. 기기 하단 시스템 네비게이션 바의 실제 높이를 가져옵니다.
+    //    (S23 3버튼 모드라면 약 48px 정도 잡힙니다.)
+    final double systemBottom = MediaQuery.of(context).padding.bottom;
+
+    // 2. 패딩 계산:
+    //    - 시스템 바가 있을 때: 시스템 바(약 48) + 하단 탭바(약 70) + 여백(10) = 약 128~130
+    //    - 시스템 바가 없을 때(아이폰/제스처): 기본 여백 포함 약 100~110
+    //final double fabBottomPadding = systemBottom > 0 ? systemBottom + 85 : 100;
+    final double fabPadding = systemBottom > 0 ? systemBottom + 5 : 70;
     return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 75, // 네비 위
-        right: 2,
-      ),
+      // padding: EdgeInsets.only(bottom: fabBottomPadding, right: 2),
+      padding: EdgeInsets.only(bottom: fabPadding, right: 2),
       child: Material(
         color: Colors.transparent,
-        elevation: 14, // ⭐ 그림자 세기
-        shadowColor: Colors.black.withOpacity(0.25), // 여기서 조절
+        elevation: 14,
+        shadowColor: Colors.black.withOpacity(0.25),
         shape: const CircleBorder(),
         child: FloatingActionButton(
-          elevation: 0, // ⭐ Material이 그림자 담당
+          elevation: 0,
           backgroundColor: AppColors.travelingBlue,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(50),
           ),
           onPressed: () async {
+            // ✅ 기존 로직 그대로 다 넣어놨습니다!
             final created = await Navigator.push<Map<String, dynamic>>(
               context,
               MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
