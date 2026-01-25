@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
-import 'dart:math' as math; // ✅ 랜덤 배치를 위해 추가
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:share_plus/share_plus.dart';
@@ -10,12 +10,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
 
-// ✅ 사진의 위치와 각도 정보를 담을 헬퍼 클래스
+// ✅ 스티커 위치 정보를 담는 클래스
 class StickerPlacement {
   final String url;
   final double? top, bottom, left, right;
@@ -31,6 +33,7 @@ class StickerPlacement {
   });
 }
 
+// ✅ 앨범 아이템 모델
 class _AlbumItem {
   final DateTime date;
   final String imageUrl;
@@ -47,6 +50,7 @@ class _AlbumItem {
 class TravelAlbumPage extends StatefulWidget {
   final Map<String, dynamic> travel;
   const TravelAlbumPage({super.key, required this.travel});
+
   @override
   State<TravelAlbumPage> createState() => _TravelAlbumPageState();
 }
@@ -56,23 +60,38 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   Uint8List? _premiumInfographic;
   String? _premiumImageUrl;
   bool _isPremiumLoading = false;
+  bool _isPremiumUser = false;
 
-  // ✅ 변경: URL 리스트 대신 위치 정보가 포함된 스티커 리스트 사용
   List<StickerPlacement> _stickerPlacements = [];
 
   @override
   void initState() {
     super.initState();
     _groupedFuture = _loadGroupedAlbum();
-    _initPremiumReport();
+    _checkUserStatusAndInit();
   }
 
-  Future<void> _initPremiumReport() async {
+  // ✅ 프리미엄 상태 확인 및 초기화
+  Future<void> _checkUserStatusAndInit() async {
     final client = Supabase.instance.client;
-    final travelId = widget.travel['id']?.toString() ?? '';
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) return;
 
+    final userRes = await client
+        .from('users')
+        .select('is_premium')
+        .eq('auth_uid', userId)
+        .maybeSingle();
+
+    if (mounted) {
+      setState(() {
+        _isPremiumUser = userRes?['is_premium'] ?? false;
+      });
+    }
+
+    final travelId = widget.travel['id']?.toString() ?? '';
     final groupedData = await _groupedFuture;
-    _extractAndShuffleStickers(groupedData); // ✅ 랜덤 배치 로직 실행
+    _extractAndShuffleStickers(groupedData);
 
     final res = await client
         .from('travels')
@@ -84,15 +103,11 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
         res['premium_report_url'] != null &&
         res['premium_report_url'].toString().isNotEmpty) {
       setState(() => _premiumImageUrl = res['premium_report_url']);
-      return;
-    }
-
-    if (groupedData.values.any((l) => l.isNotEmpty)) {
+    } else if (_isPremiumUser && groupedData.values.any((l) => l.isNotEmpty)) {
       _generateAndSavePremiumInfographic(groupedData);
     }
   }
 
-  // ✅ [핵심수정] 4방향 후보지 중 사진 개수만큼 랜덤하게 골라 배치
   void _extractAndShuffleStickers(Map<int, List<_AlbumItem>> data) {
     List<String> allPhotoUrls = [];
     data.forEach((day, items) {
@@ -104,22 +119,16 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
     if (allPhotoUrls.isEmpty) return;
 
-    // 1. 네 귀퉁이 후보지 설정 (안쪽으로 네모네모하게)
     List<Map<String, double>> positions = [
-      {'top': 25, 'left': 25, 'angle': -0.1}, // 11시
-      {'top': 25, 'right': 25, 'angle': 0.12}, // 1시
-      {'bottom': 25, 'left': 25, 'angle': -0.08}, // 7시
-      {'bottom': 25, 'right': 25, 'angle': 0.1}, // 5시
+      {'top': 25, 'left': 25, 'angle': -0.1},
+      {'top': 25, 'right': 25, 'angle': 0.12},
+      {'bottom': 25, 'left': 25, 'angle': -0.08},
+      {'bottom': 25, 'right': 25, 'angle': 0.1},
     ];
-
-    // 2. 후보지를 무작위로 섞음
     positions.shuffle();
 
-    // 3. 최대 4장까지 사진을 배정
     List<StickerPlacement> tempPlacements = [];
     int takeCount = math.min(allPhotoUrls.length, 4);
-
-    // 사진도 랜덤하게 섞어서 뽑기 (중복 방지)
     allPhotoUrls.shuffle();
 
     for (int i = 0; i < takeCount; i++) {
@@ -135,20 +144,22 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
         ),
       );
     }
-
     setState(() => _stickerPlacements = tempPlacements);
   }
 
   Future<void> _generateAndSavePremiumInfographic(
     Map<int, List<_AlbumItem>> data,
   ) async {
+    if (!_isPremiumUser) {
+      _showPremiumRequiredDialog();
+      return;
+    }
+
     if (_isPremiumLoading) return;
     setState(() => _isPremiumLoading = true);
+
     final client = Supabase.instance.client;
-    final userId = client.auth.currentUser!.id.replaceAll(
-      RegExp(r'[\s\n\r\t]+'),
-      '',
-    );
+    final userId = client.auth.currentUser!.id;
     final travelId = widget.travel['id']?.toString() ?? '';
 
     try {
@@ -193,11 +204,39 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     }
   }
 
-  // ... (getDayNum, loadGroupedAlbum, travelTitle 로직은 기존과 동일)
+  void _showPremiumRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('premium_only_title'.tr()),
+        content: Text('premium_infographic_desc'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('close'.tr()),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CoinShopPage()),
+              ).then((_) => _checkUserStatusAndInit());
+            },
+            child: Text('go_to_shop'.tr()),
+          ),
+        ],
+      ),
+    );
+  }
+
   int _getDayNum(DateTime start, DateTime target) {
-    final s = DateTime(start.year, start.month, start.day);
-    final t = DateTime(target.year, target.month, target.day);
-    return t.difference(s).inDays + 1;
+    return DateTime(
+          target.year,
+          target.month,
+          target.day,
+        ).difference(DateTime(start.year, start.month, start.day)).inDays +
+        1;
   }
 
   Future<Map<int, List<_AlbumItem>>> _loadGroupedAlbum() async {
@@ -224,7 +263,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
         );
         final DateTime diaryDate = DateTime.parse(diary['date']);
         final int dayNum = _getDayNum(startDate, diaryDate);
-        final String text = diary['text'] ?? '';
         if (dayNum < 1 || dayNum > totalDays) continue;
         if ((diary['ai_summary'] ?? '').toString().trim().isNotEmpty) {
           grouped[dayNum]!.add(
@@ -236,7 +274,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                     'users/$userId/travels/$travelId/diaries/$diaryId/ai_generated.png',
                   ),
               isAi: true,
-              diaryText: text,
+              diaryText: diary['text'],
             ),
           );
         }
@@ -255,7 +293,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                     'users/$userId/travels/$travelId/diaries/$diaryId/moments/${f.name}',
                   ),
               isAi: false,
-              diaryText: text,
+              diaryText: diary['text'],
             ),
           );
         }
@@ -298,7 +336,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
           final groupedData = snapshot.data ?? {};
           return CustomScrollView(
             slivers: [
-              // ... (Summary 및 Day 그리드 로직 동일)
               if (overallSummary.isNotEmpty)
                 SliverToBoxAdapter(
                   child: Container(
@@ -461,31 +498,35 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     );
   }
 
-  // ✅ [수정] 랜덤하게 정해진 스티커 리스트를 루프 돌려 화면에 표시
   Widget _buildPremiumCard() {
-    if (_premiumInfographic == null &&
-        (_premiumImageUrl == null || _premiumImageUrl!.isEmpty)) {
-      return _buildEmptyPlaceholder();
-    }
-
     return GestureDetector(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => _PremiumViewerPage(
-              title: _travelTitle(),
-              imageBytes: _premiumInfographic,
-              imageUrl: _premiumImageUrl,
-              stickers: _stickerPlacements,
+        if (_isPremiumUser) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => _PremiumViewerPage(
+                title: _travelTitle(),
+                imageBytes: _premiumInfographic,
+                imageUrl: _premiumImageUrl,
+                stickers: _stickerPlacements,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          _showPremiumRequiredDialog();
+        }
       },
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
+            foregroundDecoration: _isPremiumUser
+                ? null
+                : BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
               boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
@@ -502,7 +543,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                     ),
             ),
           ),
-          // ✅ 랜덤하게 배정된 스티커들을 순회하며 표시
           for (var sticker in _stickerPlacements)
             Positioned(
               top: sticker.top,
@@ -511,41 +551,35 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
               right: sticker.right,
               child: Transform.rotate(
                 angle: sticker.angle,
-                child: _buildStickerFrame(sticker.url),
+                child: Opacity(
+                  opacity: _isPremiumUser ? 1.0 : 0.5,
+                  child: _buildStickerFrame(sticker.url),
+                ),
               ),
             ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyPlaceholder() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
-      ),
-      child: Column(
-        children: [
-          Icon(
-            Icons.auto_awesome,
-            color: Colors.amber.withOpacity(0.5),
-            size: 40,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '아직 인포그래픽이 없어요',
-            style: AppTextStyles.sectionTitle.copyWith(color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '여행 일기를 기록하면\nAI가 특별한 리포트를 만들어드려요!',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.bodyMuted.copyWith(fontSize: 13),
-          ),
+          if (!_isPremiumUser)
+            Positioned.fill(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.lock_rounded,
+                      color: Colors.white,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'premium_unlock_label'.tr(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -580,7 +614,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 }
 
-// ... (AlbumViewerPage는 기존과 동일)
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
   final List<_AlbumItem> items;
@@ -590,6 +623,7 @@ class _AlbumViewerPage extends StatefulWidget {
     required this.items,
     required this.initialIndex,
   });
+
   @override
   State<_AlbumViewerPage> createState() => _AlbumViewerPageState();
 }
@@ -598,6 +632,7 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   late final PageController _controller;
   late int _index;
   bool _isSharing = false;
+
   @override
   void initState() {
     super.initState();
@@ -662,21 +697,18 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   }
 }
 
-// ==========================================
-// 4. 프리미엄 인포그래픽 전용 뷰어 (랜덤 배치 연동)
-// ==========================================
 class _PremiumViewerPage extends StatefulWidget {
   final String title;
   final Uint8List? imageBytes;
   final String? imageUrl;
-  final List<StickerPlacement> stickers; // ✅ 연동
+  final List<StickerPlacement> stickers;
 
   const _PremiumViewerPage({
     required this.title,
     this.imageBytes,
     this.imageUrl,
     this.stickers = const [],
-  }) : assert(imageBytes != null || imageUrl != null);
+  });
 
   @override
   State<_PremiumViewerPage> createState() => _PremiumViewerPageState();
@@ -697,11 +729,9 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
         format: ui.ImageByteFormat.png,
       );
       Uint8List pngBytes = byteData!.buffer.asUint8List();
-
       final temp = await getTemporaryDirectory();
       final file = await File('${temp.path}/premium_full_report.png').create();
       await file.writeAsBytes(pngBytes);
-
       final box = ctx.findRenderObject() as RenderBox?;
       await Share.shareXFiles(
         [XFile(file.path)],
@@ -758,7 +788,6 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
                   widget.imageBytes != null
                       ? Image.memory(widget.imageBytes!)
                       : Image.network(widget.imageUrl!),
-                  // ✅ 뷰어에서도 동일한 랜덤 위치에 스티커 표시
                   for (var sticker in widget.stickers)
                     Positioned(
                       top: sticker.top != null ? sticker.top! + 10 : null,

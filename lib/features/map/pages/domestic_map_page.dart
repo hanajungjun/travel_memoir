@@ -101,10 +101,13 @@ class DomesticMapPageState extends State<DomesticMapPage>
             debugPrint('❌ [BOUNDS ERROR] $e');
           }
         },
-        onStyleLoadedListener: (data) {
+        onStyleLoadedListener: (data) async {
           debugPrint('🎨 [MAP] style loaded');
-          _drawMapData();
+          // ⭐ Mapbox 채널 안정화 대기
+          await Future.delayed(const Duration(milliseconds: 120));
+          await _drawMapData();
         },
+
         onTapListener: (context) => _onMapTap(context),
       ),
     );
@@ -297,14 +300,22 @@ class DomesticMapPageState extends State<DomesticMapPage>
   }
 
   Future<void> _rmLayer(StyleManager style, String id) async {
-    if (await style.styleLayerExists(id)) {
-      await style.removeStyleLayer(id);
+    try {
+      if (await style.styleLayerExists(id)) {
+        await style.removeStyleLayer(id);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [MAP] skip remove layer $id: $e');
     }
   }
 
   Future<void> _rmSource(StyleManager style, String id) async {
-    if (await style.styleSourceExists(id)) {
-      await style.removeStyleSource(id);
+    try {
+      if (await style.styleSourceExists(id)) {
+        await style.removeStyleSource(id);
+      }
+    } catch (e) {
+      debugPrint('⚠️ [MAP] skip remove source $id: $e');
     }
   }
 }

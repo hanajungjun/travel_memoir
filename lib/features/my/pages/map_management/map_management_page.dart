@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/services/payment_service.dart';
 
 class MapManagementPage extends StatefulWidget {
   const MapManagementPage({super.key});
@@ -17,15 +19,30 @@ class _MapManagementPageState extends State<MapManagementPage> {
   final String _userId = Supabase.instance.client.auth.currentUser!.id;
   late Future<List<Map<String, dynamic>>> _future;
   List<Map<String, dynamic>>? _localMapList;
+  List<Package> _mapPackages = []; // 스토어 실제 상품 정보
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _loadStoreProducts();
+  }
+
+  // RevenueCat에서 실제 상품 로드
+  Future<void> _loadStoreProducts() async {
+    final offerings = await PaymentService.getOfferings();
+    if (offerings?.current != null) {
+      setState(() {
+        _mapPackages = offerings!.current!.availablePackages
+            .where(
+              (p) => p.storeProduct.identifier.toLowerCase().contains('map'),
+            )
+            .toList();
+      });
+    }
   }
 
   Future<List<Map<String, dynamic>>> _getMapData() async {
-    // 1. 유저의 활성화 목록 가져오기 (active_maps)
     final res = await Supabase.instance.client
         .from('users')
         .select('active_maps')
@@ -34,7 +51,6 @@ class _MapManagementPageState extends State<MapManagementPage> {
 
     final List<dynamic> activeIds = res?['active_maps'] ?? ['ko', 'world'];
 
-    // 2. 기본 맵 정의
     final List<Map<String, dynamic>> baseMaps = [
       {'id': 'world', 'name': 'world_map', 'icon': '🌎', 'isFixed': true},
       {'id': 'us', 'name': 'usa_map', 'icon': '🇺🇸', 'isFixed': true},
@@ -46,30 +62,22 @@ class _MapManagementPageState extends State<MapManagementPage> {
     List<Map<String, dynamic>> resultList = [];
     for (var map in baseMaps) {
       final String id = map['id'];
-
-      // 한국(ko)과 세계지도(world)는 무조건 '구매됨' 상태
       bool isPurchased =
           (id == 'world' || id == 'ko') || activeIds.contains(id);
 
-      // 활성화(isActive) 상태 결정
-      bool isActive = false;
-      if (id == 'world') {
-        isActive = true;
-      } else if (id == 'us') {
-        isActive = activeIds.contains('us');
-      } else {
-        isActive = activeIds.contains(id);
-      }
+      // 활성화 상태: world는 기본, 나머지는 activeIds에 포함 여부
+      bool isActive =
+          activeIds.contains(id) || (id == 'world' && !activeIds.contains(id));
 
       map['isPurchased'] = isPurchased;
       map['isActive'] = isActive;
       resultList.add(map);
     }
 
-    // ✅ [추가] 정렬 로직: 구매한 지도를 위로, 구매하지 않은 지도를 아래로 정렬
+    // 정렬: 구매한 것 위로
     resultList.sort((a, b) {
       if (a['isPurchased'] == b['isPurchased']) return 0;
-      return a['isPurchased'] ? -1 : 1; // 구매한 것이 위(-1)로, 아니면 아래(1)로
+      return a['isPurchased'] ? -1 : 1;
     });
 
     return resultList;
@@ -80,6 +88,42 @@ class _MapManagementPageState extends State<MapManagementPage> {
       _future = _getMapData();
       _localMapList = null;
     });
+  }
+
+  // 지도 결제 핸들러
+  Future<void> _handleMapPurchase(String mapId) async {
+    try {
+      // 🎯 국가 코드(db id)를 스토어 등록 ID 키워드와 매칭
+      String targetIdSnippet = mapId;
+      if (mapId == 'us') {
+        targetIdSnippet = 'usa';
+      } else if (mapId == 'jp') {
+        targetIdSnippet = 'japan'; // 스토어 ID가 ...japan_map 일 때
+      } else if (mapId == 'it') {
+        targetIdSnippet = 'italy'; // 스토어 ID가 ...italy_map 일 때
+      }
+
+      // 🔍 해당 키워드가 포함된 패키지 찾기
+      final package = _mapPackages.firstWhere(
+        (p) =>
+            p.storeProduct.identifier.toLowerCase().contains(targetIdSnippet),
+      );
+
+      debugPrint("💳 지도 결제 시도: ${package.storeProduct.identifier}");
+
+      final success = await PaymentService.purchasePackage(package);
+      if (success) {
+        _refresh(); // 구매 성공 시 DB에서 active_maps 다시 읽어와서 UI 갱신 (정렬 포함)
+      }
+    } catch (e) {
+      // 패키지를 못 찾았을 때의 예외 처리
+      debugPrint("❌ 지도 구매 패키지를 찾을 수 없음 (mapId: $mapId): $e");
+
+      // 사용자에게 알림을 주고 싶다면 SnackBar 추가
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('상품 정보를 불러올 수 없습니다. ($mapId)')));
+    }
   }
 
   Future<void> _syncToDb() async {
@@ -103,7 +147,6 @@ class _MapManagementPageState extends State<MapManagementPage> {
     setState(() {
       map['isActive'] = !map['isActive'];
     });
-
     _syncToDb();
   }
 
@@ -128,11 +171,9 @@ class _MapManagementPageState extends State<MapManagementPage> {
               _localMapList == null) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (snapshot.hasData && _localMapList == null) {
             _localMapList = List.from(snapshot.data!);
           }
-
           if (_localMapList == null) return const SizedBox.shrink();
 
           return ListView.builder(
@@ -143,6 +184,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
               return _MapItemTile(
                 map: map,
                 onToggle: () => _handleToggle(index),
+                onPurchase: () => _handleMapPurchase(map['id']), // 구매 기능 연결
               );
             },
           );
@@ -155,8 +197,13 @@ class _MapManagementPageState extends State<MapManagementPage> {
 class _MapItemTile extends StatelessWidget {
   final Map<String, dynamic> map;
   final VoidCallback onToggle;
+  final VoidCallback onPurchase;
 
-  const _MapItemTile({required this.map, required this.onToggle});
+  const _MapItemTile({
+    required this.map,
+    required this.onToggle,
+    required this.onPurchase,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -194,6 +241,7 @@ class _MapItemTile extends StatelessWidget {
             ),
           ),
           trailing: _buildTrailing(isPurchased, isActive, isFixed),
+          onTap: isPurchased ? null : onPurchase, // 미구매 지도는 클릭 시 구매
         ),
       ),
     );

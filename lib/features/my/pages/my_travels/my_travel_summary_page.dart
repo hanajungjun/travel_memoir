@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 
+// ✅ 기존 탭 임포트
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/domestic_summary_tab.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/overseas_summary_tab.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/usa_summary_tab.dart';
+
+// ✅ 지도 관리 페이지 임포트 (목록 갱신 테스트용)
+import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
 class MyTravelSummaryPage extends StatefulWidget {
   const MyTravelSummaryPage({super.key});
@@ -15,21 +19,46 @@ class MyTravelSummaryPage extends StatefulWidget {
 
 class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
   String? _userId;
-
-  // 🎯 현재 선택된 지도 코드
   String _selectedCountryCode = 'WORLD';
-  // 🎯 이름 대신 '번역 키(Key)'를 저장합니다.
   String _selectedCountryKey = 'world';
+
+  // ✅ 유저가 구매/활성화한 지도 목록 저장
+  Set<String> _activeMaps = {};
 
   @override
   void initState() {
     super.initState();
-    // 로그인 유저 확인
     final currentUser = Supabase.instance.client.auth.currentUser;
     _userId = currentUser?.id;
+
+    // 🎯 초기 데이터 로드
+    _loadActiveMaps();
   }
 
-  // 🗺️ 통합 지도 선택 바텀 시트
+  /// ✅ Supabase에서 구매한 지도 목록 가져오기
+  Future<void> _loadActiveMaps() async {
+    if (_userId == null) return;
+
+    try {
+      final res = await Supabase.instance.client
+          .from('users')
+          .select('active_maps')
+          .eq('auth_uid', _userId!)
+          .maybeSingle();
+
+      if (res != null && res['active_maps'] != null) {
+        setState(() {
+          _activeMaps = (res['active_maps'] as List)
+              .map((e) => e.toString().toLowerCase())
+              .toSet();
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ 지도 목록 로드 에러: $e');
+    }
+  }
+
+  /// 🗺️ 통합 지도 선택 바텀 시트 (구매 필터링 적용)
   void _showCountryPicker() {
     showModalBottomSheet(
       context: context,
@@ -43,7 +72,7 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'select_map'.tr(), // "지도를 선택하세요"
+                'select_map'.tr(),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 17,
@@ -52,13 +81,36 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
               const SizedBox(height: 16),
               const Divider(height: 1),
 
-              // 🌍 다국어 키를 전달하도록 수정
+              // 🌍 기본 지도 (항상 노출)
               _buildCountryItem('WORLD', 'world', Icons.public),
               _buildCountryItem('KOREA', 'korea', Icons.map_outlined),
-              _buildCountryItem('USA', 'usa', Icons.map_outlined),
-              _buildCountryItem('JAPAN', 'japan', Icons.map_outlined),
+
+              // 🎯 구매한 지도만 리스트에 추가
+              if (_activeMaps.contains('us'))
+                _buildCountryItem('USA', 'usa', Icons.map_outlined),
+              if (_activeMaps.contains('jp'))
+                _buildCountryItem('JAPAN', 'japan', Icons.map_outlined),
+              if (_activeMaps.contains('it'))
+                _buildCountryItem('ITALY', 'italy', Icons.map_outlined),
 
               const SizedBox(height: 12),
+
+              // 💡 지도가 더 필요할 때 바로 갈 수 있는 버튼 (선택사항)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const MapManagementPage(),
+                    ),
+                  ).then((_) => _loadActiveMaps()); // 돌아오면 목록 새로고침
+                },
+                child: Text(
+                  'get_more_maps'.tr(),
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
             ],
           ),
         );
@@ -66,15 +118,13 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
     );
   }
 
-  // 바텀 시트 내 각 국가 아이템
-  // name 대신 nameKey를 받습니다.
   Widget _buildCountryItem(String code, String nameKey, IconData icon) {
     final bool isSelected = _selectedCountryCode == code;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 24),
       leading: Icon(icon, color: isSelected ? Colors.black : Colors.grey),
       title: Text(
-        nameKey.tr(), // 🎯 여기서 번역 적용
+        nameKey.tr(),
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           color: isSelected ? Colors.black : Colors.black87,
@@ -86,7 +136,7 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
       onTap: () {
         setState(() {
           _selectedCountryCode = code;
-          _selectedCountryKey = nameKey; // 키를 저장
+          _selectedCountryKey = nameKey;
         });
         Navigator.pop(context);
       },
@@ -109,7 +159,6 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         centerTitle: true,
-        // 🎯 현재 선택된 키를 번역하여 타이틀 구성
         title: Text(
           '${_selectedCountryKey.tr()} ${'summary'.tr()}',
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -137,10 +186,8 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
           key: const ValueKey('KOREA_TAB'),
           userId: _userId!,
         );
-
       case 'USA':
         return UsaSummaryTab(key: const ValueKey('USA_TAB'), userId: _userId!);
-
       case 'WORLD':
       default:
         return OverseasSummaryTab(

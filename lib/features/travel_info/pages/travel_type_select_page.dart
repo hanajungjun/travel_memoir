@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
 import 'domestic_travel_date_page.dart';
 import 'overseas_travel_date_page.dart';
@@ -41,6 +42,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
         final List activeMaps = res['active_maps'] as List;
         if (mounted) {
           setState(() {
+            // 'us'가 포함되어 있는지 확인
             _hasUsaAccess = activeMaps.contains('us');
           });
         }
@@ -54,7 +56,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
     }
   }
 
-  /// ✅ 구매 유도 팝업
+  /// ✅ 구매 유도 팝업 (상점 연결 로직 추가)
   void _showPurchaseDialog() {
     showDialog(
       context: context,
@@ -64,7 +66,9 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
           'purchase_title'.tr(),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        content: Text('purchase_us_map_msg'.tr()),
+        content: Text(
+          'purchase_us_map_msg'.tr(),
+        ), // "미국 지도가 필요합니다. 관리 화면으로 갈까요?"
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -75,8 +79,16 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
           ),
           ElevatedButton(
             onPressed: () {
-              // TODO: 상점 페이지로 이동 또는 결제 로직 연결
-              Navigator.pop(context);
+              Navigator.pop(context); // 팝업 닫기
+
+              // 🎯 목적지를 MapManagementPage로 변경!
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MapManagementPage()),
+              ).then((_) {
+                // 관리 페이지에서 지도를 활성화하고 돌아올 수 있으니 다시 체크
+                _checkMapAccess();
+              });
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFE74C3C),
@@ -85,8 +97,11 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
               ),
             ),
             child: Text(
-              'go_to_shop'.tr(),
-              style: const TextStyle(color: Colors.white),
+              'go_to_management'.tr(), // "관리하러 가기" (다국어 키 추천)
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -206,7 +221,7 @@ class _TravelTypeCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final VoidCallback onTap;
-  final bool isLocked; // ✅ 잠금 상태 여부 추가
+  final bool isLocked;
 
   const _TravelTypeCard({
     required this.title,
@@ -223,7 +238,7 @@ class _TravelTypeCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Opacity(
-        opacity: isLocked ? 0.5 : 1.0, // ✅ 잠금 시 투명도 조절 (Grey-out 효과)
+        opacity: isLocked ? 0.5 : 1.0,
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(24),
@@ -282,9 +297,7 @@ class _TravelTypeCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      isLocked
-                          ? 'unlock_required'.tr()
-                          : description, // ✅ 잠금 시 설명 변경 가능
+                      isLocked ? 'unlock_required'.tr() : description,
                       style: const TextStyle(
                         color: Colors.black45,
                         fontSize: 14,
@@ -293,7 +306,7 @@ class _TravelTypeCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isLocked) // ✅ 우측에 작은 화살표 대신 자물쇠 아이콘 유지 가능
+              if (isLocked)
                 const Icon(
                   Icons.arrow_forward_ios,
                   size: 14,

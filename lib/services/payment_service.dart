@@ -5,21 +5,34 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class PaymentService {
   static final _supabase = Supabase.instance.client;
 
-  // ✅ RevenueCat Entitlement ID (대시보드와 일치해야 함)
+  // ✅ RevenueCat Entitlement ID (대시보드와 반드시 일치)
   static const String _entitlementId = "TravelMemoir Pro";
 
-  // 1. 모든 판매 상품 정보 가져오기 (복수형 - PayManagementPage용)
+  // =========================
+  // 0️⃣ coins_50 / coins_100 / coins_200 파싱
+  // =========================
+  static int _parseCoinAmount(String productIdentifier) {
+    final match = RegExp(
+      r'coins_(\d+)',
+    ).firstMatch(productIdentifier.toLowerCase());
+    return int.tryParse(match?.group(1) ?? '0') ?? 0;
+  }
+
+  // =========================
+  // 1️⃣ 모든 오퍼링 정보 가져오기
+  // =========================
   static Future<Offerings?> getOfferings() async {
     try {
-      Offerings offerings = await Purchases.getOfferings();
-      return offerings;
+      return await Purchases.getOfferings();
     } catch (e) {
-      print("❌ 전체 상품 가져오기 실패: $e");
+      print("❌ 전체 오퍼링 가져오기 실패: $e");
       return null;
     }
   }
 
-  // 2. 현재 활성화된 오퍼링만 가져오기 (단수형 - CoinPaywall용)
+  // =========================
+  // 2️⃣ 현재 활성화된 오퍼링 가져오기
+  // =========================
   static Future<Offering?> getCurrentOffering() async {
     try {
       Offerings offerings = await Purchases.getOfferings();
@@ -30,36 +43,52 @@ class PaymentService {
     }
   }
 
-  // 3. 실제 결제 진행하기
+  // =========================
+  // 3️⃣ 결제 진행
+  // =========================
   static Future<bool> purchasePackage(Package package) async {
     try {
       CustomerInfo customerInfo = await Purchases.purchasePackage(package);
-      // 어떤 상품을 샀는지 ID를 함께 넘깁니다.
+
       return await _handleCustomerInfo(
         customerInfo,
         package.storeProduct.identifier,
       );
     } on PlatformException catch (e) {
-      var errorCode = PurchasesErrorHelper.getErrorCode(e);
-      if (errorCode != PurchasesErrorCode.purchaseCancelledError) {
+      if (PurchasesErrorHelper.getErrorCode(e) !=
+          PurchasesErrorCode.purchaseCancelledError) {
         print("❌ 결제 오류: ${e.message}");
       }
       return false;
     }
   }
 
-  // 4. 구독 복원하기
+  // =========================
+  // 4️⃣ 구매 복원
+  // =========================
   static Future<bool> restorePurchases() async {
     try {
       CustomerInfo customerInfo = await Purchases.restorePurchases();
-      return await _handleCustomerInfo(customerInfo, null);
+
+      final entitlements = customerInfo.entitlements.all[_entitlementId];
+      final bool isActive = entitlements?.isActive ?? false;
+
+      await _syncStatusToSupabase(
+        isActive: isActive,
+        expirationDate: entitlements?.expirationDate,
+        rcId: customerInfo.originalAppUserId,
+      );
+
+      return true;
     } catch (e) {
       print("❌ 복원 실패: $e");
       return false;
     }
   }
 
-  // 5. 🔐 [내부용] 정보 처리 및 DB 동기화
+  // =========================
+  // 5️⃣ CustomerInfo 처리 게이트
+  // =========================
   static Future<bool> _handleCustomerInfo(
     CustomerInfo info,
     String? productIdentifier,
@@ -67,7 +96,6 @@ class PaymentService {
     final entitlement = info.entitlements.all[_entitlementId];
     final bool isActive = entitlement?.isActive ?? false;
 
-    // Supabase DB 업데이트
     await _syncStatusToSupabase(
       isActive: isActive,
       expirationDate: entitlement?.expirationDate,
@@ -75,12 +103,12 @@ class PaymentService {
       productIdentifier: productIdentifier,
     );
 
-    // 유료 권한이 있거나, 방금 코인 상품을 샀다면 true 반환
-    return isActive ||
-        (productIdentifier != null && productIdentifier.contains('coin'));
+    return true;
   }
 
-  // 6. 🔐 Supabase DB 업데이트
+  // =========================
+  // 6️⃣ Supabase 동기화 (구독 + 코인 + 지도)
+  // =========================
   static Future<void> _syncStatusToSupabase({
     required bool isActive,
     String? expirationDate,
@@ -91,30 +119,54 @@ class PaymentService {
     if (user == null) return;
 
     try {
-      // (1) 구독 상태 업데이트 데이터
-      Map<String, dynamic> updateData = {
+      // (1) 구독 기본 상태 업데이트
+      final updateData = {
         'is_premium': isActive,
         'premium_until': expirationDate,
         'subscription_status': isActive ? 'active' : 'none',
         'revenuecat_id': rcId,
       };
 
-      // (2) 코인 상품 구매 시 코인 개수 증가 (RPC 호출)
-      if (productIdentifier != null && productIdentifier.contains('coin')) {
-        int addedCoins =
-            int.tryParse(productIdentifier.replaceAll(RegExp(r'[^0-9]'), '')) ??
-            0;
+      await _supabase.from('users').update(updateData).eq('auth_uid', user.id);
+
+      // (2) ✅ 구독 보너스 코인 지급 (1회만!)
+      if (isActive) {
+        await _supabase.rpc('grant_membership_coins');
+      }
+
+      // (3) ✅ 코인 상품 구매 처리 (coins_50 / 100 / 200)
+      if (productIdentifier != null &&
+          productIdentifier.toLowerCase().contains('coins_')) {
+        final addedCoins = _parseCoinAmount(productIdentifier);
+
         if (addedCoins > 0) {
           await _supabase.rpc(
             'increment_coins',
             params: {'amount': addedCoins},
           );
-          print("💰 코인 $addedCoins개 충전 완료!");
+          print("💰 코인 $addedCoins개 충전 성공");
         }
       }
 
-      await _supabase.from('users').update(updateData).eq('auth_uid', user.id);
-      print("✅ Supabase 동기화 성공!");
+      // (4) 지도 상품 구매 처리
+      if (productIdentifier != null &&
+          productIdentifier.toLowerCase().contains('map')) {
+        String mapId = '';
+        if (productIdentifier.contains('usa')) {
+          mapId = 'us';
+        } else if (productIdentifier.contains('japan')) {
+          mapId = 'jp';
+        } else if (productIdentifier.contains('italy')) {
+          mapId = 'it';
+        }
+
+        if (mapId.isNotEmpty) {
+          await _supabase.rpc('add_map_to_user', params: {'map_id': mapId});
+          print("🗺️ 지도 $mapId 추가 완료");
+        }
+      }
+
+      print("✅ Supabase 데이터 동기화 완료");
     } catch (e) {
       print("❌ DB 업데이트 오류: $e");
     }
