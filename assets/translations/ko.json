@@ -281,10 +281,10 @@
   "italy_map": "이탈리아 지도",
   "map_reorder_guide": "지도를 꾹 눌러서 순서를 변경해주세요",
   "map_reorder_purchase_only": "구매한 지도만 순서 변경이 가능합니다",
-  "us_travel_comma": "미국 여행, ",
+  "us_travel_comma": "미국여행, ",
   "us_label": "State",
   "us_description": "미국 50개 주의 특별한 여정을 기록하세요.",
-  "us_travel": "미국 여행",
+  "us_travel": "미국여행",
   "unlock_required": "잠금 해제가 필요합니다",
   "purchase_title": "미국 지도 구매",
   "purchase_us_map_msg": "미국 주 단위 기록을 시작하려면 미국 지도를 구매해야 합니다.",
@@ -332,5 +332,6 @@
   "monthly_membership": "월간 프리미엄 멤버십",
   "year": "년",
   "go_to_management":"지도관리",
-  "get_more_maps": "새로운 지도 추가하기"  
+  "get_more_maps": "새로운 지도 추가하기" ,
+  "nationality": "국적" 
 }

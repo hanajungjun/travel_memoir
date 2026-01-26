@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:easy_localization/easy_localization.dart'; // 추가
+import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
@@ -20,6 +20,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   final nicknameController = TextEditingController();
   final bioController = TextEditingController();
+  final nationalityController = TextEditingController(); // ✅ 국적 컨트롤러 추가
 
   File? _pickedImage;
   String? _imageUrl;
@@ -43,6 +44,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
     nicknameController.text = data['nickname'] ?? '';
     bioController.text = data['bio'] ?? '';
+    nationalityController.text = data['nationality'] ?? ''; // ✅ 국적 로드
     _imageUrl = data['profile_image_url'];
 
     setState(() => _loading = false);
@@ -70,9 +72,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   Future<void> _save() async {
     if (nicknameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('please_enter_nickname'.tr())), // ✅ 번역 적용
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('please_enter_nickname'.tr())));
       return;
     }
 
@@ -90,6 +92,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         .update({
           'nickname': nicknameController.text.trim(),
           'bio': bioController.text.trim(),
+          'nationality': nationalityController.text.trim(), // ✅ 국적 저장
           'profile_image_url': finalImageUrl,
           'updated_at': DateTime.now().toIso8601String(),
         })
@@ -104,6 +107,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   void dispose() {
     nicknameController.dispose();
     bioController.dispose();
+    nationalityController.dispose(); // ✅ 컨트롤러 해제
     super.dispose();
   }
 
@@ -114,10 +118,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        title: Text(
-          'edit_profile'.tr(),
-          style: AppTextStyles.pageTitle,
-        ), // ✅ 번역 적용
+        title: Text('edit_profile'.tr(), style: AppTextStyles.pageTitle),
         actions: [
           TextButton(
             onPressed: _saving ? null : _save,
@@ -128,16 +129,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : Text('save'.tr()), // ✅ 번역 적용
+                : Text('save'.tr()),
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : Padding(
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 children: [
+                  // 프로필 이미지 영역
                   GestureDetector(
                     onTap: _pickImage,
                     child: Stack(
@@ -179,36 +181,59 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  TextField(
+
+                  // 닉네임 필드
+                  _buildTextField(
                     controller: nicknameController,
+                    label: 'nickname'.tr(),
                     maxLength: 10,
-                    decoration: InputDecoration(
-                      labelText: 'nickname'.tr(), // ✅ 번역 적용
-                      counterText: '',
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 20),
-                  TextField(
+                  // 자기소개 필드
+                  _buildTextField(
                     controller: bioController,
+                    label: 'bio_label'.tr(),
                     maxLength: 40,
-                    decoration: InputDecoration(
-                      labelText: 'bio_label'.tr(), // ✅ 번역 적용
-                      counterText: '',
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // ✅ 국적 필드 (새로 추가됨)
+                  _buildTextField(
+                    controller: nationalityController,
+                    label: 'nationality'.tr(),
+                    // hint: '예: 방구석 공화국, 지구 방위대',
+                    maxLength: 15,
                   ),
                 ],
               ),
             ),
+    );
+  }
+
+  // 재사용 가능한 입력 필드 위젯
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    String? hint,
+    required int maxLength,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLength: maxLength,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        counterText: '',
+        filled: true,
+        fillColor: AppColors.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      ),
     );
   }
 }
