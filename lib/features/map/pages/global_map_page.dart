@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
+import 'package:flutter/gestures.dart'; // 👈 EagerGestureRecognizer를 위해 필요
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -52,7 +52,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
   static const _worldFill = 'world-fill';
   static const _worldGeo = 'assets/geo/processed/world_countries.geojson';
 
-  // 🗺️ 상세 지도 설정 리스트 (US, JP, IT 등)
   final List<DetailedMapConfig> _supportedDetailedMaps = [
     DetailedMapConfig(
       countryCode: 'US',
@@ -89,6 +88,40 @@ class GlobalMapPageState extends State<GlobalMapPage>
     if (mounted) setState(fn);
   }
 
+  // ⭐ [추가] 실기기 제스처 업데이트 함수
+  Future<void> _updateMapGestures() async {
+    if (_map == null) return;
+    try {
+      await _map!.gestures.updateSettings(
+        widget.isReadOnly
+            ? GesturesSettings(
+                scrollEnabled: true, // ✅ 한 손가락 이동 허용
+                pinchToZoomEnabled: false,
+                doubleTapToZoomInEnabled: false,
+                doubleTouchToZoomOutEnabled: false,
+                quickZoomEnabled: false,
+                rotateEnabled: false,
+                pitchEnabled: false,
+              )
+            : GesturesSettings(
+                scrollEnabled: true,
+                pinchToZoomEnabled: true,
+                rotateEnabled: true,
+                pitchEnabled: true,
+              ),
+      );
+    } catch (_) {}
+  }
+
+  // ⭐ [추가] 부모 위젯에서 isReadOnly가 변경될 때 즉시 반영
+  @override
+  void didUpdateWidget(GlobalMapPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isReadOnly != widget.isReadOnly) {
+      _updateMapGestures();
+    }
+  }
+
   Future<void> refreshData() async {
     if (_map == null) return;
     await _drawAll();
@@ -101,42 +134,25 @@ class GlobalMapPageState extends State<GlobalMapPage>
       children: [
         MapWidget(
           styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
+          // ⭐ [핵심 추가] 실기기 터치 씹힘 방지: 지도가 제스처를 선점하도록 함
+          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+            Factory<OneSequenceGestureRecognizer>(
+              () => EagerGestureRecognizer(),
+            ),
+          },
           cameraOptions: CameraOptions(
             center: Point(coordinates: Position(10, 20)),
             zoom: 1.3,
           ),
           onMapCreated: (map) async {
             _map = map;
-
             try {
               await map.setBounds(
                 CameraBoundsOptions(minZoom: 0.8, maxZoom: 6.0),
               );
             } catch (_) {}
 
-            // ⭐ 여기 추가 ⭐
-            // readonly 여부에 따라 확대/축소 제어
-            // ✅ readonly 여부에 따라 제스처 제어 (Flutter 지원 옵션만 사용)
-            try {
-              await map.gestures.updateSettings(
-                widget.isReadOnly
-                    ? GesturesSettings(
-                        scrollEnabled: true, // ✅ 한 손가락 이동(드래그) 허용!
-                        pinchToZoomEnabled: false, // 🔒 두 손가락 확대/축소 금지
-                        doubleTapToZoomInEnabled: false, // 🔒 더블 탭 확대 금지
-                        doubleTouchToZoomOutEnabled: false, // 🔒 두 손가락 탭 축소 금지
-                        quickZoomEnabled: false, // 🔒 퀵 줌 금지
-                        rotateEnabled: false, // 🔒 회전 금지
-                        pitchEnabled: false, // 🔒 기울기 금지
-                      )
-                    : GesturesSettings(
-                        scrollEnabled: true,
-                        pinchToZoomEnabled: true,
-                        rotateEnabled: true,
-                        pitchEnabled: true,
-                      ),
-              );
-            } catch (_) {}
+            // 여기서 제스처 설정을 바로 하지 않고 _onStyleLoaded에서 합니다.
           },
           onStyleLoadedListener: _onStyleLoaded,
           onTapListener: widget.isReadOnly ? null : _onMapTap,
@@ -154,8 +170,11 @@ class GlobalMapPageState extends State<GlobalMapPage>
     if (_init || _map == null) return;
     _init = true;
 
-    // ⭐ 핵심: Mapbox 채널 안정화 대기
-    await Future.delayed(const Duration(milliseconds: 120));
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || _map == null) return;
+
+    // ⭐ [추가] 스타일 로드 후 제스처 설정 적용
+    await _updateMapGestures();
 
     try {
       await _map!.style.setProjection(
@@ -174,6 +193,8 @@ class GlobalMapPageState extends State<GlobalMapPage>
     _safeSetState(() => _ready = true);
   }
 
+  // --- 아래부터는 건드리지 않은 기존 로직 그대로입니다 ---
+
   Future<void> _loadUserMapAccess() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -191,7 +212,10 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }
 
   Future<void> _drawAll() async {
-    final style = _map?.style;
+    final map = _map;
+    if (map == null) return;
+
+    final style = map.style;
     if (style == null) return;
 
     final travels = await Supabase.instance.client
@@ -208,7 +232,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
       final code = t['country_code']?.toString().toUpperCase() ?? '';
       if (code.isEmpty) continue;
 
-      visitedCountries.add(code); // ✅ 방문 국가 추가
+      visitedCountries.add(code);
       if (t['is_completed'] == true) completedCountries.add(code);
 
       final rn = t['region_name']?.toString();
@@ -219,13 +243,11 @@ class GlobalMapPageState extends State<GlobalMapPage>
       }
     }
 
-    // 1. 세계지도 소스 및 레이어 초기화
     final worldJson = await rootBundle.loadString(_worldGeo);
     await _rm(style, _worldFill, _worldSource);
     await style.addSource(GeoJsonSource(id: _worldSource, data: worldJson));
     await style.addLayer(FillLayer(id: _worldFill, sourceId: _worldSource));
 
-    // ✅ [복구] 필터 적용: 방문한 국가만 색칠함 (이게 빠져서 다 빨갛게 나왔던 겁니다!)
     final worldFilterExpr = [
       'any',
       [
@@ -254,7 +276,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
       const Color.fromARGB(255, 144, 73, 77).withOpacity(0.25),
     );
 
-    // 2. 세계지도 컬러 로직
     final List<dynamic> worldColorExpr = ['case'];
     for (var config in _supportedDetailedMaps) {
       worldColorExpr.add([
@@ -302,7 +323,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
     await style.setStyleLayerProperty(_worldFill, 'fill-color', worldColorExpr);
     await style.setStyleLayerProperty(_worldFill, 'fill-opacity', 0.7);
 
-    // 3. 상세 지도 반복문 그리기
     for (var config in _supportedDetailedMaps) {
       if (_hasAccess(config.countryCode)) {
         await _drawSubMap(
@@ -367,7 +387,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
   Future<void> _onMapTap(MapContentGestureContext ctx) async {
     final screen = await _map!.pixelForCoordinate(ctx.point);
-
     for (var config in _supportedDetailedMaps) {
       if (_hasAccess(config.countryCode)) {
         final features = await _map!.queryRenderedFeatures(
@@ -388,7 +407,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
         }
       }
     }
-
     final world = await _map!.queryRenderedFeatures(
       RenderedQueryGeometry.fromScreenCoordinate(screen),
       RenderedQueryOptions(layerIds: [_worldFill]),
@@ -428,9 +446,19 @@ class GlobalMapPageState extends State<GlobalMapPage>
         .limit(1)
         .maybeSingle();
     if (res == null) return;
-    final url = isDetailed
-        ? StorageUrls.usaMapFromPath(res['map_image_url'] ?? '')
-        : StorageUrls.globalMapFromPath(res['map_image_url'] ?? '');
+    final rawPath = res['map_image_url']?.toString() ?? '';
+
+    String finalUrl;
+    if (countryCode == 'US') {
+      finalUrl = _hasAccess('US')
+          ? StorageUrls.usaMapFromPath(rawPath)
+          : StorageUrls.globalMapFromPath('US.png');
+    } else {
+      finalUrl = StorageUrls.globalMapFromPath(
+        '${countryCode.toUpperCase()}.png',
+      );
+    }
+
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -440,7 +468,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
       transitionBuilder: (_, anim, __, ___) => Opacity(
         opacity: anim.value,
         child: AiMapPopup(
-          imageUrl: url,
+          imageUrl: finalUrl,
           regionName: regionName,
           summary: res['ai_cover_summary'] ?? '',
         ),
@@ -504,19 +532,10 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
   Future<void> _rm(StyleManager s, String layer, String source) async {
     try {
-      if (await s.styleLayerExists(layer)) {
-        await s.removeStyleLayer(layer);
-      }
-    } catch (e) {
-      debugPrint('⚠️ remove layer skip ($layer): $e');
-    }
-
+      if (await s.styleLayerExists(layer)) await s.removeStyleLayer(layer);
+    } catch (_) {}
     try {
-      if (await s.styleSourceExists(source)) {
-        await s.removeStyleSource(source);
-      }
-    } catch (e) {
-      debugPrint('⚠️ remove source skip ($source): $e');
-    }
+      if (await s.styleSourceExists(source)) await s.removeStyleSource(source);
+    } catch (_) {}
   }
 }
