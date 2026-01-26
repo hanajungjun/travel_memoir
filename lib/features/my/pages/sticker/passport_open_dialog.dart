@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 // --- [1] 여권 애니메이션 다이얼로그 (간지 나는 앞표지 적용) ---
 class PassportOpeningDialog extends StatefulWidget {
@@ -159,43 +160,38 @@ class _MyStickerPageState extends State<MyStickerPage> {
   Future<Map<String, dynamic>> _loadData() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return {};
-    final profile = await _supabase
-        .from('users')
-        .select()
-        .eq('auth_uid', user.id)
-        .maybeSingle();
-    final visitedRows = await _supabase
-        .from('visited_countries')
-        .select()
-        .eq('user_id', user.id);
 
-    final countries = [
-      {'code': 'ES', 'name': 'Spain'},
-      {'code': 'FR', 'name': 'France'},
-      {'code': 'JP', 'name': 'Japan'},
-      {'code': 'US', 'name': 'USA'},
-      {'code': 'IT', 'name': 'Italy'},
-      {'code': 'DE', 'name': 'Germany'},
-      {'code': 'KR', 'name': 'Korea'},
-      {'code': 'VN', 'name': 'Vietnam'},
-    ];
+    // 1. 유저 프로필, 마스터 국가 리스트, 유저가 방문한 리스트를 한 번에 호출
+    final responses = await Future.wait([
+      _supabase.from('users').select().eq('auth_uid', user.id).maybeSingle(),
+      _supabase
+          .from('passport_countries')
+          .select()
+          .eq('is_active', true)
+          .order('name_en'), // ✅ 테이블명 변경!
+      _supabase.from('visited_countries').select().eq('user_id', user.id),
+    ]);
 
-    final visitedData = {
-      for (var row in (visitedRows as List)) row['country_code']: row,
-    };
+    final profile = responses[0];
+    final List allCountries = responses[1] as List;
+    final List visitedRows = responses[2] as List;
+
+    final visitedData = {for (var row in visitedRows) row['country_code']: row};
 
     return {
       'profile': profile,
-      'stickers': countries.map((c) {
-        final row = visitedData[c['code']];
+      'stickers': allCountries.map((c) {
+        final String code = c['code'];
+        final row = visitedData[code];
+        final isKo = context.locale.languageCode == 'ko'; // ✅ 다국어 처리 반영
+
         return {
-          ...c,
+          'code': code,
+          'name': isKo ? c['name_ko'] : c['name_en'], // ✅ 로케일에 맞춰 이름 표시
           'isUnlocked': row != null,
           'created_at': row?['created_at'],
           'asset': row != null
-              ? _supabase.storage
-                    .from('stickers')
-                    .getPublicUrl('${c['code']}.png')
+              ? _supabase.storage.from('stickers').getPublicUrl('$code.png')
               : null,
         };
       }).toList(),
