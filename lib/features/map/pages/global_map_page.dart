@@ -1,5 +1,6 @@
+import 'dart:async'; // 👈 지연 처리를 위해 추가
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart'; // 👈 EagerGestureRecognizer를 위해 필요
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -9,7 +10,6 @@ import 'package:travel_memoir/storage_urls.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/core/widgets/ai_map_popup.dart';
 
-// ✅ 상세 지도 설정을 관리하는 헬퍼 클래스
 class DetailedMapConfig {
   final String countryCode;
   final String geoJsonPath;
@@ -88,14 +88,13 @@ class GlobalMapPageState extends State<GlobalMapPage>
     if (mounted) setState(fn);
   }
 
-  // ⭐ [추가] 실기기 제스처 업데이트 함수
   Future<void> _updateMapGestures() async {
     if (_map == null) return;
     try {
       await _map!.gestures.updateSettings(
         widget.isReadOnly
             ? GesturesSettings(
-                scrollEnabled: true, // ✅ 한 손가락 이동 허용
+                scrollEnabled: true,
                 pinchToZoomEnabled: false,
                 doubleTapToZoomInEnabled: false,
                 doubleTouchToZoomOutEnabled: false,
@@ -113,7 +112,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
     } catch (_) {}
   }
 
-  // ⭐ [추가] 부모 위젯에서 isReadOnly가 변경될 때 즉시 반영
   @override
   void didUpdateWidget(GlobalMapPage oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -134,7 +132,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
       children: [
         MapWidget(
           styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
-          // ⭐ [핵심 추가] 실기기 터치 씹힘 방지: 지도가 제스처를 선점하도록 함
           gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
             Factory<OneSequenceGestureRecognizer>(
               () => EagerGestureRecognizer(),
@@ -151,8 +148,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
                 CameraBoundsOptions(minZoom: 0.8, maxZoom: 6.0),
               );
             } catch (_) {}
-
-            // 여기서 제스처 설정을 바로 하지 않고 _onStyleLoaded에서 합니다.
           },
           onStyleLoadedListener: _onStyleLoaded,
           onTapListener: widget.isReadOnly ? null : _onMapTap,
@@ -166,14 +161,17 @@ class GlobalMapPageState extends State<GlobalMapPage>
     );
   }
 
+  // 🎯 스타일 로드 후 안정화 시간 부여
   Future<void> _onStyleLoaded(StyleLoadedEventData _) async {
     if (_init || _map == null) return;
     _init = true;
 
+    // ⭐ 포인트 1: 0.5초 정도 지연을 주어 네이티브 채널 안정화
     await WidgetsBinding.instance.endOfFrame;
+    await Future.delayed(const Duration(milliseconds: 500));
+
     if (!mounted || _map == null) return;
 
-    // ⭐ [추가] 스타일 로드 후 제스처 설정 적용
     await _updateMapGestures();
 
     try {
@@ -184,7 +182,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
     await _localizeLabels();
     await _loadUserMapAccess();
-    await _drawAll();
+    await _drawAll(); // ⭐ 안전장치가 추가된 그리기 로직 호출
 
     if (widget.showLastTravelFocus) {
       await _focusOnLastTravel();
@@ -193,146 +191,165 @@ class GlobalMapPageState extends State<GlobalMapPage>
     _safeSetState(() => _ready = true);
   }
 
-  // --- 아래부터는 건드리지 않은 기존 로직 그대로입니다 ---
-
   Future<void> _loadUserMapAccess() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-    final res = await Supabase.instance.client
-        .from('users')
-        .select('active_maps')
-        .eq('auth_uid', user.id)
-        .maybeSingle();
-    final List activeList = (res?['active_maps'] as List?) ?? [];
-    _safeSetState(() {
-      _purchasedMapIds = activeList
-          .map((e) => e.toString().toLowerCase())
-          .toSet();
-    });
+    try {
+      final res = await Supabase.instance.client
+          .from('users')
+          .select('active_maps')
+          .eq('auth_uid', user.id)
+          .maybeSingle();
+      final List activeList = (res?['active_maps'] as List?) ?? [];
+      _safeSetState(() {
+        _purchasedMapIds = activeList
+            .map((e) => e.toString().toLowerCase())
+            .toSet();
+      });
+    } catch (_) {}
   }
 
+  // 🎯 안전하게 그리기 로직 (중복 체크 및 예외 처리 강화)
   Future<void> _drawAll() async {
     final map = _map;
-    if (map == null) return;
+    if (map == null || !mounted) return;
 
     final style = map.style;
     if (style == null) return;
 
-    final travels = await Supabase.instance.client
-        .from('travels')
-        .select('country_code, region_name, is_completed, travel_type')
-        .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
+    try {
+      final travels = await Supabase.instance.client
+          .from('travels')
+          .select('country_code, region_name, is_completed, travel_type')
+          .eq('user_id', Supabase.instance.client.auth.currentUser!.id);
 
-    final Set<String> visitedCountries = {};
-    final Set<String> completedCountries = {};
-    final Map<String, Set<String>> visitedRegions = {};
-    final Map<String, Set<String>> completedRegions = {};
+      final Set<String> visitedCountries = {};
+      final Set<String> completedCountries = {};
+      final Map<String, Set<String>> visitedRegions = {};
+      final Map<String, Set<String>> completedRegions = {};
 
-    for (var t in (travels as List)) {
-      final code = t['country_code']?.toString().toUpperCase() ?? '';
-      if (code.isEmpty) continue;
+      for (var t in (travels as List)) {
+        final code = t['country_code']?.toString().toUpperCase() ?? '';
+        if (code.isEmpty) continue;
 
-      visitedCountries.add(code);
-      if (t['is_completed'] == true) completedCountries.add(code);
+        visitedCountries.add(code);
+        if (t['is_completed'] == true) completedCountries.add(code);
 
-      final rn = t['region_name']?.toString();
-      if (rn != null) {
-        visitedRegions.putIfAbsent(code, () => {}).add(rn.toUpperCase());
-        if (t['is_completed'] == true)
-          completedRegions.putIfAbsent(code, () => {}).add(rn.toUpperCase());
+        final rn = t['region_name']?.toString();
+        if (rn != null) {
+          visitedRegions.putIfAbsent(code, () => {}).add(rn.toUpperCase());
+          if (t['is_completed'] == true)
+            completedRegions.putIfAbsent(code, () => {}).add(rn.toUpperCase());
+        }
       }
-    }
 
-    final worldJson = await rootBundle.loadString(_worldGeo);
-    await _rm(style, _worldFill, _worldSource);
-    await style.addSource(GeoJsonSource(id: _worldSource, data: worldJson));
-    await style.addLayer(FillLayer(id: _worldFill, sourceId: _worldSource));
+      final worldJson = await rootBundle.loadString(_worldGeo);
 
-    final worldFilterExpr = [
-      'any',
-      [
-        'in',
-        ['get', 'ISO_A2_EH'],
-        ['literal', visitedCountries.toList()],
-      ],
-      [
-        'in',
-        ['get', 'iso_a2'],
-        ['literal', visitedCountries.toList()],
-      ],
-      [
-        'in',
-        ['get', 'ISO_A2'],
-        ['literal', visitedCountries.toList()],
-      ],
-    ];
-    await style.setStyleLayerProperty(_worldFill, 'filter', worldFilterExpr);
+      // ⭐ 포인트 2: 기존 레이어/소스 제거 후 하나씩 순차적으로 추가
+      await _rm(style, _worldFill, _worldSource);
 
-    final subMapBaseHex = _hex(
-      const Color.fromARGB(255, 216, 219, 221).withOpacity(0.12),
-    );
-    final doneHex = _hex(AppColors.mapOverseaVisitedFill);
-    final activeHex = _hex(
-      const Color.fromARGB(255, 144, 73, 77).withOpacity(0.25),
-    );
+      if (!(await style.styleSourceExists(_worldSource))) {
+        await style.addSource(GeoJsonSource(id: _worldSource, data: worldJson));
+      }
 
-    final List<dynamic> worldColorExpr = ['case'];
-    for (var config in _supportedDetailedMaps) {
-      worldColorExpr.add([
-        'all',
-        [
-          'any',
-          [
-            '==',
-            ['get', 'ISO_A2'],
-            config.countryCode,
-          ],
-          [
-            '==',
-            ['get', 'iso_a2'],
-            config.countryCode,
-          ],
-        ],
-        _hasAccess(config.countryCode),
-      ]);
-      worldColorExpr.add(subMapBaseHex);
-    }
-    worldColorExpr.addAll([
-      [
+      if (!(await style.styleLayerExists(_worldFill))) {
+        await style.addLayer(FillLayer(id: _worldFill, sourceId: _worldSource));
+      }
+
+      final worldFilterExpr = [
         'any',
         [
           'in',
           ['get', 'ISO_A2_EH'],
-          ['literal', completedCountries.toList()],
+          ['literal', visitedCountries.toList()],
         ],
         [
           'in',
           ['get', 'iso_a2'],
-          ['literal', completedCountries.toList()],
+          ['literal', visitedCountries.toList()],
         ],
         [
           'in',
           ['get', 'ISO_A2'],
-          ['literal', completedCountries.toList()],
+          ['literal', visitedCountries.toList()],
         ],
-      ],
-      doneHex,
-      activeHex,
-    ]);
+      ];
+      await style.setStyleLayerProperty(_worldFill, 'filter', worldFilterExpr);
 
-    await style.setStyleLayerProperty(_worldFill, 'fill-color', worldColorExpr);
-    await style.setStyleLayerProperty(_worldFill, 'fill-opacity', 0.7);
+      final subMapBaseHex = _hex(
+        const Color.fromARGB(255, 216, 219, 221).withOpacity(0.12),
+      );
+      final doneHex = _hex(AppColors.mapOverseaVisitedFill);
+      final activeHex = _hex(
+        const Color.fromARGB(255, 144, 73, 77).withOpacity(0.25),
+      );
 
-    for (var config in _supportedDetailedMaps) {
-      if (_hasAccess(config.countryCode)) {
-        await _drawSubMap(
-          style,
-          config,
-          visitedRegions[config.countryCode] ?? {},
-          completedRegions[config.countryCode] ?? {},
-          doneHex,
-        );
+      final List<dynamic> worldColorExpr = ['case'];
+      for (var config in _supportedDetailedMaps) {
+        worldColorExpr.add([
+          'all',
+          [
+            'any',
+            [
+              '==',
+              ['get', 'ISO_A2'],
+              config.countryCode,
+            ],
+            [
+              '==',
+              ['get', 'iso_a2'],
+              config.countryCode,
+            ],
+          ],
+          _hasAccess(config.countryCode),
+        ]);
+        worldColorExpr.add(subMapBaseHex);
       }
+      worldColorExpr.addAll([
+        [
+          'any',
+          [
+            'in',
+            ['get', 'ISO_A2_EH'],
+            ['literal', completedCountries.toList()],
+          ],
+          [
+            'in',
+            ['get', 'iso_a2'],
+            ['literal', completedCountries.toList()],
+          ],
+          [
+            'in',
+            ['get', 'ISO_A2'],
+            ['literal', completedCountries.toList()],
+          ],
+        ],
+        doneHex,
+        activeHex,
+      ]);
+
+      await style.setStyleLayerProperty(
+        _worldFill,
+        'fill-color',
+        worldColorExpr,
+      );
+      await style.setStyleLayerProperty(_worldFill, 'fill-opacity', 0.7);
+
+      // ⭐ 포인트 3: 상세 지도는 순차적으로 지연을 주며 그리기 (부하 방지)
+      for (var config in _supportedDetailedMaps) {
+        if (_hasAccess(config.countryCode)) {
+          await Future.delayed(const Duration(milliseconds: 50));
+          await _drawSubMap(
+            style,
+            config,
+            visitedRegions[config.countryCode] ?? {},
+            completedRegions[config.countryCode] ?? {},
+            doneHex,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("⚠️ _drawAll 안전 예외 처리: $e");
     }
   }
 
@@ -346,10 +363,16 @@ class GlobalMapPageState extends State<GlobalMapPage>
     try {
       final json = await rootBundle.loadString(config.geoJsonPath);
       await _rm(style, config.layerId, config.sourceId);
-      await style.addSource(GeoJsonSource(id: config.sourceId, data: json));
-      await style.addLayer(
-        FillLayer(id: config.layerId, sourceId: config.sourceId),
-      );
+
+      if (!(await style.styleSourceExists(config.sourceId))) {
+        await style.addSource(GeoJsonSource(id: config.sourceId, data: json));
+      }
+
+      if (!(await style.styleLayerExists(config.layerId))) {
+        await style.addLayer(
+          FillLayer(id: config.layerId, sourceId: config.sourceId),
+        );
+      }
 
       if (await style.styleLayerExists(config.labelLayerId)) {
         await style.moveStyleLayer(
@@ -385,7 +408,10 @@ class GlobalMapPageState extends State<GlobalMapPage>
     }
   }
 
+  // --- 기존 제스처/팝업 로직은 동일 ---
+
   Future<void> _onMapTap(MapContentGestureContext ctx) async {
+    if (_map == null) return;
     final screen = await _map!.pixelForCoordinate(ctx.point);
     for (var config in _supportedDetailedMaps) {
       if (_hasAccess(config.countryCode)) {
@@ -448,16 +474,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
     if (res == null) return;
     final rawPath = res['map_image_url']?.toString() ?? '';
 
-    String finalUrl;
-    if (countryCode == 'US') {
-      finalUrl = _hasAccess('US')
-          ? StorageUrls.usaMapFromPath(rawPath)
-          : StorageUrls.globalMapFromPath('US.png');
-    } else {
-      finalUrl = StorageUrls.globalMapFromPath(
-        '${countryCode.toUpperCase()}.png',
-      );
-    }
+    String finalUrl = (countryCode == 'US' && _hasAccess('US'))
+        ? StorageUrls.usaMapFromPath(rawPath)
+        : StorageUrls.globalMapFromPath('${countryCode.toUpperCase()}.png');
 
     showGeneralDialog(
       context: context,

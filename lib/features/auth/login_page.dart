@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io'; // 👈 플랫폼 체크를 위해 추가
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -21,19 +22,24 @@ class _LoginPageState extends State<LoginPage> {
   final supabase = Supabase.instance.client;
   StreamSubscription<AuthState>? _authSub;
 
-  // ✅ 비밀번호 로그인을 위한 컨트롤러 및 상태 추가
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  // ✅ [서버 스위치] 심사 모드 여부 상태값 추가
+  bool _isReviewMode = false;
+
   @override
   void initState() {
     super.initState();
+
+    // 🎯 1. 서버에서 심사 모드 여부 먼저 확인
+    _checkReviewMode();
+
     _authSub = supabase.auth.onAuthStateChange.listen((data) async {
       final user = data.session?.user;
       if (user == null) return;
 
-      // ✅ 유저 정보 저장 (비번 로그인 시 provider는 'email'로 저장됨)
       await supabase.from('users').upsert({
         'auth_uid': user.id,
         'provider': user.appMetadata['provider'] ?? 'email',
@@ -41,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
         'provider_nickname':
             user.userMetadata?['name'] ??
             user.userMetadata?['full_name'] ??
-            user.email?.split('@')[0], // 닉네임 없을 시 이메일 앞자리
+            user.email?.split('@')[0],
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'auth_uid');
 
@@ -53,6 +59,24 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
+  // ✅ [로직] 수파베이스 app_config 테이블에서 스위치 상태 읽기
+  Future<void> _checkReviewMode() async {
+    try {
+      final data = await supabase
+          .from('app_config')
+          .select('is_review_mode')
+          .single();
+
+      if (mounted) {
+        setState(() {
+          _isReviewMode = data['is_review_mode'] ?? false;
+        });
+      }
+    } catch (e) {
+      debugPrint("⚠️ 심사 모드 로드 실패 (기본값 false 사용): $e");
+    }
+  }
+
   @override
   void dispose() {
     _authSub?.cancel();
@@ -61,17 +85,16 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // ✅ [신규] 비밀번호 로그인 (리뷰어용)
+  // --- 로그인 로직 (기존과 동일) ---
+
   Future<void> _loginWithPassword() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('please_enter_id_pw'.tr()),
-        ), // "아이디와 비밀번호를 입력해주세요"
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('please_enter_id_pw'.tr())));
       return;
     }
 
@@ -80,9 +103,9 @@ class _LoginPageState extends State<LoginPage> {
       await supabase.auth.signInWithPassword(email: email, password: password);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('login_failed'.tr())), // "로그인 실패"
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('login_failed'.tr())));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -215,36 +238,34 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 27),
-
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 30),
                       child: Column(
                         children: [
-                          _buildIdPwFields(),
-                          const SizedBox(height: 10),
-
-                          _socialButton(
-                            color: AppColors.travelingBlue,
-                            text: 'login_sign_in'.tr(),
-                            onTap: _isLoading ? () {} : _loginWithPassword,
-                            textColor: AppColors.textColor02,
-                          ),
-
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 10),
-                            child: Text(
-                              "────────  OR  ────────",
-                              style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
-                              ),
-                              textAlign: TextAlign.center,
+                          // ✅ 🎯 서버 값이 true일 때만 아이디/비번 칸 + OR 텍스트 노출
+                          if (_isReviewMode) ...[
+                            _buildIdPwFields(),
+                            const SizedBox(height: 10),
+                            _socialButton(
+                              color: AppColors.travelingBlue,
+                              text: 'login_sign_in'.tr(),
+                              onTap: _isLoading ? () {} : _loginWithPassword,
+                              textColor: AppColors.textColor02,
                             ),
-                          ),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 10),
+                              child: Text(
+                                "────────  OR  ────────",
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
 
-                          // ✅ 기존 소셜 버튼들
                           _socialButton(
                             iconAsset: 'assets/icons/kakao.png',
                             color: AppColors.buttonBg,
@@ -258,13 +279,18 @@ class _LoginPageState extends State<LoginPage> {
                             text: 'login_google'.tr(),
                             onTap: _loginWithGoogle,
                           ),
-                          const SizedBox(height: 10),
-                          _socialButton(
-                            iconAsset: 'assets/icons/apple.png',
-                            text: 'login_apple'.tr(),
-                            onTap: _loginWithApple,
-                            color: AppColors.buttonBg,
-                          ),
+
+                          // ✅ 🎯 아이폰(iOS)에서만 애플 로그인 버튼 노출
+                          if (Platform.isIOS) ...[
+                            const SizedBox(height: 10),
+                            _socialButton(
+                              iconAsset: 'assets/icons/apple.png',
+                              text: 'login_apple'.tr(),
+                              onTap: _loginWithApple,
+                              color: AppColors.buttonBg,
+                            ),
+                          ],
+
                           const SizedBox(height: 10),
                           _socialButton(
                             iconAsset: 'assets/icons/mail.png',
@@ -287,7 +313,8 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  // ✅ 입력창 스타일 위젯
+  // --- UI 컴포넌트 (디자인 유지) ---
+
   Widget _buildIdPwFields() {
     return Column(
       children: [
@@ -349,7 +376,6 @@ class _LoginPageState extends State<LoginPage> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // ✅ 아이콘 이미지 (iconAsset 기준으로 렌더링)
             if (iconAsset != null)
               Align(
                 alignment: Alignment.centerLeft,
@@ -360,8 +386,6 @@ class _LoginPageState extends State<LoginPage> {
                   fit: BoxFit.contain,
                 ),
               ),
-
-            // ✅ 텍스트는 항상 가운데
             Text(
               text,
               textAlign: TextAlign.center,
