@@ -20,7 +20,7 @@ class ImageStylePicker extends StatefulWidget {
 
 class _ImageStylePickerState extends State<ImageStylePicker> {
   List<ImageStyleModel> _styles = [];
-  int _selectedIndex = 0;
+  int _selectedIndex = -1; // ✅ 아무것도 선택 안 된 상태
 
   // ✅ [수정] 진짜 프리미엄 여부 변수
   bool _isPremiumUser = false;
@@ -66,12 +66,8 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
 
     setState(() {
       _styles = styles;
-      _selectedIndex = 0;
+      // ❌ _selectedIndex 건들지 마라
     });
-
-    if (styles.isNotEmpty) {
-      widget.onChanged(styles.first);
-    }
   }
 
   // ✅ [추가] 프리미엄 권유 팝업 (상점 연결)
@@ -132,12 +128,11 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
     final String currentLang = context.locale.languageCode;
 
     return SizedBox(
-      height: 120,
+      height: 100,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _styles.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (_, i) {
           final style = _styles[i];
           final selected = i == _selectedIndex;
@@ -170,65 +165,56 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                       width: 72,
                       height: 72,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected
-                              ? AppColors.travelingBlue
-                              : Colors.transparent,
-                          width: 2.5,
-                        ),
+                        borderRadius: BorderRadius.circular(5),
                         color: Colors.white,
-                        boxShadow: selected
-                            ? [
-                                BoxShadow(
-                                  color: AppColors.travelingBlue.withOpacity(
-                                    0.3,
-                                  ),
-                                  blurRadius: 8,
-                                ),
-                              ]
-                            : null,
                       ),
-                      clipBehavior: Clip.hardEdge,
-                      child: ColorFiltered(
-                        // ✅ 잠겨있으면 흑백 처리해서 '못 쓰는 느낌' 팍팍 내기
-                        colorFilter: locked
-                            ? const ColorFilter.mode(
-                                Colors.grey,
-                                BlendMode.saturation,
-                              )
-                            : const ColorFilter.mode(
-                                Colors.transparent,
-                                BlendMode.dst,
-                              ),
+                      clipBehavior: Clip.hardEdge, // ✅ 핵심 1
+                      child: ClipRRect(
+                        // ✅ 핵심 2
+                        borderRadius: BorderRadius.circular(5),
                         child:
                             style.thumbnailUrl != null &&
                                 style.thumbnailUrl!.isNotEmpty
-                            ? CachedNetworkImage(
-                                imageUrl: Uri.encodeFull(style.thumbnailUrl!),
-                                fit: BoxFit.cover,
-                                placeholder: (context, url) => Container(
-                                  color: Colors.grey[100],
-                                  child: const Center(
-                                    child: SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                            ? (locked
+                                  ? ColorFiltered(
+                                      colorFilter: const ColorFilter.mode(
+                                        Colors.grey,
+                                        BlendMode.saturation,
                                       ),
-                                    ),
-                                  ),
-                                ),
-                                errorWidget: (context, url, error) =>
-                                    const Icon(
-                                      Icons.image_not_supported,
-                                      color: Colors.grey,
-                                      size: 20,
-                                    ),
-                              )
+                                      child: CachedNetworkImage(
+                                        imageUrl: Uri.encodeFull(
+                                          style.thumbnailUrl!,
+                                        ),
+                                        fit: BoxFit.cover, // ✅ 꽉 참
+                                      ),
+                                    )
+                                  : CachedNetworkImage(
+                                      imageUrl: Uri.encodeFull(
+                                        style.thumbnailUrl!,
+                                      ),
+                                      fit: BoxFit.cover, // ✅ 꽉 참
+                                    ))
                             : const Icon(Icons.image, color: Colors.grey),
                       ),
                     ),
+
+                    // ✅ 선택됐을 때만 오버레이
+                    if (selected)
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.travelingBlue.withOpacity(0.45),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
+                        ),
+                      ),
 
                     // 🔒 자물쇠 아이콘 표시 (PRO 배지 옆에 추가)
                     if (locked)
@@ -236,7 +222,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                         child: Container(
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           child: const Center(
                             child: Icon(
@@ -260,7 +246,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                           ),
                           decoration: BoxDecoration(
                             color: Colors.amber,
-                            borderRadius: BorderRadius.circular(4),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           child: const Text(
                             'PRO',
@@ -274,24 +260,20 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 SizedBox(
-                  width: 72,
+                  width: 70,
                   child: Text(
                     displayTitle,
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMuted.copyWith(
-                      fontSize: 11,
-                      color: locked
-                          ? Colors.grey
-                          : (selected
-                                ? AppColors.travelingBlue
-                                : Colors.black87),
+                      fontSize: 12,
+                      color: AppColors.textColor01, // ✅ 색상 통일
                       fontWeight: selected
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+                          ? FontWeight.w700
+                          : FontWeight.w400, // ✅ 선택 여부만 반영
                     ),
                   ),
                 ),
