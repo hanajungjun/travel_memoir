@@ -350,7 +350,7 @@ class _TravelDayPageState extends State<TravelDayPage>
 
       setState(() {
         _generatedImage = image;
-        _imageUrl = null;
+        // _imageUrl = null;
       });
     } catch (e) {
       debugPrint("❌ AI 생성 로직 에러: $e");
@@ -646,7 +646,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                         ),
 
                         // ================= 카드 끝 =================
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 27),
 
                         if (hasAiImage)
                           ClipRRect(
@@ -669,8 +669,6 @@ class _TravelDayPageState extends State<TravelDayPage>
                               ),
                             ),
                           ),
-
-                        const SizedBox(height: 120),
                       ],
                     ),
                   ),
@@ -761,11 +759,17 @@ class _TravelDayPageState extends State<TravelDayPage>
         controller: _contentController,
         maxLines: 5,
         style: const TextStyle(
-          height: 1.0, // ✅ 행간 줄이기 (1.0 ~ 1.2 추천)
+          fontSize: 13,
+          height: 1.2,
+          color: Color(0xFF2B2B2B), // ✅ 입력 중 텍스트 색
         ),
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: 'diary_hint'.tr(),
+          hintStyle: const TextStyle(
+            color: Color(0xFFAAAAAA), // ✅ 입력 전 힌트 색
+            fontSize: 13,
+          ),
         ),
       ),
     );
