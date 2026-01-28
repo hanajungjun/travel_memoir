@@ -1,4 +1,4 @@
-import 'dart:async'; // 👈 지연 처리를 위해 추가
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -161,12 +161,10 @@ class GlobalMapPageState extends State<GlobalMapPage>
     );
   }
 
-  // 🎯 스타일 로드 후 안정화 시간 부여
   Future<void> _onStyleLoaded(StyleLoadedEventData _) async {
     if (_init || _map == null) return;
     _init = true;
 
-    // ⭐ 포인트 1: 0.5초 정도 지연을 주어 네이티브 채널 안정화
     await WidgetsBinding.instance.endOfFrame;
     await Future.delayed(const Duration(milliseconds: 500));
 
@@ -182,8 +180,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
     await _localizeLabels();
     await _loadUserMapAccess();
-    await _drawAll(); // ⭐ 안전장치가 추가된 그리기 로직 호출
+    await _drawAll();
 
+    // 🎯 애니메이션 없이 위치만 잡아주도록 수정됨
     if (widget.showLastTravelFocus) {
       await _focusOnLastTravel();
     }
@@ -209,7 +208,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
     } catch (_) {}
   }
 
-  // 🎯 안전하게 그리기 로직 (중복 체크 및 예외 처리 강화)
   Future<void> _drawAll() async {
     final map = _map;
     if (map == null || !mounted) return;
@@ -245,7 +243,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
       final worldJson = await rootBundle.loadString(_worldGeo);
 
-      // ⭐ 포인트 2: 기존 레이어/소스 제거 후 하나씩 순차적으로 추가
       await _rm(style, _worldFill, _worldSource);
 
       if (!(await style.styleSourceExists(_worldSource))) {
@@ -335,7 +332,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
       );
       await style.setStyleLayerProperty(_worldFill, 'fill-opacity', 0.7);
 
-      // ⭐ 포인트 3: 상세 지도는 순차적으로 지연을 주며 그리기 (부하 방지)
       for (var config in _supportedDetailedMaps) {
         if (_hasAccess(config.countryCode)) {
           await Future.delayed(const Duration(milliseconds: 50));
@@ -407,8 +403,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
       debugPrint('❌ Error drawing ${config.countryCode}: $e');
     }
   }
-
-  // --- 기존 제스처/팝업 로직은 동일 ---
 
   Future<void> _onMapTap(MapContentGestureContext ctx) async {
     if (_map == null) return;
@@ -521,31 +515,38 @@ class GlobalMapPageState extends State<GlobalMapPage>
   Future<void> _focusOnLastTravel() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null || _map == null) return;
-    final lastTravel = await Supabase.instance.client
-        .from('travels')
-        .select('region_lat, region_lng, country_lat, country_lng')
-        .eq('user_id', user.id)
-        .order('created_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    if (lastTravel != null) {
-      double? lat =
-          (lastTravel['region_lat'] as num? ??
-                  lastTravel['country_lat'] as num?)
-              ?.toDouble();
-      double? lng =
-          (lastTravel['region_lng'] as num? ??
-                  lastTravel['country_lng'] as num?)
-              ?.toDouble();
-      if (lat != null && lng != null) {
-        await _map!.flyTo(
-          CameraOptions(
-            center: Point(coordinates: Position(lng, lat)),
-            zoom: 3.5,
-          ),
-          MapAnimationOptions(duration: 2500),
-        );
+
+    try {
+      final lastTravel = await Supabase.instance.client
+          .from('travels')
+          .select('region_lat, region_lng, country_lat, country_lng')
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (lastTravel != null && mounted && _map != null) {
+        double? lat =
+            (lastTravel['region_lat'] as num? ??
+                    lastTravel['country_lat'] as num?)
+                ?.toDouble();
+        double? lng =
+            (lastTravel['region_lng'] as num? ??
+                    lastTravel['country_lng'] as num?)
+                ?.toDouble();
+
+        if (lat != null && lng != null) {
+          // 🚀 flyTo 대신 setCamera를 사용하여 채널 에러 원천 차단
+          _map!.setCamera(
+            CameraOptions(
+              center: Point(coordinates: Position(lng, lat)),
+              zoom: 3.5,
+            ),
+          );
+        }
       }
+    } catch (e) {
+      debugPrint("⚠️ _focusOnLastTravel Error: $e");
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -16,14 +17,31 @@ class _MyStickerPageState extends State<MyStickerPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
   late Future<Map<String, dynamic>> _dataFuture;
 
+  // 페이지 플립 애니메이션 변수
+  double _currentPage = 0.0;
   final String _backgroundImage = 'assets/images/passport_watermark.png';
 
   @override
   void initState() {
     super.initState();
     _dataFuture = _loadData();
+
+    _pageController.addListener(() {
+      if (mounted) {
+        setState(() {
+          _currentPage = _pageController.page ?? 0.0;
+        });
+      }
+    });
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  // 날짜 포맷팅
   String _formatPassportDate(String? dateStr) {
     if (dateStr == null) return "DATE UNKNOWN";
     try {
@@ -34,6 +52,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
     }
   }
 
+  // 여권 하단 MRZ 텍스트 생성
   String _generateMrzText(dynamic profile) {
     String nationality = (profile?['nationality']?.toString() ?? "KOR")
         .padRight(3, '<')
@@ -42,64 +61,44 @@ class _MyStickerPageState extends State<MyStickerPage> {
     String name = (profile?['nickname']?.toString() ?? "TRAVELER")
         .toUpperCase()
         .replaceAll(' ', '<');
-
     return "P<$nationality$name".padRight(44, '<');
   }
 
+  // 🎯 오직 DB의 visited_countries 테이블에서만 데이터를 가져오는 로직
   Future<Map<String, dynamic>> _loadData() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return {};
+
     final profile = await _supabase
         .from('users')
         .select()
         .eq('auth_uid', user.id)
         .maybeSingle();
 
-    final visitedRows = await _supabase
+    // 실제 방문한 국가만 조회 (필터링 핵심)
+    final List<dynamic> visitedRows = await _supabase
         .from('visited_countries')
         .select()
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('first_visited_at', ascending: false);
 
-    final countries = [
-      {'code': 'ES', 'name': 'Spain'},
-      {'code': 'FR', 'name': 'France'},
-      {'code': 'JP', 'name': 'Japan'},
-      {'code': 'US', 'name': 'USA'},
-      {'code': 'IT', 'name': 'Italy'},
-      {'code': 'DE', 'name': 'Germany'},
-      {'code': 'KR', 'name': 'Korea'},
-      {'code': 'VN', 'name': 'Vietnam'},
-    ];
+    // 🚨 [DEBUG] 이 로그가 터미널에 찍혀야 합니다.
+    debugPrint("🚨🚨🚨 [MY_STICKER_PAGE] DB 가져온 국가 수: ${visitedRows.length}");
 
-    final visitedData = {
-      for (var row in (visitedRows as List)) row['country_code']: row,
-    };
+    final List stickers = visitedRows.map((row) {
+      return {
+        'id': row['id'],
+        'code': row['country_code'],
+        'name': row['country_name'],
+        'isUnlocked': true,
+        'created_at': row['first_visited_at'],
+        'asset': _supabase.storage
+            .from('stickers')
+            .getPublicUrl('${row['country_code']}.png'),
+      };
+    }).toList();
 
-    return {
-      'profile': profile,
-      'stickers': countries.map((c) {
-        final row = visitedData[c['code']];
-        return {
-          ...c,
-          'isUnlocked': row != null,
-          'created_at': row?['created_at'],
-          'asset': row != null
-              ? _supabase.storage
-                    .from('stickers')
-                    .getPublicUrl('${c['code']}.png')
-              : null,
-        };
-      }).toList(),
-    };
-  }
-
-  Widget _buildBackground() {
-    return Positioned.fill(
-      child: Opacity(
-        opacity: 0.06,
-        child: Image.asset(_backgroundImage, fit: BoxFit.cover),
-      ),
-    );
+    return {'profile': profile, 'stickers': stickers};
   }
 
   @override
@@ -111,13 +110,17 @@ class _MyStickerPageState extends State<MyStickerPage> {
         builder: (context, snapshot) {
           if (!snapshot.hasData)
             return const Center(child: CircularProgressIndicator());
+
           final profile = snapshot.data!['profile'];
           final stickers = snapshot.data!['stickers'] as List;
 
           const int itemsPerPage = 6;
           int totalPages = (stickers.length / itemsPerPage).ceil();
+          if (totalPages == 0) totalPages = 1;
+
           List<Widget> passportPages = [_buildIdentityPage(profile)];
 
+          // DB 데이터 개수만큼만 비자 페이지 생성
           for (var i = 0; i < stickers.length; i += itemsPerPage) {
             int end = (i + itemsPerPage > stickers.length)
                 ? stickers.length
@@ -128,8 +131,38 @@ class _MyStickerPageState extends State<MyStickerPage> {
               _buildStickerPage("VISAS ($currentPage/$totalPages)", chunk),
             );
           }
-          return PageView(controller: _pageController, children: passportPages);
+
+          // 만약 나라가 하나도 없으면 빈 비자 페이지 추가
+          if (stickers.isEmpty) {
+            passportPages.add(_buildStickerPage("VISAS (1/1)", []));
+          }
+
+          return PageView.builder(
+            controller: _pageController,
+            itemCount: passportPages.length,
+            itemBuilder: (context, index) {
+              double delta = index - _currentPage;
+              return Transform(
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.001)
+                  ..rotateY(delta * 0.6),
+                alignment: delta > 0
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
+                child: passportPages[index],
+              );
+            },
+          );
         },
+      ),
+    );
+  }
+
+  Widget _buildBackground() {
+    return Positioned.fill(
+      child: Opacity(
+        opacity: 0.06,
+        child: Image.asset(_backgroundImage, fit: BoxFit.cover),
       ),
     );
   }
@@ -137,7 +170,6 @@ class _MyStickerPageState extends State<MyStickerPage> {
   Widget _buildIdentityPage(dynamic profile) {
     String issueDate = _formatPassportDate(profile?['premium_since']);
     String expiryDate = _formatPassportDate(profile?['premium_until']);
-
     String displayNationality =
         profile?['nationality']?.toString().toUpperCase() ?? "KOREA";
 
@@ -153,7 +185,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   letterSpacing: 2,
-                  fontSize: 16, // ✅ 14 -> 16
+                  fontSize: 16,
                   color: Colors.brown,
                 ),
               ),
@@ -208,7 +240,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
               Text(
                 _generateMrzText(profile),
                 style: GoogleFonts.courierPrime(
-                  fontSize: 13, // ✅ 11 -> 13
+                  fontSize: 13,
                   color: Colors.black38,
                   letterSpacing: 1.2,
                   fontWeight: FontWeight.bold,
@@ -228,7 +260,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
         const Text(
           "Signature of bearer",
           style: TextStyle(
-            fontSize: 9, // ✅ 7 -> 9
+            fontSize: 9,
             color: Colors.grey,
             fontStyle: FontStyle.italic,
           ),
@@ -245,7 +277,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
                 child: Text(
                   nickname,
                   style: GoogleFonts.nanumBrushScript(
-                    fontSize: 20, // ✅ 18 -> 20
+                    fontSize: 20,
                     color: const Color(0xFF1A237E).withOpacity(0.8),
                   ),
                 ),
@@ -271,24 +303,35 @@ class _MyStickerPageState extends State<MyStickerPage> {
                   color: Colors.brown.withOpacity(0.3),
                   letterSpacing: 4,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16, // ✅ 14 -> 16
+                  fontSize: 16,
                 ),
               ),
               const SizedBox(height: 20),
               Expanded(
-                child: GridView.builder(
-                  padding: EdgeInsets.zero,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 5,
-                    crossAxisSpacing: 28,
-                    childAspectRatio: 0.75,
-                  ),
-                  itemCount: pageStickers.length,
-                  itemBuilder: (context, index) =>
-                      _buildStampItem(pageStickers[index]),
-                ),
+                child: pageStickers.isEmpty
+                    ? Center(
+                        child: Text(
+                          "NO STAMPS YET",
+                          style: TextStyle(
+                            color: Colors.brown.withOpacity(0.1),
+                            letterSpacing: 2,
+                          ),
+                        ),
+                      )
+                    : GridView.builder(
+                        padding: EdgeInsets.zero,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 5,
+                              crossAxisSpacing: 28,
+                              childAspectRatio: 0.75,
+                            ),
+                        itemCount: pageStickers.length,
+                        itemBuilder: (context, index) =>
+                            _buildStampItem(pageStickers[index]),
+                      ),
               ),
             ],
           ),
@@ -299,7 +342,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
 
   Widget _buildStampItem(Map<String, dynamic> item) {
     final String dateText = _formatPassportDate(item['created_at']);
-    final math.Random random = math.Random(item['id'].hashCode);
+    final math.Random random = math.Random(item['id'].toString().hashCode);
     final double randomAngle = (random.nextDouble() - 0.5) * 0.35;
     final double randomOpacity = 0.5 + (random.nextDouble() * 0.2);
 
@@ -310,16 +353,18 @@ class _MyStickerPageState extends State<MyStickerPage> {
             alignment: Alignment.center,
             children: [
               Opacity(
-                opacity: item['isUnlocked'] ? 0.95 : 0.05,
-                child: item['isUnlocked']
-                    ? Image.network(item['asset'] ?? "", fit: BoxFit.cover)
-                    : Icon(
-                        Icons.circle,
-                        color: Colors.brown.withOpacity(0.1),
-                        size: 100,
-                      ),
+                opacity: 0.95,
+                child: Image.network(
+                  item['asset'] ?? "",
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Icon(
+                    Icons.flag,
+                    color: Colors.brown.withOpacity(0.1),
+                    size: 100,
+                  ),
+                ),
               ),
-              if (item['isUnlocked'] && dateText.isNotEmpty)
+              if (dateText.isNotEmpty)
                 Transform.rotate(
                   angle: randomAngle,
                   child: Container(
@@ -340,7 +385,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
                         fontFamily: 'monospace',
                         color: Colors.red.withOpacity(randomOpacity),
                         fontWeight: FontWeight.bold,
-                        fontSize: 11, // ✅ 9 -> 11
+                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -352,7 +397,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
         Text(
           item['name'],
           style: TextStyle(
-            fontSize: 13, // ✅ 11 -> 13
+            fontSize: 13,
             color: Colors.brown.withOpacity(0.7),
             fontWeight: FontWeight.w600,
           ),
@@ -375,7 +420,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
           Text(
             label,
             style: const TextStyle(
-              fontSize: 10, // ✅ 8 -> 10
+              fontSize: 10,
               color: Colors.grey,
               fontWeight: FontWeight.bold,
             ),
@@ -384,11 +429,11 @@ class _MyStickerPageState extends State<MyStickerPage> {
             value,
             style: useSignatureFont
                 ? GoogleFonts.nanumBrushScript(
-                    fontSize: 24, // ✅ 22 -> 24
+                    fontSize: 24,
                     color: const Color(0xFF1A237E),
                   )
                 : const TextStyle(
-                    fontSize: 16, // ✅ 14 -> 16
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
