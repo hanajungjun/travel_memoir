@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // ✅ 수파베이스 추가
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/models/image_style_model.dart';
 import 'package:travel_memoir/services/image_style_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
-import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart'; // ✅ 상점 페이지 추가
+import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
 
 class ImageStylePicker extends StatefulWidget {
   final ValueChanged<ImageStyleModel> onChanged;
@@ -20,11 +20,9 @@ class ImageStylePicker extends StatefulWidget {
 
 class _ImageStylePickerState extends State<ImageStylePicker> {
   List<ImageStyleModel> _styles = [];
-  int _selectedIndex = -1; // ✅ 아무것도 선택 안 된 상태
-
-  // ✅ [수정] 진짜 프리미엄 여부 변수
+  int _selectedIndex = -1;
   bool _isPremiumUser = false;
-  bool _isLoadingStatus = true;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -33,11 +31,12 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   }
 
   Future<void> _loadAll() async {
-    await _checkUserStatus(); // 유저 상태 먼저 확인
-    await _loadStyles(); // 스타일 목록 로드
+    setState(() => _isLoading = true);
+    await _checkUserStatus();
+    await _loadStyles();
+    setState(() => _isLoading = false);
   }
 
-  // ✅ [추가] 유저가 프리미엄인지 수파베이스에서 직접 확인
   Future<void> _checkUserStatus() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -51,26 +50,17 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
         if (mounted) {
           setState(() {
             _isPremiumUser = res?['is_premium'] ?? false;
-            _isLoadingStatus = false;
           });
         }
       }
-    } catch (e) {
-      if (mounted) setState(() => _isLoadingStatus = false);
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadStyles() async {
     final styles = await ImageStyleService.fetchEnabled();
-    if (!mounted) return;
-
-    setState(() {
-      _styles = styles;
-      // ❌ _selectedIndex 건들지 마라
-    });
+    if (mounted) setState(() => _styles = styles);
   }
 
-  // ✅ [추가] 프리미엄 권유 팝업 (상점 연결)
   void _showPremiumRequiredDialog() {
     showDialog(
       context: context,
@@ -101,7 +91,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const CoinShopPage()),
-              ).then((_) => _checkUserStatus()); // 상점 갔다 오면 상태 갱신
+              ).then((_) => _checkUserStatus());
             },
             child: Text(
               'go_to_shop'.tr(),
@@ -118,118 +108,115 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
 
   @override
   Widget build(BuildContext context) {
-    if (_styles.isEmpty) {
+    if (_isLoading)
+      return const SizedBox(
+        height: 100,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    if (_styles.isEmpty)
       return SizedBox(
-        height: 80,
+        height: 100,
         child: Center(child: Text('no_available_styles'.tr())),
       );
-    }
-
-    final String currentLang = context.locale.languageCode;
 
     return SizedBox(
-      height: 100,
+      height: 110,
       child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: _styles.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (_, i) {
           final style = _styles[i];
-          final selected = i == _selectedIndex;
-
-          // ✅ [핵심 로직] 스타일이 프리미엄용인데 유저가 일반 유저라면 '잠금'
-          final bool locked = style.isPremium && !_isPremiumUser;
-
-          final String displayTitle =
-              (currentLang == 'en' && style.titleEn.isNotEmpty)
-              ? style.titleEn
-              : style.title;
+          final bool isSelected = i == _selectedIndex;
+          final bool isLocked = style.isPremium && !_isPremiumUser; // 🔥 잠금 로직
 
           return GestureDetector(
             onTap: () {
-              if (locked) {
-                // 잠겨있으면 팝업 띄우고 선택 안 시켜줌
+              if (isLocked) {
                 _showPremiumRequiredDialog();
               } else {
-                // 프리미엄이거나 일반 스타일이면 정상 선택
                 setState(() => _selectedIndex = i);
                 widget.onChanged(style);
               }
             },
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Stack(
                   children: [
+                    // 🖼 썸네일 베이스
                     Container(
-                      width: 72,
-                      height: 72,
+                      width: 76,
+                      height: 76,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(5),
-                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: isSelected
+                            ? Border.all(
+                                color: AppColors.travelingBlue,
+                                width: 3,
+                              )
+                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      clipBehavior: Clip.hardEdge, // ✅ 핵심 1
                       child: ClipRRect(
-                        // ✅ 핵심 2
-                        borderRadius: BorderRadius.circular(5),
-                        child:
-                            style.thumbnailUrl != null &&
-                                style.thumbnailUrl!.isNotEmpty
-                            ? (locked
-                                  ? ColorFiltered(
-                                      colorFilter: const ColorFilter.mode(
-                                        Colors.grey,
-                                        BlendMode.saturation,
-                                      ),
-                                      child: CachedNetworkImage(
-                                        imageUrl: Uri.encodeFull(
-                                          style.thumbnailUrl!,
-                                        ),
-                                        fit: BoxFit.cover, // ✅ 꽉 참
-                                      ),
-                                    )
-                                  : CachedNetworkImage(
-                                      imageUrl: Uri.encodeFull(
-                                        style.thumbnailUrl!,
-                                      ),
-                                      fit: BoxFit.cover, // ✅ 꽉 참
-                                    ))
-                            : const Icon(Icons.image, color: Colors.grey),
+                        borderRadius: BorderRadius.circular(
+                          isSelected ? 9 : 12,
+                        ),
+                        child: ColorFiltered(
+                          // 🔒 잠겨있으면 채도를 0으로 (회색조)
+                          colorFilter: ColorFilter.mode(
+                            isLocked ? Colors.grey : Colors.transparent,
+                            BlendMode.saturation,
+                          ),
+                          child:
+                              style.thumbnailUrl != null &&
+                                  style.thumbnailUrl!.isNotEmpty
+                              ? CachedNetworkImage(
+                                  imageUrl: Uri.encodeFull(style.thumbnailUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : const Icon(Icons.image, color: Colors.grey),
+                        ),
                       ),
                     ),
 
-                    // ✅ 선택됐을 때만 오버레이
-                    if (selected)
+                    // 🔒 잠금 오버레이
+                    if (isLocked)
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: AppColors.travelingBlue.withOpacity(0.45),
-                            borderRadius: BorderRadius.circular(5),
+                            color: Colors.black.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.check_rounded,
-                              color: Colors.white,
-                              size: 32,
-                            ),
+                          child: const Icon(
+                            Icons.lock_rounded,
+                            color: Colors.white,
+                            size: 24,
                           ),
                         ),
                       ),
 
-                    // 🔒 자물쇠 아이콘 표시 (PRO 배지 옆에 추가)
-                    if (locked)
-                      Positioned.fill(
+                    // ✅ 선택 체크 배지
+                    if (isSelected)
+                      Positioned(
+                        right: 4,
+                        bottom: 4,
                         child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(5),
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: AppColors.travelingBlue,
+                            shape: BoxShape.circle,
                           ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.lock_rounded,
-                              color: Colors.white,
-                              size: 24,
-                            ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: 16,
                           ),
                         ),
                       ),
@@ -237,16 +224,16 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                     // 👑 PRO 배지
                     if (style.isPremium)
                       Positioned(
-                        right: 4,
+                        left: 4,
                         top: 4,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
+                            horizontal: 6,
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.amber,
-                            borderRadius: BorderRadius.circular(5),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
                             'PRO',
@@ -260,20 +247,26 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 6),
+                // 📝 스타일 제목 (언어 대응)
                 SizedBox(
-                  width: 70,
+                  width: 76,
                   child: Text(
-                    displayTitle,
+                    ImageStyleService.getLocalizedTitle(
+                      style,
+                      context,
+                    ), // 🔥 헬퍼 사용
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMuted.copyWith(
-                      fontSize: 12,
-                      color: AppColors.textColor01, // ✅ 색상 통일
-                      fontWeight: selected
-                          ? FontWeight.w700
-                          : FontWeight.w400, // ✅ 선택 여부만 반영
+                      fontSize: 11,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: isSelected
+                          ? AppColors.travelingBlue
+                          : AppColors.textColor01,
                     ),
                   ),
                 ),
