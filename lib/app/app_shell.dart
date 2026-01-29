@@ -29,23 +29,24 @@ class _AppShellState extends State<AppShell> {
       icon: Padding(
         //padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
         padding: const EdgeInsets.only(
-          top: 5,
+          top: 8,
+          bottom: 2,
         ), // ✅ bottom 대신 top 패딩을 주면 아래로 내려옵니다.
-        child: Image.asset(iconAsset, width: 22, height: 22),
+        child: Image.asset(iconAsset, width: 18, height: 18),
       ),
       activeIcon: Padding(
         // padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
-        padding: const EdgeInsets.only(top: 5), // ✅ 여기도 동일하게 적용
+        padding: const EdgeInsets.only(top: 8, bottom: 2), // ✅ 여기도 동일하게 적용
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Image.asset(iconAsset, width: 22, height: 22),
+            Image.asset(iconAsset, width: 18, height: 18),
             Positioned(
               top: -5,
               right: -5,
               child: Container(
-                width: 10, // 🎯 알림 점 크기도 살짝 축소
-                height: 10,
+                width: 8, // 🎯 알림 점 크기도 살짝 축소
+                height: 8,
                 decoration: const BoxDecoration(
                   color: AppColors.primary,
                   shape: BoxShape.circle,
@@ -83,8 +84,23 @@ class _AppShellState extends State<AppShell> {
         ),
         child: Container(
           //height: 70, // ✅ 네비 버튼 영역 높이 고정
-          height: MediaQuery.of(context).padding.bottom + 70,
-          color: AppColors.background, // ✅ 여기서 배경색 지정
+          height:
+              MediaQuery.of(context).padding.bottom +
+              59, // ✅ 핵심: 좌우 패딩을 추가하여 메뉴 아이템들을 중앙으로 모음
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          // ✅Decoration을 활용해 인덱스에 따라 상단 라인 유무 결정
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            border: Border(
+              top: BorderSide(
+                // 🎯 인덱스가 0(Home)이 아닐 때만 1px 회색 라인 추가
+                color: _currentIndex == 0
+                    ? Colors.transparent
+                    : const Color.fromARGB(255, 243, 243, 243), // 또는 적절한 회색 정의값
+                width: 1.0,
+              ),
+            ),
+          ),
           child: BottomNavigationBar(
             currentIndex: _currentIndex,
             onTap: _onTabSelected,
@@ -93,8 +109,8 @@ class _AppShellState extends State<AppShell> {
             elevation: 0,
 
             // ✅ 폰트 크기 통일
-            selectedFontSize: 12,
-            unselectedFontSize: 12,
+            selectedFontSize: 11,
+            unselectedFontSize: 11,
 
             // ✅ 글자 색상 통일
             selectedItemColor: AppColors.textColor01,

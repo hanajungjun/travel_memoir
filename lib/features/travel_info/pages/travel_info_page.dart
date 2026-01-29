@@ -136,7 +136,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                     27,
                     65,
                     27,
-                    100 +
+                    0 +
                         MediaQuery.of(
                           context,
                         ).padding.bottom, // 하단 탭바 높이 + 시스템 바 여백만큼 추가
@@ -375,7 +375,7 @@ class _TravelListItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Container(
-                        padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
+                        padding: const EdgeInsets.fromLTRB(6, 2, 6, 1),
                         decoration: BoxDecoration(
                           color: badgeColor,
                           borderRadius: BorderRadius.circular(5),

@@ -2,7 +2,7 @@
 /// 🚩 MASTER RULES FOR THIS PAGE:
 /// 1. PARALLEL PROCESSING: Background AI tasks and foreground Ads must run
 ///    concurrently. Never 'await' AI generation before showing Ads.
-/// 2. BALANCED (50/50): AI summary must give EQUAL importance to visual
+/// 2. BALANCED (60/40): AI summary must give EQUAL importance to visual
 ///    analysis of photos and narrative details of the text diary.
 /// 3. NO OMISSION: All logic blocks, including UI, Services, and State
 ///    management, must be fully preserved during updates.
@@ -18,6 +18,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:lottie/lottie.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ 설정 저장용
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -66,20 +69,21 @@ class _TravelDayPageState extends State<TravelDayPage>
   final ImagePicker _picker = ImagePicker();
 
   ImageStyleModel? _selectedStyle;
+  String? _existingAiStyleId;
   final List<File> _localPhotos = [];
   List<String> _remotePhotoUrls = [];
   Uint8List? _generatedImage;
   String? _imageUrl;
   String? _summaryText;
 
-  List<String> _initialRemotePhotoUrls = []; // ⭐ 추가
+  List<String> _initialRemotePhotoUrls = [];
 
   bool _loading = false;
   String _loadingMessage = "";
 
   int _dailyStamps = 0;
   int _paidStamps = 0;
-  bool _usePaidStampMode = false;
+  bool _usePaidStampMode = false; // 기본값 (설정 로드 전)
 
   bool _isTripTypeLoaded = false;
   String? _travelType;
@@ -121,10 +125,27 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _initData() async {
-    await _loadDiary();
-    await _refreshStampCounts();
+    await _loadDefaultCoinSetting(); // 1. 설정 로드
+    await _loadDiary(); // 2. 일기 로드
+    await _refreshStampCounts(); // 3. 코인 로드
     _loadAds();
     _checkTripType();
+  }
+
+  // ✅ [추가] 디폴트 설정 로드 (SharedPreferences)
+  Future<void> _loadDefaultCoinSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted) {
+      setState(() {
+        _usePaidStampMode = prefs.getBool('use_credit_mode_default') ?? false;
+      });
+    }
+  }
+
+  // ✅ [추가] 디폴트 설정 저장
+  Future<void> _saveDefaultCoinSetting(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('use_credit_mode_default', value);
   }
 
   Future<void> _refreshStampCounts() async {
@@ -163,7 +184,11 @@ class _TravelDayPageState extends State<TravelDayPage>
       RegExp(r'[\s\n\r\t]+'),
       '',
     );
-    setState(() => _contentController.text = diary['text'] ?? '');
+    setState(() {
+      _contentController.text = diary['text'] ?? '';
+      _summaryText = diary['ai_summary'];
+      _existingAiStyleId = diary['ai_style'];
+    });
     try {
       final String momentsPath =
           'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments';
@@ -181,7 +206,7 @@ class _TravelDayPageState extends State<TravelDayPage>
             .toList();
         setState(() {
           _remotePhotoUrls = urls;
-          _initialRemotePhotoUrls = List.from(urls); // ⭐ 추가
+          _initialRemotePhotoUrls = List.from(urls);
         });
       }
     } catch (e) {
@@ -190,11 +215,12 @@ class _TravelDayPageState extends State<TravelDayPage>
     if ((diary['ai_summary'] ?? '').toString().trim().isNotEmpty) {
       final String aiPath =
           'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
+      final String rawUrl = Supabase.instance.client.storage
+          .from('travel_images')
+          .getPublicUrl(aiPath);
       setState(
-        () => _imageUrl = Supabase.instance.client.storage
-            .from('travel_images')
-            .getPublicUrl(aiPath),
-      );
+        () => _imageUrl = "$rawUrl?v=${DateTime.now().millisecondsSinceEpoch}",
+      ); // ✅ 캐시 버스팅
       if (_imageUrl != null) _cardController.forward();
     }
   }
@@ -229,19 +255,27 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  // 🚀 [병렬유지] 광고와 AI 동시 출발 + 콜백 보강
   Future<void> _handleGenerateWithStamp() async {
     FocusScope.of(context).unfocus();
-    if (_selectedStyle == null || _contentController.text.trim().isEmpty)
+    if (_selectedStyle == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('please_select_style'.tr()),
+          backgroundColor: Colors.orange,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
-
-    if (!_usePaidStampMode && _dailyStamps <= 0 && _paidStamps > 0) {
-      setState(() => _usePaidStampMode = true);
-    } else if (_usePaidStampMode && _paidStamps <= 0 && _dailyStamps > 0) {
-      setState(() => _usePaidStampMode = false);
     }
+    if (_contentController.text.trim().isEmpty) return;
 
-    int currentCoins = _usePaidStampMode ? _paidStamps : _dailyStamps;
+    bool actualPaidMode = _usePaidStampMode;
+    if (!actualPaidMode && _dailyStamps <= 0 && _paidStamps > 0)
+      actualPaidMode = true;
+    else if (actualPaidMode && _paidStamps <= 0 && _dailyStamps > 0)
+      actualPaidMode = false;
+
+    int currentCoins = actualPaidMode ? _paidStamps : _dailyStamps;
     if (currentCoins <= 0) {
       _showCoinEmptyDialog();
       return;
@@ -249,41 +283,30 @@ class _TravelDayPageState extends State<TravelDayPage>
 
     _isAiDone = false;
     _isAdDone = false;
-
-    // 🔴 [병렬 1] AI 생성 즉시 시작
-    _startAiGeneration()
+    _startAiGeneration(actualPaidMode)
         .then((_) {
           _isAiDone = true;
           _checkSync();
         })
         .catchError((e) {
-          debugPrint("❌ AI 태스크 실패: $e");
           if (mounted) setState(() => _loading = false);
         });
 
-    // 🔴 [병렬 2] 광고 즉시 송출 (콜백 보강)
-    if (!_usePaidStampMode && _isAdLoaded && _rewardedAd != null) {
+    if (!actualPaidMode && _isAdLoaded && _rewardedAd != null) {
       _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
-          debugPrint("🚩 광고 종료/닫힘");
           ad.dispose();
           _loadAds();
           _isAdDone = true;
           _checkSync();
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
-          debugPrint("❌ 광고 표시 실패: $error");
           ad.dispose();
           _isAdDone = true;
           _checkSync();
         },
       );
-
-      _rewardedAd!.show(
-        onUserEarnedReward: (ad, reward) {
-          debugPrint("💎 보상 획득 완료");
-        },
-      );
+      _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
     } else {
       _isAdDone = true;
       _checkSync();
@@ -302,58 +325,34 @@ class _TravelDayPageState extends State<TravelDayPage>
     }
   }
 
-  // ✅ [수정] PromptCache 시스템 + 50:50 로직 + 디버깅 로그 통합
-  Future<void> _startAiGeneration() async {
+  Future<void> _startAiGeneration(bool usePaidMode) async {
     if (mounted)
       setState(() {
         _loading = true;
-        _loadingMessage = _usePaidStampMode
-            ? "ai_drawing_memories".tr()
-            : "ai_drawing_hidden".tr();
+        _loadingMessage = "ai_drawing_memories".tr();
+        _imageUrl = null;
+        _generatedImage = null;
+        _summaryText = null;
       });
-
     try {
       final gemini = GeminiService();
-
-      // 1️⃣ 요약 단계 프롬프트 구성 및 로그 출력
-      final String summaryPrompt =
-          '${PromptCache.textPrompt.contentKo}\n'
-          '[Information]\n'
-          'Location: ${widget.placeName}\n'
-          'Diary Content: ${_contentController.text}';
-
-      debugPrint("🔍 [1. 요약용 최종 프롬프트]:\n$summaryPrompt"); // 👈 finalPrompt 로그
-
       final summary = await gemini.generateSummary(
-        finalPrompt: summaryPrompt,
+        finalPrompt:
+            '${PromptCache.textPrompt.contentKo}\n[Information]\nLocation: ${widget.placeName}\nDiary Content: ${_contentController.text}',
         photos: _localPhotos,
       );
-
       _summaryText = summary;
-      debugPrint("📝 [2. AI 요약 결과]:\n$_summaryText"); // 👈 _summaryText 로그
-
-      // 2️⃣ 생성 단계 프롬프트 구성 및 로그 출력
-      final String imagePrompt =
-          '${PromptCache.imagePrompt.contentKo}\n'
-          'Style: ${_selectedStyle!.prompt}\n'
-          '[Context from Diary Summary]: $summary\n';
-
-      // debugPrint("🎨 [3. 이미지 생성용 최종 프롬프트]:\n$imagePrompt"); // 👈 finalPrompt 로그
-
-      final image = await gemini.generateImage(finalPrompt: imagePrompt);
-
+      final image = await gemini.generateImage(
+        finalPrompt:
+            '${PromptCache.imagePrompt.contentKo}\nStyle: ${_selectedStyle!.prompt}\n[Context from Diary Summary]: $summary\n',
+      );
       if (image == null) throw Exception("Image generation failed");
-
-      // 이후 스탬프 차감 및 저장 로직
-      await _stampService.useStamp(_userId, _usePaidStampMode);
+      await _stampService.useStamp(_userId, usePaidMode);
       await _refreshStampCounts();
-
       setState(() {
         _generatedImage = image;
-        // _imageUrl = null;
       });
     } catch (e) {
-      debugPrint("❌ AI 생성 로직 에러: $e");
       rethrow;
     }
   }
@@ -399,105 +398,73 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
+  Future<File> _compressImage(File file) async {
+    final tempDir = await getTemporaryDirectory();
+    final targetPath =
+        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}_compressed.jpg';
+    final result = await FlutterImageCompress.compressAndGetFile(
+      file.absolute.path,
+      targetPath,
+      quality: 70,
+      minWidth: 1024,
+      minHeight: 1024,
+    );
+    return File(result!.path);
+  }
+
   Future<void> _saveDiary() async {
     if (_generatedImage == null &&
         _imageUrl == null &&
         _contentController.text.trim().isEmpty)
       return;
-
     setState(() {
       _loading = true;
       _loadingMessage = "saving_diary".tr();
     });
-
     try {
       final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
       );
-
       final diaryData = await TravelDayService.upsertDiary(
         travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
         date: widget.date,
         text: _contentController.text.trim(),
         aiSummary: _summaryText,
-        aiStyle: _selectedStyle?.id ?? 'default',
+        aiStyle: _selectedStyle?.id ?? _existingAiStyleId ?? 'default',
       );
-
       final String diaryId = diaryData['id'].toString().replaceAll(
         RegExp(r'[\s\n\r\t]+'),
         '',
       );
-
-      // ================================
-      // ✅ 화면에서 지운 기존 사진들 서버 반영
-      // ================================
-
-      // 1. 처음 있던 사진 중에서 지금 없는 것만 찾기
-      final deletedUrls = _initialRemotePhotoUrls
-          .where((url) => !_remotePhotoUrls.contains(url))
-          .toList();
-
-      if (deletedUrls.isNotEmpty) {
-        final storage = Supabase.instance.client.storage.from('travel_images');
-
-        // 2. 스토리지 실제 파일 삭제
-        for (final url in deletedUrls) {
-          final uri = Uri.parse(url);
-          final path = uri.pathSegments
-              .skipWhile((e) => e != 'travel_images')
-              .skip(1)
-              .join('/');
-
-          await storage.remove([path]);
-        }
-
-        // 3. DB photo_urls 업데이트
-        await Supabase.instance.client
-            .from('travel_days')
-            .update({'photo_urls': _remotePhotoUrls})
-            .eq('id', diaryId);
-      }
-
       if (_localPhotos.isNotEmpty) {
         final storage = Supabase.instance.client.storage.from('travel_images');
-
         for (int i = 0; i < _localPhotos.length; i++) {
-          final String fileName =
-              'moment_${DateTime.now().millisecondsSinceEpoch}_$i.png';
-
+          final File compressedFile = await _compressImage(_localPhotos[i]);
           final String fullPath =
-              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/$fileName';
-
-          await storage.upload(fullPath, _localPhotos[i]);
-          final String imageUrl = storage.getPublicUrl(fullPath);
+              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/moment_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+          await storage.upload(fullPath, compressedFile);
           await appendPhotoUrlToTravelDay(
             travelDayId: diaryId,
-            imageUrl: imageUrl,
+            imageUrl: storage.getPublicUrl(fullPath),
           );
         }
       }
-
       if (_generatedImage != null) {
-        final String aiPath =
-            'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
-
         await ImageUploadService.uploadAiImage(
-          path: aiPath,
+          path:
+              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png',
           imageBytes: _generatedImage!,
         );
       }
-
-      final writtenDays = await TravelDayService.getWrittenDayCount(
-        travelId: _cleanTravelId,
-      );
-
-      final totalDays = widget.endDate.difference(widget.startDate).inDays + 1;
-
       if (mounted) {
         setState(() => _loading = false);
-
+        final writtenDays = await TravelDayService.getWrittenDayCount(
+          travelId: _cleanTravelId,
+        );
+        final totalDays =
+            widget.endDate.difference(widget.startDate).inDays + 1;
         if (writtenDays >= totalDays) {
           Navigator.push(
             context,
@@ -518,16 +485,13 @@ class _TravelDayPageState extends State<TravelDayPage>
         }
       }
     } catch (e) {
-      debugPrint('❌ 저장 실패: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
-  @override
   Widget build(BuildContext context) {
     final bool hasAiImage = _imageUrl != null || _generatedImage != null;
-
     final Color generateButtonColor = !_isTripTypeLoaded
         ? const Color(0xFFC2C2C2)
         : _travelType == 'domestic'
@@ -536,195 +500,188 @@ class _TravelDayPageState extends State<TravelDayPage>
         ? AppColors.travelingRed
         : AppColors.travelingPurple;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF2F3F5),
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.only(top: 20),
-
-                    child: Column(
-                      children: [
-                        // ================= 카드 시작 =================
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 27),
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(22),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.08),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 8),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // ----- 카드 내부 콘텐츠 -----
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    17,
-                                    10,
-                                    17,
-                                    0,
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        resizeToAvoidBottomInset: false, // ✅ 하단 바 고정
+        body: SafeArea(
+          bottom: false,
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 27),
+                            child: Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
                                   ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                              left: 7,
-                                            ),
-                                            child: Text(
-                                              'DAY ${DateUtilsHelper.calculateDayNumber(startDate: widget.startDate, currentDate: widget.date).toString().padLeft(2, '0')}',
-                                              style: const TextStyle(
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w700,
-                                                color: AppColors.textColor01,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              '${DateFormat('yyyy.MM.dd').format(widget.date)} · ${widget.placeName}',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                color: AppColors.textColor04,
-                                              ),
-                                            ),
-                                          ),
-                                          _buildAppBarStampToggle(),
-                                        ],
-                                      ),
-                                      _buildDiaryInput(),
-                                      const SizedBox(height: 17),
-                                      _buildSectionTitle(
-                                        'assets/icons/ico_camera.png',
-                                        'todays_moments'.tr(),
-                                        'max_3_photos'.tr(),
-                                      ),
-                                      const SizedBox(height: 7),
-                                      _buildPhotoList(),
-                                      const SizedBox(height: 18),
-                                      _buildSectionTitle(
-                                        'assets/icons/ico_palette.png',
-                                        'drawing_style'.tr(),
-                                        '',
-                                      ),
-                                      const SizedBox(height: 4),
-                                      ImageStylePicker(
-                                        onChanged: (style) => setState(
-                                          () => _selectedStyle = style,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 16),
-                                    ],
-                                  ),
-                                ),
-
-                                // ----- 🔥 버튼 (카드 하단에 붙음) -----
-                                // 🔥 버튼은 여기 하나만
-                                _buildGenerateButton(generateButtonColor),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // ================= 카드 끝 =================
-                        const SizedBox(height: 27),
-
-                        if (hasAiImage)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(0),
-                            child: SizedBox(
-                              width: MediaQuery.of(
-                                context,
-                              ).size.width, // 🔥 화면 기준
-                              child: AspectRatio(
-                                aspectRatio: 4 / 3,
-                                child: _imageUrl != null
-                                    ? Image.network(
-                                        _imageUrl!,
-                                        fit: BoxFit.cover,
-                                      )
-                                    : Image.memory(
-                                        _generatedImage!,
-                                        fit: BoxFit.cover,
-                                      ),
+                                ],
                               ),
-                            ),
-                          )
-                        else
-                          // 🔥 여기 이미지 영역 안내용 플레이스홀더
-                          Container(
-                            width: MediaQuery.of(context).size.width,
-                            height:
-                                MediaQuery.of(context).size.width *
-                                3 /
-                                4, // 4:3
-                            color: const Color(0xFFE6E6E6),
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: 30,
-                              ), // 👈 하단 여백
                               child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Image.asset(
-                                    'assets/icons/ico_attached2.png',
-                                    width: 110,
-                                    height: 101,
-                                  ),
-                                  const SizedBox(height: 5),
-                                  Text(
-                                    '오늘의 하루를\n그림으로 남겨보세요',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: const Color(0xFFB3B3B3),
-                                      fontSize: 15,
-                                      height: 1.2,
-                                      fontWeight: FontWeight.w600,
+                                  Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      17,
+                                      10,
+                                      17,
+                                      0,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                left: 7,
+                                              ),
+                                              child: Text(
+                                                'DAY ${DateUtilsHelper.calculateDayNumber(startDate: widget.startDate, currentDate: widget.date).toString().padLeft(2, '0')}',
+                                                style: const TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: AppColors.textColor01,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                '${DateFormat('yyyy.MM.dd').format(widget.date)} · ${widget.placeName}',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  color: AppColors.textColor04,
+                                                ),
+                                              ),
+                                            ),
+                                            _buildAppBarCoinToggle(), // ✅ 다국어 대응 토글
+                                          ],
+                                        ),
+                                        _buildDiaryInput(),
+                                        const SizedBox(height: 17),
+                                        _buildSectionTitle(
+                                          'assets/icons/ico_camera.png',
+                                          'todays_moments'.tr(),
+                                          'max_3_photos'.tr(),
+                                        ),
+                                        const SizedBox(height: 7),
+                                        _buildPhotoList(),
+                                        const SizedBox(height: 18),
+                                        _buildSectionTitle(
+                                          'assets/icons/ico_palette.png',
+                                          'drawing_style'.tr(),
+                                          '',
+                                        ),
+                                        const SizedBox(height: 4),
+                                        ImageStylePicker(
+                                          onChanged: (style) {
+                                            FocusManager.instance.primaryFocus
+                                                ?.unfocus();
+                                            setState(
+                                              () => _selectedStyle = style,
+                                            );
+                                          },
+                                        ),
+                                        const SizedBox(height: 16),
+                                      ],
                                     ),
                                   ),
+                                  _buildGenerateButton(generateButtonColor),
                                 ],
                               ),
                             ),
                           ),
-                      ],
+                          const SizedBox(height: 27),
+                          if (hasAiImage)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(0),
+                              child: SizedBox(
+                                width: MediaQuery.of(context).size.width,
+                                child: AspectRatio(
+                                  aspectRatio: 4 / 3,
+                                  child: _imageUrl != null
+                                      ? Image.network(
+                                          _imageUrl!,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.memory(
+                                          _generatedImage!,
+                                          fit: BoxFit.cover,
+                                        ),
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              width: MediaQuery.of(context).size.width,
+                              height: MediaQuery.of(context).size.width * 3 / 4,
+                              color: const Color(0xFFE6E6E6),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.asset(
+                                      'assets/icons/ico_attached2.png',
+                                      width: 110,
+                                      height: 101,
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      '오늘의 하루를\n그림으로 남겨보세요',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: const Color(0xFFB3B3B3),
+                                        fontSize: 15,
+                                        height: 1.2,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                _buildFixedBottomSaveBar(),
-              ],
-            ),
-            if (_loading) _buildLoadingOverlay(),
-          ],
+                  _buildFixedBottomSaveBar(),
+                ],
+              ),
+              if (_loading) _buildLoadingOverlay(),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildAppBarStampToggle() {
+  // ✅ [수정] 다국어 대응 코인 토글 (SharedPreferences 연동)
+  Widget _buildAppBarCoinToggle() {
     return GestureDetector(
-      onTap: () => setState(() => _usePaidStampMode = !_usePaidStampMode),
+      onTap: () {
+        bool newValue = !_usePaidStampMode;
+        setState(() => _usePaidStampMode = newValue);
+        _saveDefaultCoinSetting(newValue); // ✅ 디폴트 설정 저장
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
@@ -734,22 +691,16 @@ class _TravelDayPageState extends State<TravelDayPage>
           ),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            _stampUnit(
-              'stored'.tr(),
+            _coinUnit(
+              'free_stamp'.tr(),
               _dailyStamps,
               Colors.blue,
               !_usePaidStampMode,
             ),
-            const VerticalDivider(
-              width: 15,
-              thickness: 1,
-              indent: 8,
-              endIndent: 8,
-            ),
-            _stampUnit(
-              'stored'.tr(),
+            const SizedBox(width: 8),
+            _coinUnit(
+              'paid_stamp'.tr(),
               _paidStamps,
               Colors.orange,
               _usePaidStampMode,
@@ -760,21 +711,21 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  Widget _stampUnit(String label, int count, Color color, bool isActive) {
+  Widget _coinUnit(String label, int count, Color color, bool isActive) {
     return Opacity(
       opacity: isActive ? 1.0 : 0.3,
       child: Row(
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 10, color: Colors.black54),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
           ),
           const SizedBox(width: 4),
           Text(
             count.toString(),
             style: TextStyle(
               color: color,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -785,7 +736,7 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   Widget _buildDiaryInput() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.circular(6),
@@ -797,28 +748,21 @@ class _TravelDayPageState extends State<TravelDayPage>
         style: const TextStyle(
           fontSize: 13,
           height: 1.2,
-          color: Color(0xFF2B2B2B), // ✅ 입력 중 텍스트 색
+          color: Color(0xFF2B2B2B),
         ),
         decoration: InputDecoration(
           border: InputBorder.none,
           hintText: 'diary_hint'.tr(),
-          hintStyle: const TextStyle(
-            color: Color(0xFFAAAAAA), // ✅ 입력 전 힌트 색
-            fontSize: 13,
-          ),
+          hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13),
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(
-    String iconAssetPath,
-    String title,
-    String subTitle,
-  ) {
+  Widget _buildSectionTitle(String icon, String title, String sub) {
     return Row(
       children: [
-        Image.asset(iconAssetPath, width: 14, height: 14),
+        Image.asset(icon, width: 14, height: 14),
         const SizedBox(width: 5),
         Text(
           title,
@@ -830,7 +774,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         ),
         const SizedBox(width: 3),
         Text(
-          subTitle,
+          sub,
           style: const TextStyle(fontSize: 13, color: AppColors.textColor06),
         ),
       ],
@@ -841,25 +785,17 @@ class _TravelDayPageState extends State<TravelDayPage>
     return SizedBox(
       height: 42,
       child: LayoutBuilder(
-        builder: (context, constraints) {
-          const double gap = 6;
-          const double addBtnSize = 42;
-
-          // 고정 너비: 버튼(42) + 간격 3개(18) = 총 60px 제외
-          final double available =
-              constraints.maxWidth - addBtnSize - (gap * 3);
-          final double slotWidth = (available / 3).floorToDouble();
-
+        builder: (ctx, box) {
+          final w = (box.maxWidth - 42 - 18) / 3;
           return Row(
-            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              _buildPhotoSlot(0, slotWidth),
-              const SizedBox(width: gap),
-              _buildPhotoSlot(1, slotWidth),
-              const SizedBox(width: gap),
-              _buildPhotoSlot(2, slotWidth),
-              const SizedBox(width: gap),
-              _buildAddPhotoButton(), // 버튼 마진 제거됨
+              _buildPhotoSlot(0, w),
+              const SizedBox(width: 6),
+              _buildPhotoSlot(1, w),
+              const SizedBox(width: 6),
+              _buildPhotoSlot(2, w),
+              const SizedBox(width: 6),
+              _buildAddPhotoButton(),
             ],
           );
         },
@@ -867,76 +803,27 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  Widget _buildPhotoSlot(int index, double width) {
-    final int remoteCount = _remotePhotoUrls.length;
-    final int localCount = _localPhotos.length;
-
-    Widget? displayImage;
-    bool showRemove = false;
-    VoidCallback? onRemove;
-
-    if (index < remoteCount) {
-      displayImage = Image.network(_remotePhotoUrls[index], fit: BoxFit.cover);
-      showRemove = true;
-      onRemove = () => setState(() => _remotePhotoUrls.removeAt(index));
-    } else if (index < (remoteCount + localCount)) {
-      final localIndex = index - remoteCount;
-      displayImage = Image.file(_localPhotos[localIndex], fit: BoxFit.cover);
-      showRemove = true; // 로컬 사진일 때만 삭제 버튼 활성화
-      onRemove = () => setState(() => _localPhotos.removeAt(localIndex));
+  Widget _buildPhotoSlot(int i, double w) {
+    final rc = _remotePhotoUrls.length;
+    final lc = _localPhotos.length;
+    Widget? img;
+    bool del = false;
+    VoidCallback? onDel;
+    if (i < rc) {
+      img = Image.network(_remotePhotoUrls[i], fit: BoxFit.cover);
+      del = true;
+      onDel = () => setState(() => _remotePhotoUrls.removeAt(i));
+    } else if (i < rc + lc) {
+      final li = i - rc;
+      img = Image.file(_localPhotos[li], fit: BoxFit.cover);
+      del = true;
+      onDel = () => setState(() => _localPhotos.removeAt(li));
     }
-
     return _buildFixedPhotoBox(
-      width: width,
-      child: displayImage,
-      showRemove: showRemove,
-      onRemove: onRemove,
-    );
-  }
-
-  Widget _buildRemotePhotoItem(int index) {
-    return Container(
-      width: 85,
-      height: 85,
-      margin: const EdgeInsets.only(right: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        image: DecorationImage(
-          image: NetworkImage(_remotePhotoUrls[index]),
-          fit: BoxFit.cover,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPhotoItem(int index) {
-    return Stack(
-      children: [
-        Container(
-          width: 85,
-          height: 85,
-          margin: const EdgeInsets.only(right: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            image: DecorationImage(
-              image: FileImage(_localPhotos[index]),
-              fit: BoxFit.cover,
-            ),
-          ),
-        ),
-        Positioned(
-          top: 5,
-          right: 15,
-          child: GestureDetector(
-            onTap: () => setState(() => _localPhotos.removeAt(index)),
-            child: const CircleAvatar(
-              radius: 10,
-              backgroundColor: Colors.black54,
-              child: Icon(Icons.close, size: 12, color: Colors.white),
-            ),
-          ),
-        ),
-      ],
+      width: w,
+      child: img,
+      showRemove: del,
+      onRemove: onDel,
     );
   }
 
@@ -946,7 +833,6 @@ class _TravelDayPageState extends State<TravelDayPage>
       child: Container(
         width: 42,
         height: 42,
-        // 🚩 margin: const EdgeInsets.only(right: 6) <- 이 부분을 반드시 지워주세요!
         decoration: BoxDecoration(
           color: const Color(0xFFDBDBDB),
           borderRadius: BorderRadius.circular(5),
@@ -962,27 +848,24 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  Widget _buildGenerateButton(Color themeColor) {
+  Widget _buildGenerateButton(Color c) {
     return GestureDetector(
       onTap: _loading ? null : _handleGenerateWithStamp,
       child: Container(
         width: double.infinity,
         height: 47,
         decoration: BoxDecoration(
-          color: themeColor,
+          color: c,
           borderRadius: const BorderRadius.only(
             bottomLeft: Radius.circular(22),
             bottomRight: Radius.circular(22),
           ),
         ),
-
         child: Center(
           child: Text(
             'generate_image_button'.tr(),
             style: TextStyle(
-              color: themeColor == Colors.white
-                  ? Colors.grey[600]
-                  : Colors.white,
+              color: c == Colors.white ? Colors.grey[600] : Colors.white,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -1052,7 +935,6 @@ class _TravelDayPageState extends State<TravelDayPage>
         .select('photo_urls')
         .eq('id', travelDayId)
         .single();
-
     final List<String> urls = List<String>.from(data['photo_urls'] ?? []);
     if (urls.contains(imageUrl)) return;
     urls.add(imageUrl);
@@ -1068,8 +950,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     required bool showRemove,
     VoidCallback? onRemove,
   }) {
-    final bool hasImage = child != null;
-
+    final hasImg = child != null;
     return Container(
       width: width,
       height: 42,
@@ -1079,34 +960,23 @@ class _TravelDayPageState extends State<TravelDayPage>
       ),
       child: Stack(
         children: [
-          // 1️⃣ 메인 영역
           ClipRRect(
             borderRadius: BorderRadius.circular(5),
             child: SizedBox(
               width: width,
               height: 42,
-              child: hasImage ? child : const SizedBox(), // 빈 슬롯은 배경만
+              child: hasImg ? child : const SizedBox(),
             ),
           ),
-
-          // 2️⃣ ico_attached 👉 사진 없을 때만 표시 (🔥 핵심)
-          if (!hasImage)
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 2,
-              bottom: 0,
-              child: Center(
-                child: Image.asset(
-                  'assets/icons/ico_attached.png',
-                  width: 26,
-                  height: 19,
-                ),
+          if (!hasImg)
+            Center(
+              child: Image.asset(
+                'assets/icons/ico_attached.png',
+                width: 26,
+                height: 19,
               ),
             ),
-
-          // 3️⃣ 삭제 버튼 👉 사진 있을 때만
-          if (hasImage && showRemove && onRemove != null)
+          if (hasImg && showRemove && onRemove != null)
             Positioned(
               top: 2,
               right: 2,

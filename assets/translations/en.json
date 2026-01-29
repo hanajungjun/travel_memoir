@@ -207,8 +207,8 @@
   "daily_reward_title": "🎁 Daily Gift",
   "daily_reward_desc": "A new day has dawned!\n5 daily coins have been added.",
   "close": "Close",
-  "free_stamp": "Free",
-  "paid_stamp": "Storage",
+  "free_stamp": "Point",
+  "paid_stamp": "Credit",
   "write_diary": "Record",
   "generate_ai_image": "Generate AI Image",
   "save_diary_button": "Save Record",
@@ -335,5 +335,6 @@
   "year": "Year",
   "go_to_management":"Map Management",
   "get_more_maps": "Get More Maps",
-  "nationality": "Nationality"   
+  "nationality": "Nationality",
+  "please_select_style": "Please Select AI Style"     
 }

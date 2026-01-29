@@ -207,8 +207,8 @@
   "daily_reward_title": "🎁 오늘의 선물",
   "daily_reward_desc": "새로운 날이 밝았습니다!\n데일리 코인 5개가 추가되었습니다.",
   "close": "닫기",
-  "free_stamp": "무료",
-  "paid_stamp": "보관",
+  "free_stamp": "포인트",
+  "paid_stamp": "크레딧",
   "write_diary": "기록하기",
   "generate_ai_image": "AI 이미지 생성하기",
   "save_diary_button": "기록 저장하기",
@@ -333,5 +333,6 @@
   "year": "년",
   "go_to_management":"지도관리",
   "get_more_maps": "새로운 지도 추가하기" ,
-  "nationality": "국적" 
+  "nationality": "국적",
+  "please_select_style": "AI스타일을 선택해 주세요"  
 }

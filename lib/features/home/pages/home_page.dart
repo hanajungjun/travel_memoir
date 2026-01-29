@@ -131,7 +131,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                 27,
                 20,
                 27,
-                MediaQuery.of(context).padding.bottom + 10,
+                MediaQuery.of(context).padding.bottom + 5,
               ),
 
               child: Column(

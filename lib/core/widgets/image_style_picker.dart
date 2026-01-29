@@ -21,8 +21,9 @@ class ImageStylePicker extends StatefulWidget {
 class _ImageStylePickerState extends State<ImageStylePicker> {
   List<ImageStyleModel> _styles = [];
   int _selectedIndex = -1;
+
   bool _isPremiumUser = false;
-  bool _isLoading = true;
+  bool _isLoadingStatus = true;
 
   @override
   void initState() {
@@ -31,10 +32,8 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   }
 
   Future<void> _loadAll() async {
-    setState(() => _isLoading = true);
     await _checkUserStatus();
     await _loadStyles();
-    setState(() => _isLoading = false);
   }
 
   Future<void> _checkUserStatus() async {
@@ -50,15 +49,19 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
         if (mounted) {
           setState(() {
             _isPremiumUser = res?['is_premium'] ?? false;
+            _isLoadingStatus = false;
           });
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingStatus = false);
+    }
   }
 
   Future<void> _loadStyles() async {
     final styles = await ImageStyleService.fetchEnabled();
-    if (mounted) setState(() => _styles = styles);
+    if (!mounted) return;
+    setState(() => _styles = styles);
   }
 
   void _showPremiumRequiredDialog() {
@@ -108,32 +111,36 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading)
-      return const SizedBox(
-        height: 100,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    if (_styles.isEmpty)
+    if (_styles.isEmpty) {
       return SizedBox(
-        height: 100,
+        height: 80,
         child: Center(child: Text('no_available_styles'.tr())),
       );
+    }
+
+    final String currentLang = context.locale.languageCode;
 
     return SizedBox(
-      height: 110,
+      height: 100,
       child: ListView.separated(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.horizontal,
         itemCount: _styles.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
         itemBuilder: (_, i) {
           final style = _styles[i];
-          final bool isSelected = i == _selectedIndex;
-          final bool isLocked = style.isPremium && !_isPremiumUser; // 🔥 잠금 로직
+          final selected = i == _selectedIndex;
+          final bool locked = style.isPremium && !_isPremiumUser;
+          final String displayTitle =
+              (currentLang == 'en' && style.titleEn.isNotEmpty)
+              ? style.titleEn
+              : style.title;
 
           return GestureDetector(
             onTap: () {
-              if (isLocked) {
+              // 🔥 [핵심 추가] 어떤 상황에서도 키보드를 즉시 내리는 전역 명령
+              FocusManager.instance.primaryFocus?.unfocus();
+
+              if (locked) {
                 _showPremiumRequiredDialog();
               } else {
                 setState(() => _selectedIndex = i);
@@ -141,99 +148,96 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
               }
             },
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Stack(
                   children: [
-                    // 🖼 썸네일 베이스
                     Container(
-                      width: 76,
-                      height: 76,
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: isSelected
+                        borderRadius: BorderRadius.circular(5),
+                        color: Colors.white,
+                        // ✅ 선택 시 보더 디자인 유지 (필요시 색상 조정)
+                        border: selected
                             ? Border.all(
                                 color: AppColors.travelingBlue,
-                                width: 3,
+                                width: 2,
                               )
                             : null,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
                       ),
+                      clipBehavior: Clip.hardEdge,
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(
-                          isSelected ? 9 : 12,
-                        ),
-                        child: ColorFiltered(
-                          // 🔒 잠겨있으면 채도를 0으로 (회색조)
-                          colorFilter: ColorFilter.mode(
-                            isLocked ? Colors.grey : Colors.transparent,
-                            BlendMode.saturation,
-                          ),
-                          child:
-                              style.thumbnailUrl != null &&
-                                  style.thumbnailUrl!.isNotEmpty
-                              ? CachedNetworkImage(
-                                  imageUrl: Uri.encodeFull(style.thumbnailUrl!),
-                                  fit: BoxFit.cover,
-                                )
-                              : const Icon(Icons.image, color: Colors.grey),
-                        ),
+                        borderRadius: BorderRadius.circular(5),
+                        child:
+                            style.thumbnailUrl != null &&
+                                style.thumbnailUrl!.isNotEmpty
+                            ? (locked
+                                  ? ColorFiltered(
+                                      colorFilter: const ColorFilter.mode(
+                                        Colors.grey,
+                                        BlendMode.saturation,
+                                      ),
+                                      child: CachedNetworkImage(
+                                        imageUrl: Uri.encodeFull(
+                                          style.thumbnailUrl!,
+                                        ),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : CachedNetworkImage(
+                                      imageUrl: Uri.encodeFull(
+                                        style.thumbnailUrl!,
+                                      ),
+                                      fit: BoxFit.cover,
+                                    ))
+                            : const Icon(Icons.image, color: Colors.grey),
                       ),
                     ),
-
-                    // 🔒 잠금 오버레이
-                    if (isLocked)
+                    if (selected)
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(12),
+                            color: AppColors.travelingBlue.withOpacity(0.45),
+                            borderRadius: BorderRadius.circular(5),
                           ),
-                          child: const Icon(
-                            Icons.lock_rounded,
-                            color: Colors.white,
-                            size: 24,
+                          child: const Center(
+                            child: Icon(
+                              Icons.check_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
                           ),
                         ),
                       ),
-
-                    // ✅ 선택 체크 배지
-                    if (isSelected)
-                      Positioned(
-                        right: 4,
-                        bottom: 4,
+                    if (locked)
+                      Positioned.fill(
                         child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
-                            color: AppColors.travelingBlue,
-                            shape: BoxShape.circle,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(5),
                           ),
-                          child: const Icon(
-                            Icons.check_rounded,
-                            color: Colors.white,
-                            size: 16,
+                          child: const Center(
+                            child: Icon(
+                              Icons.lock_rounded,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                           ),
                         ),
                       ),
-
-                    // 👑 PRO 배지
                     if (style.isPremium)
                       Positioned(
-                        left: 4,
+                        right: 4,
                         top: 4,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
+                            horizontal: 4,
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
                             color: Colors.amber,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(5),
                           ),
                           child: const Text(
                             'PRO',
@@ -247,26 +251,20 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                // 📝 스타일 제목 (언어 대응)
+                const SizedBox(height: 3),
                 SizedBox(
-                  width: 76,
+                  width: 70,
                   child: Text(
-                    ImageStyleService.getLocalizedTitle(
-                      style,
-                      context,
-                    ), // 🔥 헬퍼 사용
+                    displayTitle,
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMuted.copyWith(
-                      fontSize: 11,
-                      fontWeight: isSelected
+                      fontSize: 12,
+                      color: AppColors.textColor01,
+                      fontWeight: selected
                           ? FontWeight.bold
                           : FontWeight.normal,
-                      color: isSelected
-                          ? AppColors.travelingBlue
-                          : AppColors.textColor01,
                     ),
                   ),
                 ),

@@ -18,7 +18,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
   List<Package> _coinPackages = [];
   bool _isProductsLoading = true;
 
-  // ✅ Future 타입을 Map으로 변경하여 무료/유료 코인 모두 수용
   late Future<Map<String, int>> _balanceFuture;
 
   @override
@@ -28,7 +27,25 @@ class _CoinShopPageState extends State<CoinShopPage> {
     _fetchOfferings();
   }
 
-  /// ✅ 보유 코인 잔액 조회 (무료/유료 통합)
+  // ===============================
+  // ✅ 구독 기간 라벨 (RevenueCat 안전 버전)
+  // ===============================
+  String _packagePeriodLabel(BuildContext context, Package package) {
+    final isKorean = context.locale.languageCode == 'ko';
+
+    switch (package.packageType) {
+      case PackageType.monthly:
+        return isKorean ? '/ 월' : 'per month';
+      case PackageType.annual:
+        return isKorean ? '/ 연' : 'per year';
+      default:
+        return '';
+    }
+  }
+
+  // ===============================
+  // 코인 잔액
+  // ===============================
   Future<Map<String, int>> _fetchCoinBalances() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return {'free': 0, 'paid': 0};
@@ -42,7 +59,9 @@ class _CoinShopPageState extends State<CoinShopPage> {
     return {'free': res['daily_stamps'] ?? 0, 'paid': res['paid_stamps'] ?? 0};
   }
 
-  /// ✅ 상품 목록 가져오기 및 정렬
+  // ===============================
+  // 상품 로드
+  // ===============================
   Future<void> _fetchOfferings() async {
     try {
       Offerings? offerings = await PaymentService.getOfferings();
@@ -58,14 +77,14 @@ class _CoinShopPageState extends State<CoinShopPage> {
               )
               .toList();
 
-          _coinPackages = allPackages
-              .where((p) => p.storeProduct.identifier.contains('coin'))
-              .toList();
-
-          // 가격순 정렬 (50 -> 100 -> 200)
-          _coinPackages.sort(
-            (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
-          );
+          _coinPackages =
+              allPackages
+                  .where((p) => p.storeProduct.identifier.contains('coin'))
+                  .toList()
+                ..sort(
+                  (a, b) =>
+                      a.storeProduct.price.compareTo(b.storeProduct.price),
+                );
 
           _isProductsLoading = false;
         });
@@ -76,22 +95,26 @@ class _CoinShopPageState extends State<CoinShopPage> {
     }
   }
 
-  /// ✅ 결제 처리
+  // ===============================
+  // 결제
+  // ===============================
   Future<void> _handlePurchase(Package package) async {
     setState(() => _isProductsLoading = true);
-    final success = await PaymentService.purchasePackage(package);
 
+    final success = await PaymentService.purchasePackage(package);
     if (success) {
-      await Future.delayed(const Duration(seconds: 1)); // DB 반영 대기
+      await Future.delayed(const Duration(seconds: 1));
       setState(() {
         _balanceFuture = _fetchCoinBalances();
       });
+
       if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('upgrade_success_msg'.tr())));
       }
     }
+
     setState(() => _isProductsLoading = false);
   }
 
@@ -136,7 +159,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildBalanceCard(), // ✅ 수정된 잔액 카드
+                  _buildBalanceCard(),
                   const SizedBox(height: 12),
 
                   Text(
@@ -144,15 +167,15 @@ class _CoinShopPageState extends State<CoinShopPage> {
                     style: AppTextStyles.sectionTitle,
                   ),
                   const SizedBox(height: 12),
+
+                  // ===============================
+                  // ✅ 구독 카드 (애플 통과 버전)
+                  // ===============================
                   ..._subscriptionPackages.map(
                     (p) => _buildSubscriptionCard(
-                      title: p.packageType == PackageType.annual
-                          ? 'annual_membership'.tr()
-                          : 'monthly_membership'.tr(),
+                      title: p.storeProduct.title,
                       price: p.storeProduct.priceString,
-                      period: p.packageType == PackageType.annual
-                          ? 'year'.tr()
-                          : 'month'.tr(),
+                      period: _packagePeriodLabel(context, p),
                       benefits: [
                         'benefit_stickers'.tr(),
                         'benefit_ai_picker'.tr(),
@@ -167,8 +190,8 @@ class _CoinShopPageState extends State<CoinShopPage> {
 
                   Text('charge_coins'.tr(), style: AppTextStyles.sectionTitle),
                   const SizedBox(height: 12),
-                  _buildCoinGrid(),
 
+                  _buildCoinGrid(),
                   const SizedBox(height: 4),
                   _buildFooterNotice(),
                 ],
@@ -177,7 +200,9 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
-  // 💰 [수정] 무료/유료 코인이 모두 보이는 잔액 카드
+  // ===============================
+  // UI
+  // ===============================
   Widget _buildBalanceCard() {
     return FutureBuilder<Map<String, int>>(
       future: _balanceFuture,
@@ -193,17 +218,15 @@ class _CoinShopPageState extends State<CoinShopPage> {
           ),
           child: Column(
             children: [
-              // 무료 코인 표시 부분
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'free_coins'.tr(), // ✅ 다국어 키 적용
+                    'free_coins'.tr(),
                     style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                   Row(
                     children: [
-                      // ✅ 요청하신 황금 별 아이콘 추가
                       const Icon(Icons.stars, color: Colors.blue, size: 16),
                       const SizedBox(width: 4),
                       Text(
@@ -219,7 +242,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
                 ],
               ),
               const Divider(height: 24),
-              // 유료 코인
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -268,13 +290,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: InkWell(
         onTap: onTap,
@@ -299,7 +314,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "$price / $period",
+                        "$price $period",
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.8),
                           fontSize: 13,
@@ -363,7 +378,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
         final p = _coinPackages[index];
         return InkWell(
           onTap: () => _handlePurchase(p),
-          borderRadius: BorderRadius.circular(12),
           child: Container(
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade200),
