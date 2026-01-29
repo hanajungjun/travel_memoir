@@ -317,12 +317,12 @@ class _TravelDayPageState extends State<TravelDayPage>
 
       // 1️⃣ 요약 단계 프롬프트 구성 및 로그 출력
       final String summaryPrompt =
-          '${PromptCache.textPrompt.content}\n'
+          '${PromptCache.textPrompt.contentKo}\n'
           '[Information]\n'
           'Location: ${widget.placeName}\n'
           'Diary Content: ${_contentController.text}';
 
-      //debugPrint("🔍 [1. 요약용 최종 프롬프트]:\n$summaryPrompt"); // 👈 finalPrompt 로그
+      debugPrint("🔍 [1. 요약용 최종 프롬프트]:\n$summaryPrompt"); // 👈 finalPrompt 로그
 
       final summary = await gemini.generateSummary(
         finalPrompt: summaryPrompt,
@@ -330,11 +330,11 @@ class _TravelDayPageState extends State<TravelDayPage>
       );
 
       _summaryText = summary;
-      //debugPrint("📝 [2. AI 요약 결과]:\n$_summaryText"); // 👈 _summaryText 로그
+      debugPrint("📝 [2. AI 요약 결과]:\n$_summaryText"); // 👈 _summaryText 로그
 
       // 2️⃣ 생성 단계 프롬프트 구성 및 로그 출력
       final String imagePrompt =
-          '${PromptCache.imagePrompt.content}\n'
+          '${PromptCache.imagePrompt.contentKo}\n'
           'Style: ${_selectedStyle!.prompt}\n'
           '[Context from Diary Summary]: $summary\n';
 
