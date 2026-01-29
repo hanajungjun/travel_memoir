@@ -668,6 +668,42 @@ class _TravelDayPageState extends State<TravelDayPage>
                                       ),
                               ),
                             ),
+                          )
+                        else
+                          // 🔥 여기 이미지 영역 안내용 플레이스홀더
+                          Container(
+                            width: MediaQuery.of(context).size.width,
+                            height:
+                                MediaQuery.of(context).size.width *
+                                3 /
+                                4, // 4:3
+                            color: const Color(0xFFE6E6E6),
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: 30,
+                              ), // 👈 하단 여백
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Image.asset(
+                                    'assets/icons/ico_attached2.png',
+                                    width: 110,
+                                    height: 101,
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    '오늘의 하루를\n그림으로 남겨보세요',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: const Color(0xFFB3B3B3),
+                                      fontSize: 15,
+                                      height: 1.2,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                       ],
                     ),
