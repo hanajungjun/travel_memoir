@@ -97,6 +97,10 @@ class _TravelDayPageState extends State<TravelDayPage>
   bool _isAiDone = false;
   bool _isAdDone = false;
 
+  // ✅ [추가] 상단 카드 높이 측정용 + 이미지 영역 높이 저장
+  final GlobalKey _topCardKey = GlobalKey();
+  double _dynamicImageHeight = 0;
+
   String get _userId => Supabase.instance.client.auth.currentUser!.id
       .replaceAll(RegExp(r'[\s\n\r\t]+'), '');
   String get _cleanTravelId =>
@@ -114,6 +118,9 @@ class _TravelDayPageState extends State<TravelDayPage>
         .animate(
           CurvedAnimation(parent: _cardController, curve: Curves.easeOutBack),
         );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateDynamicImageHeight();
+    });
   }
 
   @override
@@ -310,6 +317,53 @@ class _TravelDayPageState extends State<TravelDayPage>
     } else {
       _isAdDone = true;
       _checkSync();
+    }
+  }
+
+  // ✅ [추가] 화면에서 "남은 높이"를 계산해서 이미지 높이를 만든다
+  void _updateDynamicImageHeight() {
+    if (!mounted) return;
+
+    final media = MediaQuery.of(context);
+    final screenH = media.size.height;
+
+    // SafeArea(top) 값
+    final topPadding = media.padding.top;
+
+    // 하단 저장바 높이 (너 코드 그대로 58)
+    const bottomBarH = 58.0;
+
+    // SingleChildScrollView padding top: 5 (너 코드 그대로)
+    const scrollTopPadding = 5.0;
+
+    // 카드 아래 여백 SizedBox(height: 27) (너 코드 그대로)
+    const gapUnderCard = 27.0;
+
+    // 상단 카드 실제 높이(렌더된 뒤 측정)
+    final ctx = _topCardKey.currentContext;
+    double cardH = 0;
+    if (ctx != null) {
+      final box = ctx.findRenderObject();
+      if (box is RenderBox && box.hasSize) {
+        cardH = box.size.height;
+      }
+    }
+
+    // 남는 높이 = 전체 - topSafe - 하단바 - 스크롤패딩 - 카드높이 - 카드아래간격
+    double remain =
+        screenH -
+        topPadding -
+        bottomBarH -
+        scrollTopPadding -
+        cardH -
+        gapUnderCard;
+
+    // 너무 작으면 최소 높이 보장 (원하면 180 숫자만 변경)
+    if (remain < 180) remain = 180;
+
+    // 변화 있을 때만 setState
+    if ((_dynamicImageHeight - remain).abs() > 1) {
+      setState(() => _dynamicImageHeight = remain);
     }
   }
 
@@ -519,6 +573,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 27),
                             child: Container(
+                              key: _topCardKey, // ✅ [추가] 카드 높이 측정용
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -537,7 +592,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                                   Padding(
                                     padding: const EdgeInsets.fromLTRB(
                                       17,
-                                      10,
+                                      15,
                                       17,
                                       0,
                                     ),
@@ -549,23 +604,23 @@ class _TravelDayPageState extends State<TravelDayPage>
                                           children: [
                                             Padding(
                                               padding: const EdgeInsets.only(
-                                                left: 7,
+                                                left: 5,
                                               ),
                                               child: Text(
                                                 'DAY ${DateUtilsHelper.calculateDayNumber(startDate: widget.startDate, currentDate: widget.date).toString().padLeft(2, '0')}',
                                                 style: const TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w800,
                                                   color: AppColors.textColor01,
                                                 ),
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
+                                            const SizedBox(width: 6),
                                             Expanded(
                                               child: Text(
                                                 '${DateFormat('yyyy.MM.dd').format(widget.date)} · ${widget.placeName}',
                                                 style: const TextStyle(
-                                                  fontSize: 13,
+                                                  fontSize: 12,
                                                   color: AppColors.textColor04,
                                                 ),
                                               ),
@@ -573,6 +628,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                                             _buildAppBarCoinToggle(), // ✅ 다국어 대응 토글
                                           ],
                                         ),
+                                        const SizedBox(height: 5),
                                         _buildDiaryInput(),
                                         const SizedBox(height: 17),
                                         _buildSectionTitle(
@@ -588,7 +644,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                                           'drawing_style'.tr(),
                                           '',
                                         ),
-                                        const SizedBox(height: 4),
+                                        const SizedBox(height: 3),
                                         ImageStylePicker(
                                           onChanged: (style) {
                                             FocusManager.instance.primaryFocus
@@ -598,7 +654,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                                             );
                                           },
                                         ),
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 11),
                                       ],
                                     ),
                                   ),
@@ -608,54 +664,74 @@ class _TravelDayPageState extends State<TravelDayPage>
                             ),
                           ),
                           const SizedBox(height: 27),
-                          if (hasAiImage)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(0),
-                              child: SizedBox(
+
+                          // ✅ [변경] 4:3 제거 → "남은 높이"만큼 이미지 영역 채우기
+                          LayoutBuilder(
+                            builder: (context, _) {
+                              // 매 빌드 후 다음 프레임에서 높이 업데이트(회전/기기 대응)
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                _updateDynamicImageHeight();
+                              });
+
+                              // 아직 계산 전이면 기존 4:3 값을 임시 fallback으로 사용
+                              final fallback =
+                                  MediaQuery.of(context).size.width * 3 / 4;
+                              final h = (_dynamicImageHeight > 0)
+                                  ? _dynamicImageHeight
+                                  : fallback;
+
+                              if (hasAiImage) {
+                                return GestureDetector(
+                                  onTap: _showImagePopup, // ✅ 팝업 호출
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(0),
+                                    child: SizedBox(
+                                      width: MediaQuery.of(context).size.width,
+                                      height: h,
+                                      child: _imageUrl != null
+                                          ? Image.network(
+                                              _imageUrl!,
+                                              fit: BoxFit.cover,
+                                            )
+                                          : Image.memory(
+                                              _generatedImage!,
+                                              fit: BoxFit.cover,
+                                            ),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              return Container(
                                 width: MediaQuery.of(context).size.width,
-                                child: AspectRatio(
-                                  aspectRatio: 4 / 3,
-                                  child: _imageUrl != null
-                                      ? Image.network(
-                                          _imageUrl!,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Image.memory(
-                                          _generatedImage!,
-                                          fit: BoxFit.cover,
-                                        ),
-                                ),
-                              ),
-                            )
-                          else
-                            Container(
-                              width: MediaQuery.of(context).size.width,
-                              height: MediaQuery.of(context).size.width * 3 / 4,
-                              color: const Color(0xFFE6E6E6),
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Image.asset(
-                                      'assets/icons/ico_attached2.png',
-                                      width: 110,
-                                      height: 101,
-                                    ),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      '오늘의 하루를\n그림으로 남겨보세요',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: const Color(0xFFB3B3B3),
-                                        fontSize: 15,
-                                        height: 1.2,
-                                        fontWeight: FontWeight.w600,
+                                height: h,
+                                color: const Color(0xFFE6E6E6),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Image.asset(
+                                        'assets/icons/ico_attached2.png',
+                                        width: 110,
+                                        height: 101,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        '오늘의 하루를\n그림으로 남겨보세요',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: const Color(0xFFB3B3B3),
+                                          fontSize: 15,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -680,29 +756,31 @@ class _TravelDayPageState extends State<TravelDayPage>
         _saveDefaultCoinSetting(newValue); // ✅ 디폴트 설정 저장
       },
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+        padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: _usePaidStampMode ? Colors.orange : Colors.blue,
-            width: 2,
-          ),
+          color: const Color(0xFF454B54), // ✅ 여기
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
           children: [
             _coinUnit(
               'free_stamp'.tr(),
               _dailyStamps,
-              Colors.blue,
+              const Color.fromARGB(255, 77, 181, 255),
               !_usePaidStampMode,
             ),
-            const SizedBox(width: 8),
+            // ✅ 구분선
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              width: 1,
+              height: 5,
+              color: Colors.white.withOpacity(0.2),
+            ),
             _coinUnit(
               'paid_stamp'.tr(),
               _paidStamps,
-              Colors.orange,
+              const Color.fromARGB(226, 255, 183, 68),
               _usePaidStampMode,
             ),
           ],
@@ -711,22 +789,37 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  Widget _coinUnit(String label, int count, Color color, bool isActive) {
-    return Opacity(
-      opacity: isActive ? 1.0 : 0.3,
+  Widget _coinUnit(String label, int count, Color activeBg, bool isActive) {
+    final Color textColor = isActive ? Colors.white : activeBg;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: isActive ? activeBg : Colors.transparent,
+        borderRadius: BorderRadius.circular(4),
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: textColor,
+              letterSpacing: -0.2,
+            ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 3),
           Text(
             count.toString(),
             style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+              color: textColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+              letterSpacing: -0.2,
             ),
           ),
         ],
@@ -857,8 +950,8 @@ class _TravelDayPageState extends State<TravelDayPage>
         decoration: BoxDecoration(
           color: c,
           borderRadius: const BorderRadius.only(
-            bottomLeft: Radius.circular(22),
-            bottomRight: Radius.circular(22),
+            bottomLeft: Radius.circular(12),
+            bottomRight: Radius.circular(12),
           ),
         ),
         child: Center(
@@ -898,7 +991,11 @@ class _TravelDayPageState extends State<TravelDayPage>
                   )
                 : Text(
                     'save_diary_button'.tr(),
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
           ),
         ),
@@ -922,6 +1019,42 @@ class _TravelDayPageState extends State<TravelDayPage>
           ],
         ),
       ),
+    );
+  } // ✅ [추가] 이미지 크게 보기 팝업
+
+  void _showImagePopup() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (_) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Dialog(
+            insetPadding: EdgeInsets.zero,
+            backgroundColor: Colors.transparent,
+            child: SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: _imageUrl != null
+                  ? InteractiveViewer(
+                      minScale: 1,
+                      maxScale: 4,
+                      child: Image.network(_imageUrl!, fit: BoxFit.contain),
+                    )
+                  : (_generatedImage != null
+                        ? InteractiveViewer(
+                            minScale: 1,
+                            maxScale: 4,
+                            child: Image.memory(
+                              _generatedImage!,
+                              fit: BoxFit.contain,
+                            ),
+                          )
+                        : const SizedBox()),
+            ),
+          ),
+        );
+      },
     );
   }
 

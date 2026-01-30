@@ -493,7 +493,7 @@ class _TypeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
+      padding: const EdgeInsets.fromLTRB(6, 3, 6, 1),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.15),
         borderRadius: BorderRadius.circular(5),
