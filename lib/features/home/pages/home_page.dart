@@ -15,6 +15,7 @@ import 'package:travel_memoir/core/widgets/skeletons/travel_map_skeleton.dart';
 import 'package:travel_memoir/core/widgets/skeletons/recent_travel_section_skeleton.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback onGoToTravel;
@@ -47,33 +48,42 @@ class _HomePageState extends State<HomePage> with RouteAware {
       debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
     }
 
-    final isGranted = await _stampService.checkAndGrantDailyReward(user.id);
-    if (isGranted && mounted) {
-      _showRewardPopup();
+    final reward = await _stampService.checkAndGrantDailyReward(user.id);
+
+    if (reward != null && mounted) {
+      _showRewardPopup(reward);
     }
   }
 
-  void _showRewardPopup() {
+  void _showRewardPopup(Map<String, dynamic> reward) {
+    final locale = context.locale.languageCode;
+
+    final title = reward['title_$locale'] ?? reward['title_ko'] ?? '🎁 Reward';
+
+    final descTemplate =
+        reward['description_$locale'] ?? reward['description_ko'] ?? '';
+
+    final desc = descTemplate
+        .replaceAll(r'\n', '\n')
+        .replaceAll('{amount}', reward['reward_amount'].toString());
+
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Center(
+        title: Center(
           child: Text(
-            "🎁 오늘의 선물",
-            style: TextStyle(fontWeight: FontWeight.bold),
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.stars, size: 60, color: Colors.orangeAccent),
-            SizedBox(height: 20),
-            Text(
-              "새로운 날이 밝았습니다!\n데일리 코인 5개가 추가되었습니다.",
-              textAlign: TextAlign.center,
-            ),
+            const Icon(Icons.stars, size: 60, color: Colors.orangeAccent),
+            const SizedBox(height: 20),
+            Text(desc, textAlign: TextAlign.center),
           ],
         ),
         actions: [
@@ -84,8 +94,8 @@ class _HomePageState extends State<HomePage> with RouteAware {
                 Navigator.pop(context);
                 _triggerRefresh();
               },
-              child: const Text(
-                "닫기",
+              child: Text(
+                "close".tr(),
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),

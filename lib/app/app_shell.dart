@@ -5,6 +5,7 @@ import 'package:travel_memoir/features/home/pages/home_page.dart';
 import 'package:travel_memoir/features/record/pages/record_tab_page.dart';
 import 'package:travel_memoir/features/travel_info/pages/travel_info_page.dart';
 import 'package:travel_memoir/features/my/pages/my_page.dart';
+import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -67,6 +68,7 @@ class _AppShellState extends State<AppShell> {
       const TravelInfoPage(),
       const RecordTabPage(),
       const MyPage(),
+      const CoinShopPage(),
     ];
 
     return Scaffold(
@@ -137,6 +139,10 @@ class _AppShellState extends State<AppShell> {
               _buildMenuItem(
                 iconAsset: 'assets/icons/nav_my.png',
                 label: 'nav_my'.tr(),
+              ),
+              _buildMenuItem(
+                iconAsset: 'assets/icons/nav_shop.png',
+                label: 'nav_shop'.tr(), // ⭐ 코인/상점
               ),
             ],
           ),

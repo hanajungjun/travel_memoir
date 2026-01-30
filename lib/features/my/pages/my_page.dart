@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -23,14 +24,25 @@ class MyPage extends StatefulWidget {
 }
 
 class _MyPageState extends State<MyPage> {
+  late Future<Map<String, dynamic>> _profileDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileDataFuture = _getProfileData();
+  }
+
+  void _refreshPage() {
+    setState(() {
+      _profileDataFuture = _getProfileData();
+    });
+  }
+
   Future<Map<String, dynamic>> _getProfileData() async {
     try {
-      debugPrint("🔍 [MyPage] 데이터 로딩 시퀀스 시작...");
       final user = Supabase.instance.client.auth.currentUser;
-
-      if (user == null) {
+      if (user == null)
         return {'profile': null, 'completedTravels': [], 'travelCount': 0};
-      }
 
       final userId = user.id;
       final userFuture = Supabase.instance.client
@@ -38,7 +50,6 @@ class _MyPageState extends State<MyPage> {
           .select()
           .eq('auth_uid', userId)
           .maybeSingle();
-
       final travelFuture = Supabase.instance.client
           .from('travels')
           .select('*')
@@ -47,25 +58,20 @@ class _MyPageState extends State<MyPage> {
           .order('created_at', ascending: false);
 
       final results = await Future.wait([userFuture, travelFuture]);
-
       return {
         'profile': results[0],
         'completedTravels': results[1] ?? [],
         'travelCount': (results[1] as List?)?.length ?? 0,
       };
     } catch (e) {
-      debugPrint("❌ [MyPage] 데이터 로드 중 에러 발생: $e");
       rethrow;
     }
   }
 
-  // ⬢ 프리미엄 체크 및 여권 팝업 제어
   void _handlePassportTap(bool isPremium) {
     if (isPremium) {
-      // ✅ 프리미엄이면 여권 열어줌
       _showStickerPopup(context);
     } else {
-      // ❌ 일반 유저면 알림 후 상점으로 유도
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
@@ -77,12 +83,13 @@ class _MyPageState extends State<MyPage> {
               child: Text('close'.tr()),
             ),
             ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // 알림창 닫고
-                Navigator.push(
+              onPressed: () async {
+                Navigator.pop(context);
+                await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const CoinShopPage()),
-                ).then((_) => setState(() {})); // 돌아오면 상태 갱신
+                );
+                _refreshPage();
               },
               child: Text('go_to_shop'.tr()),
             ),
@@ -99,15 +106,11 @@ class _MyPageState extends State<MyPage> {
       barrierLabel: 'PassportPopup',
       barrierColor: Colors.black.withOpacity(0.7),
       transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) {
-        return const PassportOpeningDialog();
-      },
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
-          child: child,
-        );
-      },
+      pageBuilder: (context, anim1, anim2) => const PassportOpeningDialog(),
+      transitionBuilder: (context, anim1, anim2, child) => ScaleTransition(
+        scale: CurvedAnimation(parent: anim1, curve: Curves.easeOutBack),
+        child: child,
+      ),
     );
   }
 
@@ -117,23 +120,20 @@ class _MyPageState extends State<MyPage> {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: FutureBuilder<Map<String, dynamic>>(
-          future: _getProfileData(),
+          future: _profileDataFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+            if (snapshot.connectionState == ConnectionState.waiting)
               return const Center(child: CircularProgressIndicator());
-            }
-            if (!snapshot.hasData || snapshot.data!['profile'] == null) {
+            if (!snapshot.hasData || snapshot.data!['profile'] == null)
               return Center(child: Text("error_loading_data".tr()));
-            }
 
             final profile = snapshot.data!['profile'];
             final travelCount = snapshot.data!['travelCount'] as int;
             final nickname = profile['nickname'] ?? 'default_nickname'.tr();
             final imageUrl = profile['profile_image_url'];
             final badge = getBadge(travelCount);
-
-            // 💎 프리미엄 여부 확인
             final bool isPremium = profile['is_premium'] ?? false;
+            final String? email = profile['email'];
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
@@ -148,7 +148,7 @@ class _MyPageState extends State<MyPage> {
                           builder: (_) => const ProfileEditPage(),
                         ),
                       );
-                      if (mounted) setState(() {});
+                      _refreshPage();
                     },
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
@@ -170,16 +170,11 @@ class _MyPageState extends State<MyPage> {
                                   _buildBadge(badge),
                                   if (isPremium) ...[
                                     const SizedBox(width: 6),
-                                    _buildPremiumMark(), // 위에서 만든 멋진 마크
-                                    // const Icon(
-                                    //   Icons.stars_rounded,
-                                    //   color: Colors.amber,
-                                    //   size: 20,
-                                    // ),
+                                    _buildPremiumMark(),
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12), // 닉네임 하단 간격 축소
                             ],
                           ),
                         ),
@@ -201,9 +196,7 @@ class _MyPageState extends State<MyPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  // 📘 여권 버튼 (프리미엄 전용 로직 적용)
+                  // 📘 여권 버튼
                   GestureDetector(
                     onTap: () => _handlePassportTap(isPremium),
                     child: Container(
@@ -251,52 +244,51 @@ class _MyPageState extends State<MyPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 12),
-                  Text(
-                    profile['email'] ?? '',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                  const SizedBox(height: 24),
+                  // 🔽 1. 이메일 유무에 따른 간격 조절
+                  if (email != null && email.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      email,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ],
+
+                  // 🔽 2. 그리드 상단 간격
+                  const SizedBox(height: 20),
 
                   GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
                     shrinkWrap: true,
+                    padding: EdgeInsets.zero, // 🔽 3. GridView 자체 내부 패딩 제거 (중요)
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _MenuTile(
                         title: 'my_travels'.tr(),
                         icon: Icons.public,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MyTravelSummaryPage(),
-                          ),
-                        ),
-                      ),
-                      _MenuTile(
-                        title: 'coin_shop'.tr(),
-                        icon: Icons.shopping_bag_outlined,
                         onTap: () async {
                           await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const CoinShopPage(),
+                              builder: (_) => const MyTravelSummaryPage(),
                             ),
                           );
-                          if (mounted) setState(() {});
+                          _refreshPage();
                         },
                       ),
                       _MenuTile(
                         title: 'map_settings'.tr(),
                         icon: Icons.map_outlined,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MapManagementPage(),
-                          ),
-                        ),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MapManagementPage(),
+                            ),
+                          );
+                          _refreshPage();
+                        },
                       ),
                       _MenuTile(
                         title: 'user_detail_title'.tr(),
@@ -308,28 +300,34 @@ class _MyPageState extends State<MyPage> {
                               builder: (_) => const MyUserDetailPage(),
                             ),
                           );
-                          if (mounted) setState(() {});
+                          _refreshPage();
                         },
                       ),
                       _MenuTile(
                         title: 'support'.tr(),
                         icon: Icons.menu_book_outlined,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MySupportPage(),
-                          ),
-                        ),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MySupportPage(),
+                            ),
+                          );
+                          _refreshPage();
+                        },
                       ),
                       _MenuTile(
                         title: 'settings'.tr(),
                         icon: Icons.settings_outlined,
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MySettingsPage(),
-                          ),
-                        ),
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MySettingsPage(),
+                            ),
+                          );
+                          _refreshPage();
+                        },
                       ),
                     ],
                   ),
@@ -342,23 +340,16 @@ class _MyPageState extends State<MyPage> {
     );
   }
 
-  // 닉네임 옆에 들어갈 프리미엄 엠블럼
   Widget _buildPremiumMark() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        // 1. 더 화려한 프리미엄 그라데이션
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFFFBC02D), // 진한 황금색
-            Color(0xFFFFEB3B), // 밝은 노란색
-            Color(0xFFFBC02D), // 다시 진한색 (광택 효과)
-          ],
+          colors: [Color(0xFFFBC02D), Color(0xFFFFEB3B), Color(0xFFFBC02D)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(6),
-        // 2. 은은한 후광(Glow) 효과 추가
         boxShadow: [
           BoxShadow(
             color: Colors.amber.withOpacity(0.5),
@@ -367,15 +358,10 @@ class _MyPageState extends State<MyPage> {
           ),
         ],
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 에러 방지를 위해 여기 있던 const를 리스트에서 제거했습니다.
-          const Icon(
-            Icons.workspace_premium,
-            color: Color(0xFF795548), // 황금색과 잘 어울리는 갈색톤 아이콘
-            size: 14,
-          ),
+          Icon(Icons.workspace_premium, color: Color(0xFF795548), size: 14),
         ],
       ),
     );
