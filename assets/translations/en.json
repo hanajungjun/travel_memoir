@@ -344,5 +344,11 @@
   "help_center": "Help Center",
   "developer_info": "Developer Info",
   "contact_email": "Contact Email",
-  "support_project": "Company Profile"
+  "support_project": "Company Profile",
+  "ad_not_ready_title": "Ad Not Ready",
+  "ad_not_ready_desc": "No ads available at the moment. Please try again later!",
+  "confirm": "Confirm",
+  "ad_reward_success": "Ad reward granted!",
+  "choose_plan": "Choice",
+  "restore_no_history_msg": "No purchase history found to restore."
 }
