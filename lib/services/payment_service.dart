@@ -106,6 +106,17 @@ class PaymentService {
     return true;
   }
 
+  // 🌟 [추가] 외부에서 언제든 "지금 상태로 DB랑 맞춰!"라고 부를 수 있는 함수
+  static Future<void> syncSubscriptionStatus() async {
+    try {
+      CustomerInfo customerInfo = await Purchases.getCustomerInfo();
+      await _handleCustomerInfo(customerInfo, null);
+      print("🔄 최신 구독 정보 DB 동기화 완료");
+    } catch (e) {
+      print("❌ 동기화 실패: $e");
+    }
+  }
+
   // =========================
   // 6️⃣ Supabase 동기화 (구독 + 코인 + 지도)
   // =========================
@@ -115,6 +126,7 @@ class PaymentService {
     required String rcId,
     String? productIdentifier,
   }) async {
+    print("📅 레비뉴캣이 알려준 만료일: $expirationDate");
     final user = _supabase.auth.currentUser;
     if (user == null) return;
 

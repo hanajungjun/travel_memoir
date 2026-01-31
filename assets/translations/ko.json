@@ -348,5 +348,7 @@
   "confirm": "확인",
   "ad_reward_success": "광고 보상이 지급되었습니다!",
   "choose_plan": "선택",
-  "restore_no_history_msg": "복원할 구매 내역이 없습니다."
+  "restore_no_history_msg": "복원할 구매 내역이 없습니다.",
+  "premium_member_active": "프리미엄 혜택을 이용 중입니다.",
+  "premium_thanks_msg": "감사합니다."
 }

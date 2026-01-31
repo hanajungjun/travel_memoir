@@ -23,6 +23,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
   List<Package> _subscriptionPackages = [];
   List<Package> _coinPackages = [];
   bool _isProductsLoading = true;
+  bool _isPremium = false; // ✅ [추가] 프리미엄 여부 상태
 
   late Future<Map<String, int>> _balanceFuture;
 
@@ -50,7 +51,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
     super.dispose();
   }
 
-  // ✅ 언어별 약관/개인정보 URL 실행
   void _openLegalPage(String type) {
     final isKorean = context.locale.languageCode == 'ko';
     final suffix = isKorean ? '' : '_en';
@@ -109,19 +109,29 @@ class _CoinShopPageState extends State<CoinShopPage> {
     int used = (userData['ad_reward_count'] ?? 0).toInt();
     if (userData['ad_reward_date'] != today) used = 0;
 
-    setState(() {
-      _adUsedToday = used;
-      _adDailyLimit = (reward['daily_limit'] ?? 0).toInt();
-      _adDate = today;
-    });
+    if (mounted) {
+      setState(() {
+        _adUsedToday = used;
+        _adDailyLimit = (reward['daily_limit'] ?? 0).toInt();
+        _adDate = today;
+      });
+    }
   }
 
   Future<void> _fetchOfferings() async {
     try {
       Offerings? offerings = await PaymentService.getOfferings();
+      // ✅ [추가] 현재 유저의 프리미엄 상태도 함께 가져옴
+      final customerInfo = await Purchases.getCustomerInfo();
+
       if (offerings?.current != null) {
         final allPackages = offerings!.current!.availablePackages;
         setState(() {
+          _isPremium =
+              customerInfo.entitlements.all["TravelMemoir Pro"]?.isActive ??
+              false;
+          //2️⃣ 강제로 false를 넣어 일반 유저 상태를 만듭니다.
+          //_isPremium = false;
           _subscriptionPackages = allPackages
               .where(
                 (p) =>
@@ -146,16 +156,36 @@ class _CoinShopPageState extends State<CoinShopPage> {
   }
 
   Future<void> _handlePurchase(Package package) async {
-    setState(() => _isProductsLoading = true);
-    if (await PaymentService.purchasePackage(package)) {
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() => _balanceFuture = _fetchCoinBalances());
-      if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('upgrade_success_msg'.tr())));
+    setState(() {
+      _isProductsLoading = true;
+    });
+
+    try {
+      if (await PaymentService.purchasePackage(package)) {
+        await Future.delayed(const Duration(seconds: 1));
+
+        // 결제 성공 후 상태 업데이트 (프리미엄 여부 포함)
+        await _fetchOfferings();
+        final newBalance = _fetchCoinBalances();
+
+        if (mounted) {
+          setState(() {
+            _balanceFuture = newBalance;
+          });
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('upgrade_success_msg'.tr())));
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ 결제 실패: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProductsLoading = false;
+        });
+      }
     }
-    setState(() => _isProductsLoading = false);
   }
 
   void _loadAds() {
@@ -178,7 +208,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
-  // ✅ [수정] 광고 보상 핸들러 (준비 안 됐을 때 팝업 추가)
   Future<void> _handleWatchAdReward() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -210,16 +239,15 @@ class _CoinShopPageState extends State<CoinShopPage> {
 
     _rewardedAd!.show(
       onUserEarnedReward: (_, __) async {
-        // 1️⃣ 비동기 작업(DB 업데이트 등)은 setState 밖에서 먼저 수행
         final result = await _stampService.grantAdReward(user.id);
         if (result == null) return;
 
-        await _loadAdRewardStatus(); // ✅ 이것도 async니까 밖에서 수행
+        await _loadAdRewardStatus();
+        final newBalance = _fetchCoinBalances();
 
-        // 2️⃣ 모든 데이터 준비가 끝나면 화면 갱신만 setState 안에서 수행
         if (mounted) {
           setState(() {
-            _balanceFuture = _fetchCoinBalances(); // ✅ 동기적으로 값만 할당
+            _balanceFuture = newBalance;
           });
           ScaffoldMessenger.of(
             context,
@@ -229,7 +257,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
-  // ✅ 광고 없음 안내 팝업 전용 함수
   void _showNoAdDialog() {
     showDialog(
       context: context,
@@ -254,8 +281,29 @@ class _CoinShopPageState extends State<CoinShopPage> {
   }
 
   Future<void> _handleRestore() async {
-    await PaymentService.restorePurchases();
-    setState(() => _balanceFuture = _fetchCoinBalances());
+    setState(() {
+      _isProductsLoading = true;
+    });
+
+    try {
+      await PaymentService.restorePurchases();
+      await _fetchOfferings(); // 복원 후 프리미엄 상태 갱신
+      final newBalance = _fetchCoinBalances();
+
+      if (mounted) {
+        setState(() {
+          _balanceFuture = newBalance;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ 복원 실패: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProductsLoading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -297,26 +345,33 @@ class _CoinShopPageState extends State<CoinShopPage> {
                 children: [
                   _buildBalanceCard(),
                   const SizedBox(height: 12),
+
+                  // ✅ [개선] 구독 중일 때와 아닐 때의 화면 분기
                   Text(
                     'membership_plan'.tr(),
                     style: AppTextStyles.sectionTitle,
                   ),
                   const SizedBox(height: 12),
-                  ..._subscriptionPackages.map(
-                    (p) => _buildSubscriptionCard(
-                      title: p.storeProduct.title,
-                      price: p.storeProduct.priceString,
-                      period: _packagePeriodLabel(context, p),
-                      benefits: [
-                        'benefit_stickers'.tr(),
-                        'benefit_ai_picker'.tr(),
-                        'benefit_monthly_coins'.tr(),
-                        'benefit_ai_extra_image'.tr(),
-                      ],
-                      onTap: () => _handlePurchase(p),
+
+                  if (_isPremium)
+                    _buildSubscribedCard() // ⭐ 구독 중이면 전용 카드 표시
+                  else
+                    ..._subscriptionPackages.map(
+                      (p) => _buildSubscriptionCard(
+                        title: p.storeProduct.title,
+                        price: p.storeProduct.priceString,
+                        period: _packagePeriodLabel(context, p),
+                        benefits: [
+                          'benefit_stickers'.tr(),
+                          'benefit_ai_picker'.tr(),
+                          'benefit_monthly_coins'.tr(),
+                          'benefit_ai_extra_image'.tr(),
+                        ],
+                        onTap: () => _handlePurchase(p),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+
+                  const SizedBox(height: 24),
                   Text('charge_coins'.tr(), style: AppTextStyles.sectionTitle),
                   const SizedBox(height: 12),
                   _buildCoinGrid(),
@@ -339,7 +394,43 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
-  // ✅ [수정] Point / Credit 명칭 적용
+  // ✅ 이미 구독 중일 때 보여줄 카드 UI
+  Widget _buildSubscribedCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F7FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.stars_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'premium_member_active'.tr(), // "프리미엄 혜택을 이용 중입니다"
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'premium_thanks_msg'.tr(), // "감사합니다! 모든 기능을 마음껏 즐기세요."
+            style: TextStyle(color: Colors.blueGrey[600], fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBalanceCard() {
     return FutureBuilder<Map<String, int>>(
       future: _balanceFuture,
@@ -360,7 +451,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
                   Text(
                     'free_stamp'.tr(),
                     style: const TextStyle(fontSize: 14, color: Colors.grey),
-                  ), // 👈 Point
+                  ),
                   Text(
                     '$free',
                     style: const TextStyle(
@@ -380,7 +471,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
-                  ), // 👈 Credit
+                  ),
                   Text(
                     '$paid',
                     style: const TextStyle(fontWeight: FontWeight.bold),

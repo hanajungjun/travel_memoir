@@ -17,7 +17,9 @@ class PayManagementPage extends StatefulWidget {
   State<PayManagementPage> createState() => _PayManagementPageState();
 }
 
-class _PayManagementPageState extends State<PayManagementPage> {
+// ✅ WidgetsBindingObserver를 추가하여 앱 복귀를 감지합니다.
+class _PayManagementPageState extends State<PayManagementPage>
+    with WidgetsBindingObserver {
   CustomerInfo? _customerInfo;
   Offerings? _offerings;
   bool _isLoading = true;
@@ -28,12 +30,34 @@ class _PayManagementPageState extends State<PayManagementPage> {
   @override
   void initState() {
     super.initState();
+    // ✅ 앱 생명주기 옵저버 등록
+    WidgetsBinding.instance.addObserver(this);
     _loadSubscriptionStatus();
   }
 
-  /// ✅ 구독 상태 및 판매 정보 로드
+  @override
+  void dispose() {
+    // ✅ 옵저버 해제
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // ✅ [핵심] 외부 설정창에서 구독 취소 후 앱으로 돌아올 때 자동 갱신
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint("🏠 앱 복귀 감지: 구독 상태를 최신화합니다.");
+      _loadSubscriptionStatus();
+    }
+  }
+
+  /// ✅ 구독 상태 로드 및 DB 동기화
   Future<void> _loadSubscriptionStatus() async {
     try {
+      // 1. 먼저 애플/구글 서버와 DB 상태를 강제로 맞춥니다.
+      await PaymentService.syncSubscriptionStatus();
+
+      // 2. 최신 정보를 가져와서 화면을 갱신합니다.
       final offerings = await PaymentService.getOfferings();
       final customerInfo = await Purchases.getCustomerInfo();
 
@@ -50,9 +74,10 @@ class _PayManagementPageState extends State<PayManagementPage> {
     }
   }
 
-  /// ✅ 결제 로직 (에러 핸들링 포함)
+  /// ✅ 결제 로직
   Future<void> _purchase(Package package) async {
     setState(() => _isLoading = true);
+
     try {
       bool success = await PaymentService.purchasePackage(package);
       if (success) {
@@ -77,7 +102,7 @@ class _PayManagementPageState extends State<PayManagementPage> {
     }
   }
 
-  /// ✅ 구독 취소 (iOS/Android 분기 처리)
+  /// ✅ 구독 취소 (iOS/Android 설정창 이동)
   Future<void> _handleCancelSubscription() async {
     final bool? confirm = await showDialog<bool>(
       context: context,
@@ -121,7 +146,7 @@ class _PayManagementPageState extends State<PayManagementPage> {
     final bool isPremium =
         _customerInfo?.entitlements.all[_entitlementId]?.isActive ?? false;
 
-    // 🔥 [핵심 필터] 코인, 지도 패키지는 제외하고 '월간/연간' 구독 상품만 추출
+    // 구독 전용 패키지 필터링
     final List<Package> subscriptionPackages =
         _offerings?.current?.availablePackages
             .where(
@@ -163,12 +188,10 @@ class _PayManagementPageState extends State<PayManagementPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  // 1. 현재 구독 상태 카드
                   _buildStatusCard(isPremium),
 
                   const SizedBox(height: 40),
 
-                  // 2. 미구독 시 구독 플랜 노출 (코인/지도 없음)
                   if (!isPremium) ...[
                     Text(
                       'choose_plan'.tr(),
@@ -182,7 +205,6 @@ class _PayManagementPageState extends State<PayManagementPage> {
                         .map((p) => _buildPackageCard(p))
                         .toList(),
                   ] else ...[
-                    // 3. 구독 중일 때만 취소 섹션 노출
                     _buildCancelSection(),
                   ],
 
@@ -246,6 +268,12 @@ class _PayManagementPageState extends State<PayManagementPage> {
 
   Widget _buildPackageCard(Package package) {
     bool isYearly = package.packageType == PackageType.annual;
+    final String localizedTitle = package.storeProduct.identifier.tr();
+    final String displayTitle =
+        (localizedTitle == package.storeProduct.identifier)
+        ? package.storeProduct.title.split('(').first.trim()
+        : localizedTitle;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       width: double.infinity,
@@ -263,7 +291,7 @@ class _PayManagementPageState extends State<PayManagementPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                package.storeProduct.title.split('(').first,
+                displayTitle,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -310,32 +338,22 @@ class _PayManagementPageState extends State<PayManagementPage> {
       child: TextButton(
         onPressed: () async {
           setState(() => _isLoading = true);
-
-          // 1. 일단 스토어에 복원 요청을 보냅니다.
           await PaymentService.restorePurchases();
-
-          // 2. 최신 구독 상태를 다시 로드합니다. (이게 핵심!)
           await _loadSubscriptionStatus();
-
           if (mounted) {
             setState(() => _isLoading = false);
-
-            // 3. [핵심 로직] 함수 성공 여부가 아니라, '실제 권한'이 생겼는지 확인합니다.
             final bool isPremiumNow =
                 _customerInfo?.entitlements.all[_entitlementId]?.isActive ??
                 false;
-
-            if (isPremiumNow) {
-              // 진짜로 살려낼 내역이 있었을 때
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('restore_success_msg'.tr())),
-              );
-            } else {
-              // 내역이 없거나, 중간에 취소해서 프리미엄이 안 됐을 때
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('restore_no_history_msg'.tr())),
-              );
-            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  isPremiumNow
+                      ? 'restore_success_msg'.tr()
+                      : 'restore_no_history_msg'.tr(),
+                ),
+              ),
+            );
           }
         },
         child: Text(

@@ -350,5 +350,7 @@
   "confirm": "Confirm",
   "ad_reward_success": "Ad reward granted!",
   "choose_plan": "Choice",
-  "restore_no_history_msg": "No purchase history found to restore."
+  "restore_no_history_msg": "No purchase history found to restore.",
+  "premium_member_active": "You're enjoying Premium benefits",
+  "premium_thanks_msg": "Thank you for being a member!"
 }

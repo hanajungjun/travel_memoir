@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
@@ -24,6 +23,13 @@ class _RecordTabPageState extends State<RecordTabPage> {
   @override
   void initState() {
     super.initState();
+    _reload();
+  }
+
+  // ✅ 언어 변경을 감지하면 데이터를 다시 불러옵니다.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _reload();
   }
 
@@ -71,7 +77,10 @@ class _RecordTabPageState extends State<RecordTabPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 🎯 [필살기] 현재 언어(locale)를 Key로 사용합니다.
+    // 언어가 바뀌면 Key가 바뀌고, Flutter는 이 Scaffold를 아예 새로 빌드합니다.
     return Scaffold(
+      key: ValueKey(context.locale.toString()),
       backgroundColor: AppColors.background,
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
@@ -112,7 +121,7 @@ class _RecordTabPageState extends State<RecordTabPage> {
 }
 
 // =====================================================
-// 🧭 [정의됨] 상단 요약 히어로 카드
+// 🧭 상단 요약 히어로 카드
 // =====================================================
 class SummaryHeroCard extends StatelessWidget {
   final int totalCount;
@@ -167,7 +176,7 @@ class SummaryHeroCard extends StatelessWidget {
 }
 
 // =====================================================
-// 🧳 [정의됨] 개별 여행 레코드 카드
+// 🧳 개별 여행 레코드 카드
 // =====================================================
 class TravelRecordCard extends StatelessWidget {
   final Map<String, dynamic> travel;
@@ -184,30 +193,28 @@ class TravelRecordCard extends StatelessWidget {
     final isKo = context.locale.languageCode == 'ko';
     final type = travel['travel_type'] ?? 'domestic';
 
-    String destination = (type == 'usa')
-        ? (travel['region_name'] ??
-              travel['region_key'] ??
-              (isKo ? '미국' : 'USA'))
-        : (type == 'domestic')
-        ? (isKo
-              ? (travel['region_name'] ?? 'unknown')
-              : (travel['region_key']?.split('_').last ?? 'Korea'))
-        : (isKo
-              ? (travel['country_name_ko'] ?? 'unknown')
-              : (travel['country_name_en'] ?? 'unknown'));
+    String destination;
+    if (type == 'usa') {
+      destination =
+          travel['region_name'] ??
+          travel['region_key'] ??
+          (isKo ? '미국' : 'USA');
+    } else if (type == 'domestic') {
+      destination = isKo
+          ? (travel['region_name'] ?? '알 수 없음')
+          : (travel['region_key']?.split('_').last ?? 'Korea');
+    } else {
+      destination = isKo
+          ? (travel['country_name_ko'] ?? '알 수 없음')
+          : (travel['country_name_en'] ?? 'Unknown');
+    }
 
     final String? coverUrl = travel['cover_image_url'] as String?;
     final String summary = (travel['ai_cover_summary'] ?? '').toString().trim();
-
-    // 🎯 로그 출력: DB에서 가져온 원본 주소 확인
-    //debugPrint("🔍 [DB 원본] cover_image_url: $coverUrl");
-
     String finalImageUrl = (coverUrl != null && coverUrl.isNotEmpty)
         ? '$coverUrl?t=${travel['completed_at']}'
         : '';
 
-    // 🎯 로그 출력: 최종적으로 위젯에 들어가는 주소 확인
-    //debugPrint("🚀 위젯 로드 시도 주소: $finalImageUrl");
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -229,13 +236,13 @@ class TravelRecordCard extends StatelessWidget {
                       ? CachedNetworkImage(
                           imageUrl: Uri.encodeFull(finalImageUrl),
                           fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
+                          placeholder: (_, __) => Container(
                             color: AppColors.lightSurface,
                             child: const Center(
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           ),
-                          errorWidget: (context, url, error) => Container(
+                          errorWidget: (_, __, ___) => Container(
                             color: AppColors.divider,
                             child: const Icon(
                               Icons.broken_image,
