@@ -74,10 +74,10 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
 
   @override
   Widget build(BuildContext context) {
-    const themeColor = Color(0xFF4A90E2);
+    const themeColor = AppColors.travelingPurple;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -105,8 +105,8 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
                       Text(
                         'overseas_travel'.tr(), // ✅ 번역 적용
                         style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
                           color: themeColor,
                         ),
                       ),
@@ -119,7 +119,7 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.04),
@@ -201,13 +201,12 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFFEEEEEE), width: 1.5),
         ),
         child: Text(

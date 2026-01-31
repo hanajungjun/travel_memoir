@@ -104,7 +104,7 @@ class _USTravelDatePageState extends State<USTravelDatePage> {
   Widget build(BuildContext context) {
     const themeColor = Color(0xFFE74C3C);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

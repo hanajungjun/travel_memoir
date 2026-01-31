@@ -135,7 +135,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF6F6F6),
       body: Column(
         children: [
           _buildHeader(travelType, title),

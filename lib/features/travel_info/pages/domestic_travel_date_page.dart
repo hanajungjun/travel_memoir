@@ -12,6 +12,8 @@ import 'package:travel_memoir/core/widgets/range_calendar_page.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
+import 'package:flutter_svg/flutter_svg.dart'; // SVG 아이콘을 사용하기 위해 추가
+
 class DomesticTravelDatePage extends StatefulWidget {
   const DomesticTravelDatePage({super.key});
 
@@ -103,11 +105,11 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
 
   @override
   Widget build(BuildContext context) {
-    const themeColor = Color(0xFF3498DB);
+    const themeColor = AppColors.travelingBlue;
     final bool isKo = context.locale.languageCode == 'ko';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -126,31 +128,33 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.location_on_rounded,
+                      const SizedBox(width: 5),
+                      SvgPicture.asset(
+                        'assets/icons/ico_Local.svg', // 원하는 위치 아이콘으로 변경
                         color: themeColor,
-                        size: 32,
+                        width: 19,
+                        height: 21,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       Text(
                         'domestic_travel'.tr(),
                         style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
                           color: themeColor,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 16),
 
                   // 🏳️‍🌈 메인 입력 카드
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(25),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
+                      borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.04),
@@ -234,13 +238,12 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFFEEEEEE), width: 1.5),
         ),
         child: Text(

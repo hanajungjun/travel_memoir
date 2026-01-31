@@ -60,7 +60,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF6F6F6),
       floatingActionButton: _buildFab(),
       floatingActionButtonLocation:
           FloatingActionButtonLocation.endFloat, // ⭐⭐⭐ 이게 핵심

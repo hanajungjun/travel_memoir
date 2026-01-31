@@ -557,7 +557,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     return GestureDetector(
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FA),
+        backgroundColor: const Color(0xFFF6F6F6),
         resizeToAvoidBottomInset: false, // ✅ 하단 바 고정
         body: SafeArea(
           bottom: false,

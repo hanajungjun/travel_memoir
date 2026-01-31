@@ -112,41 +112,48 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF6F6F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false, // ✅ 이 줄 추가
+        // ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 27),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 20),
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 26,
-                          color: Colors.black87,
-                          height: 1.4,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: 'select_type_bold'.tr(),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 10), // 왼쪽 패딩 추가
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 19,
+                            color: Color(0xFF555759),
+                            height: 1.4,
                           ),
-                          TextSpan(text: 'select_type_normal'.tr()),
-                        ],
+                          children: [
+                            TextSpan(
+                              text: 'select_type_bold'.tr(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            TextSpan(
+                              text: 'select_type_normal'.tr(),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w100,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 16),
 
                     // 🌍 해외 여행
                     _TravelTypeCard(
@@ -161,7 +168,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 15),
 
                     // 🇰🇷 국내 여행
                     _TravelTypeCard(
@@ -176,7 +183,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 15),
                     // 🇺🇸 미국 여행 (비구매 시 잠금 상태)
                     _TravelTypeCard(
                       title: 'us_travel_comma'.tr(),
@@ -194,8 +201,6 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                             )
                           : _showPurchaseDialog,
                     ),
-
-                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -244,7 +249,7 @@ class _TravelTypeCard extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.04),
@@ -278,29 +283,30 @@ class _TravelTypeCard extends StatelessWidget {
                     RichText(
                       text: TextSpan(
                         style: const TextStyle(
-                          fontSize: 20,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: const Color(0xFF111827),
+                          fontWeight: FontWeight.w700,
                         ),
                         children: [
                           TextSpan(text: title),
                           TextSpan(
                             text: subTitleSuffix,
                             style: const TextStyle(
-                              color: Colors.black45,
-                              fontWeight: FontWeight.normal,
+                              color: const Color(0xFF111827),
+                              fontWeight: FontWeight.w200,
                               fontSize: 18,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 2),
                     Text(
                       isLocked ? 'unlock_required'.tr() : description,
                       style: const TextStyle(
-                        color: Colors.black45,
+                        color: const Color(0xFF666666),
                         fontSize: 14,
+                        fontWeight: FontWeight.w200,
                       ),
                     ),
                   ],
