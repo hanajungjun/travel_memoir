@@ -3,8 +3,11 @@ import 'package:introduction_screen/introduction_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/app/app_shell.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 class OnboardingPage extends StatelessWidget {
   const OnboardingPage({super.key});
@@ -33,60 +36,59 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Scaffold로 전체 레이아웃 뼈대를 잡고 SafeArea로 시스템 영역 침범을 막습니다.
     return Scaffold(
-      backgroundColor: Colors.white, // 배경색을 지정하면 더 깔끔합니다.
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: IntroductionScreen(
           pages: [
+            // 📖 1. 일기 쓰기 (기록)
             PageViewModel(
               title: "onboarding_title_1".tr(),
               body: "onboarding_body_1".tr(),
-              image: const Center(
-                child: Icon(Icons.map, size: 100, color: Colors.blue),
+              image: _buildImage(
+                'assets/images/onboarding_diary.png',
+                Icons.auto_stories,
+                Colors.blue,
               ),
-              decoration: const PageDecoration(
-                titleTextStyle: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-                // 내부 콘텐츠 마진을 주어 화면 끝에 붙지 않게 합니다.
-                bodyPadding: EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0),
-              ),
+              decoration: _getPageDecoration(),
             ),
+
+            // 📍 2. 지도 기록 (발자취)
             PageViewModel(
               title: "onboarding_title_2".tr(),
               body: "onboarding_body_2".tr(),
-              image: const Center(
-                child: Icon(
-                  Icons.edit_location,
-                  size: 100,
-                  color: Colors.orange,
-                ),
+              image: _buildImage(
+                'assets/images/onboarding_map.png',
+                Icons.map_rounded,
+                Colors.green,
               ),
+              decoration: _getPageDecoration(),
             ),
+
+            // ✨ 3. 추억 떠올리기 (AI 리포트)
             PageViewModel(
               title: "onboarding_title_3".tr(),
               body: "onboarding_body_3".tr(),
-              image: const Center(
-                child: Icon(
-                  Icons.flight_takeoff,
-                  size: 100,
-                  color: Colors.green,
-                ),
+              image: _buildImage(
+                'assets/images/onboarding_memory.png',
+                Icons.auto_awesome_motion,
+                Colors.amber,
               ),
+              decoration: _getPageDecoration(),
             ),
           ],
           onDone: () => _onIntroEnd(context),
           onSkip: () => _onIntroEnd(context),
           showSkipButton: true,
-          skip: Text("skip".tr()),
-          next: const Icon(Icons.arrow_forward),
+          skip: Text("skip".tr(), style: const TextStyle(color: Colors.grey)),
+          next: const Icon(Icons.arrow_forward, color: AppColors.primary),
           done: Text(
             "start".tr(),
-            style: const TextStyle(fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
           ),
-          // 핵심: 하단 컨트롤러(점, 버튼) 영역의 패딩을 기기 환경에 맞게 자동 조절
           controlsPadding: const EdgeInsets.symmetric(
             horizontal: 16.0,
             vertical: 8.0,
@@ -94,8 +96,8 @@ class OnboardingPage extends StatelessWidget {
           dotsDecorator: DotsDecorator(
             size: const Size.square(10.0),
             activeSize: const Size(20.0, 10.0),
-            activeColor: Colors.blueAccent,
-            color: Colors.black26,
+            activeColor: AppColors.primary,
+            color: Colors.black12,
             spacing: const EdgeInsets.symmetric(horizontal: 3.0),
             activeShape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(25.0),
@@ -103,6 +105,32 @@ class OnboardingPage extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  // ✅ 이미지 위젯 빌더 (파일이 없으면 아이콘으로 대체)
+  Widget _buildImage(String assetName, IconData backupIcon, Color color) {
+    return Center(
+      child: Image.asset(
+        assetName,
+        width: 280,
+        errorBuilder: (context, error, stackTrace) =>
+            Icon(backupIcon, size: 120, color: color),
+      ),
+    );
+  }
+
+  // ✅ 페이지 스타일 설정
+  PageDecoration _getPageDecoration() {
+    return PageDecoration(
+      titleTextStyle: AppTextStyles.sectionTitle.copyWith(fontSize: 26),
+      bodyTextStyle: AppTextStyles.body.copyWith(
+        color: Colors.grey[600],
+        height: 1.5,
+      ),
+      imagePadding: const EdgeInsets.only(top: 60),
+      titlePadding: const EdgeInsets.only(top: 30, bottom: 12),
+      bodyPadding: const EdgeInsets.symmetric(horizontal: 24),
     );
   }
 }

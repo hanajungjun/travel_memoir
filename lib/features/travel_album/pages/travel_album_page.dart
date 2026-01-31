@@ -12,7 +12,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:travel_memoir/services/gemini_service.dart';
-import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
@@ -61,6 +60,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   String? _premiumImageUrl;
   bool _isPremiumLoading = false;
   bool _isPremiumUser = false;
+  bool _showStickers = false;
 
   List<StickerPlacement> _stickerPlacements = [];
 
@@ -71,7 +71,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     _checkUserStatusAndInit();
   }
 
-  // ✅ 프리미엄 상태 확인 및 초기화
   Future<void> _checkUserStatusAndInit() async {
     final client = Supabase.instance.client;
     final userId = client.auth.currentUser?.id;
@@ -102,12 +101,18 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     if (res != null &&
         res['premium_report_url'] != null &&
         res['premium_report_url'].toString().isNotEmpty) {
-      setState(() => _premiumImageUrl = res['premium_report_url']);
+      setState(() {
+        _premiumImageUrl = res['premium_report_url'];
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) setState(() => _showStickers = true);
+        });
+      });
     } else if (_isPremiumUser && groupedData.values.any((l) => l.isNotEmpty)) {
       _generateAndSavePremiumInfographic(groupedData);
     }
   }
 
+  // ✅ [수정] 사진들을 더 가장자리로 찢어놓는 좌표 설정
   void _extractAndShuffleStickers(Map<int, List<_AlbumItem>> data) {
     List<String> allPhotoUrls = [];
     data.forEach((day, items) {
@@ -119,11 +124,12 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
     if (allPhotoUrls.isEmpty) return;
 
+    // 좌표 숫자를 줄여서 가장자리에 바짝 붙임
     List<Map<String, double>> positions = [
-      {'top': 25, 'left': 25, 'angle': -0.1},
-      {'top': 25, 'right': 25, 'angle': 0.12},
-      {'bottom': 25, 'left': 25, 'angle': -0.08},
-      {'bottom': 25, 'right': 25, 'angle': 0.1},
+      {'top': 20, 'left': 10, 'angle': -0.15}, // 좌상단
+      {'top': 30, 'right': 10, 'angle': 0.18}, // 우상단
+      {'bottom': 15, 'left': 12, 'angle': -0.1}, // 좌하단
+      {'bottom': 25, 'right': 12, 'angle': 0.14}, // 우하단
     ];
     positions.shuffle();
 
@@ -156,7 +162,10 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     }
 
     if (_isPremiumLoading) return;
-    setState(() => _isPremiumLoading = true);
+    setState(() {
+      _isPremiumLoading = true;
+      _showStickers = false;
+    });
 
     final client = Supabase.instance.client;
     final userId = client.auth.currentUser!.id;
@@ -194,13 +203,18 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
           .update({'premium_report_url': publicUrl})
           .eq('id', travelId);
 
-      setState(() {
-        _premiumInfographic = imageBytes;
-        _premiumImageUrl = publicUrl;
-        _isPremiumLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _premiumInfographic = imageBytes;
+          _premiumImageUrl = publicUrl;
+          _isPremiumLoading = false;
+        });
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) setState(() => _showStickers = true);
+        });
+      }
     } catch (e) {
-      setState(() => _isPremiumLoading = false);
+      if (mounted) setState(() => _isPremiumLoading = false);
     }
   }
 
@@ -306,21 +320,28 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 
   String _travelTitle() {
-    final isDomestic = widget.travel['travel_type'] == 'domestic';
-    final place = isDomestic
-        ? (widget.travel['region_name'] ?? widget.travel['city'])
-        : (context.locale.languageCode == 'ko'
-              ? widget.travel['country_name_ko']
-              : widget.travel['country_name_en']);
-    return (widget.travel['title'] ?? '').toString().isNotEmpty
-        ? widget.travel['title']
-        : 'trip_with_place'.tr(args: [place ?? 'overseas'.tr()]);
+    String title = (widget.travel['title'] ?? '').toString();
+    if (title.isEmpty) {
+      final isDomestic = widget.travel['travel_type'] == 'domestic';
+      final place = isDomestic
+          ? (widget.travel['region_name'] ?? widget.travel['city'])
+          : (context.locale.languageCode == 'ko'
+                ? widget.travel['country_name_ko']
+                : widget.travel['country_name_en']);
+      title = 'trip_with_place'.tr(args: [place ?? 'overseas'.tr()]);
+    }
+    return title
+        .replaceAll(' 여행', '')
+        .replaceAll('여행', '')
+        .replaceAll(' Trip', '')
+        .trim();
   }
 
   @override
   Widget build(BuildContext context) {
     final overallSummary = (widget.travel['ai_cover_summary'] ?? '').toString();
     final startDate = DateTime.parse(widget.travel['start_date']);
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -363,7 +384,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                     child: Row(
                       children: [
                         Text(
-                          'DAY ${entry.key.toString().padLeft(2, '0')}',
+                          '${'day_label'.tr()} ${entry.key.toString().padLeft(2, '0')}',
                           style: AppTextStyles.sectionTitle,
                         ),
                         const SizedBox(width: 8),
@@ -466,7 +487,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                           const Icon(Icons.stars, color: Colors.amber),
                           const SizedBox(width: 8),
                           Text(
-                            'PREMIUM INFOGRAPHIC',
+                            'premium_infographic_title'.tr().toUpperCase(),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -476,17 +497,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                         ],
                       ),
                       const SizedBox(height: 25),
-                      if (_isPremiumLoading)
-                        const CircularProgressIndicator()
-                      else if (_premiumImageUrl == null &&
-                          _premiumInfographic == null)
-                        ElevatedButton(
-                          onPressed: () =>
-                              _generateAndSavePremiumInfographic(groupedData),
-                          child: const Text('인포그래픽 생성하기'),
-                        )
-                      else
-                        _buildPremiumCard(),
+                      _buildPremiumCardContainer(groupedData),
                     ],
                   ),
                 ),
@@ -498,122 +509,212 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     );
   }
 
-  Widget _buildPremiumCard() {
-    return GestureDetector(
-      onTap: () {
-        if (_isPremiumUser) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => _PremiumViewerPage(
-                title: _travelTitle(),
-                imageBytes: _premiumInfographic,
-                imageUrl: _premiumImageUrl,
-                stickers: _stickerPlacements,
-              ),
-            ),
-          );
-        } else {
-          _showPremiumRequiredDialog();
-        }
-      },
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            foregroundDecoration: _isPremiumUser
-                ? null
-                : BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: _premiumInfographic != null
-                  ? Image.memory(_premiumInfographic!, fit: BoxFit.contain)
-                  : Image.network(
-                      _premiumImageUrl!,
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.error),
-                    ),
-            ),
-          ),
-          for (var sticker in _stickerPlacements)
-            Positioned(
-              top: sticker.top,
-              bottom: sticker.bottom,
-              left: sticker.left,
-              right: sticker.right,
-              child: Transform.rotate(
-                angle: sticker.angle,
-                child: Opacity(
-                  opacity: _isPremiumUser ? 1.0 : 0.5,
-                  child: _buildStickerFrame(sticker.url),
-                ),
-              ),
-            ),
-          if (!_isPremiumUser)
-            Positioned.fill(
+  Widget _buildPremiumCardContainer(Map<int, List<_AlbumItem>> groupedData) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      child: _isPremiumLoading
+          ? AspectRatio(
+              key: const ValueKey('loading'),
+              aspectRatio: 0.9,
               child: Center(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.lock_rounded,
-                      color: Colors.white,
-                      size: 48,
-                    ),
-                    const SizedBox(height: 12),
+                    const CircularProgressIndicator(color: Colors.amber),
+                    const SizedBox(height: 16),
                     Text(
-                      'premium_unlock_label'.tr(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      'generating_infographic'.tr(),
+                      style: AppTextStyles.bodyMuted,
                     ),
                   ],
                 ),
               ),
+            )
+          : (_premiumImageUrl == null && _premiumInfographic == null)
+          ? ElevatedButton(
+              key: const ValueKey('button'),
+              onPressed: () => _generateAndSavePremiumInfographic(groupedData),
+              child: Text('generate_infographic'.tr()),
+            )
+          : _buildPremiumCard(),
+    );
+  }
+
+  // ✅ [수정] 카드 화면: 텍스트를 피해서 가장자리로 쫙 벌린 스티커 배치
+  Widget _buildPremiumCard() {
+    return AspectRatio(
+      aspectRatio: 0.9,
+      child: GestureDetector(
+        onTap: () {
+          if (_isPremiumUser) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _PremiumViewerPage(
+                  title: _travelTitle(),
+                  imageBytes: _premiumInfographic,
+                  imageUrl: _premiumImageUrl,
+                  stickers: _stickerPlacements,
+                ),
+              ),
+            );
+          } else {
+            _showPremiumRequiredDialog();
+          }
+        },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: _premiumInfographic != null
+                      ? Image.memory(_premiumInfographic!, fit: BoxFit.cover)
+                      : Image.network(
+                          _premiumImageUrl!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(child: Icon(Icons.error)),
+                        ),
+                ),
+              ),
             ),
-        ],
+
+            Positioned(
+              top: 40,
+              left: 20,
+              right: 20,
+              child: Column(
+                children: [
+                  Text(
+                    _travelTitle(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                      shadows: [
+                        Shadow(
+                          offset: const Offset(0, 2),
+                          blurRadius: 10.0,
+                          color: Colors.black.withOpacity(0.6),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "SPECIAL TRAVEL REPORT",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withOpacity(0.9),
+                      letterSpacing: 2.5,
+                      shadows: [
+                        Shadow(
+                          offset: const Offset(0, 1),
+                          blurRadius: 4.0,
+                          color: Colors.black.withOpacity(0.4),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            if (!_isPremiumUser)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.lock_rounded,
+                          color: Colors.white,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'premium_unlock_label'.tr(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            for (var sticker in _stickerPlacements)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutBack,
+                top: _showStickers
+                    ? sticker.top
+                    : (sticker.top != null ? sticker.top! + 15 : null),
+                bottom: _showStickers
+                    ? sticker.bottom
+                    : (sticker.bottom != null ? sticker.bottom! + 15 : null),
+                left: sticker.left,
+                right: sticker.right,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 500),
+                  opacity: _showStickers ? (_isPremiumUser ? 1.0 : 0.6) : 0.0,
+                  child: Transform.rotate(
+                    angle: sticker.angle,
+                    child: _buildStickerFrame(sticker.url),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildStickerFrame(String url) {
     return Container(
-      padding: const EdgeInsets.all(5),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 8,
-            offset: const Offset(2, 4),
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(2, 6),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: Image.network(
-          url,
-          width: 85,
-          height: 85,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) =>
-              const Icon(Icons.broken_image),
-        ),
+        borderRadius: BorderRadius.circular(2),
+        child: Image.network(url, width: 95, height: 95, fit: BoxFit.cover),
       ),
     );
   }
 }
 
+// ✅ 앨범 뷰어 클래스
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
   final List<_AlbumItem> items;
@@ -653,7 +754,11 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: Text('${_index + 1} / ${widget.items.length}'),
+        title: Text(
+          'album_index'.tr(
+            args: [(_index + 1).toString(), widget.items.length.toString()],
+          ),
+        ),
         actions: [
           Builder(
             builder: (ctx) => IconButton(
@@ -697,6 +802,7 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   }
 }
 
+// ✅ [수정] 프리미엄 상세 공유 화면: 카드와 동일한 시각적 효과 적용
 class _PremiumViewerPage extends StatefulWidget {
   final String title;
   final Uint8List? imageBytes;
@@ -735,7 +841,7 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
       final box = ctx.findRenderObject() as RenderBox?;
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: '✨ 나만의 특별한 여행 리포트',
+        text: 'share_report_text'.tr(),
         sharePositionOrigin: box != null
             ? box.localToGlobal(Offset.zero) & box.size
             : null,
@@ -788,14 +894,50 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
                   widget.imageBytes != null
                       ? Image.memory(widget.imageBytes!)
                       : Image.network(widget.imageUrl!),
+
+                  Positioned(
+                    top: 50, // 제목 위치 유지
+                    left: 20,
+                    right: 20,
+                    child: Column(
+                      children: [
+                        Text(
+                          widget.title,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [
+                              Shadow(
+                                offset: const Offset(0, 3),
+                                blurRadius: 15.0,
+                                color: Colors.black.withOpacity(0.7),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "SPECIAL TRAVEL REPORT",
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withOpacity(0.9),
+                            letterSpacing: 4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   for (var sticker in widget.stickers)
                     Positioned(
-                      top: sticker.top != null ? sticker.top! + 10 : null,
-                      bottom: sticker.bottom != null
-                          ? sticker.bottom! + 10
-                          : null,
-                      left: sticker.left != null ? sticker.left! + 10 : null,
-                      right: sticker.right != null ? sticker.right! + 10 : null,
+                      // [수정] 개별 좌표에 맞춰서 구석탱이로 보냄
+                      top: sticker.top != null ? sticker.top! : null,
+                      bottom: sticker.bottom != null ? sticker.bottom! : null,
+                      left: sticker.left != null ? sticker.left! : null,
+                      right: sticker.right != null ? sticker.right! : null,
                       child: Transform.rotate(
                         angle: sticker.angle,
                         child: _buildSticker(sticker.url),
@@ -812,22 +954,15 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
 
   Widget _buildSticker(String url) {
     return Container(
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 10)],
+        borderRadius: BorderRadius.circular(6),
+        boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(5),
-        child: Image.network(
-          url,
-          width: 60,
-          height: 60,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) =>
-              const Icon(Icons.broken_image),
-        ),
+        borderRadius: BorderRadius.circular(3),
+        child: Image.network(url, width: 75, height: 75, fit: BoxFit.cover),
       ),
     );
   }
