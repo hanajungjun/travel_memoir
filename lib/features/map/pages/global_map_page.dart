@@ -536,11 +536,15 @@ class GlobalMapPageState extends State<GlobalMapPage>
                 ?.toDouble();
 
         if (lat != null && lng != null) {
+          double focusZoom = 3.5;
+          if (lat < -60) {
+            focusZoom = 0.5; // 멀리서 봐야 주변 바다가 보여서 덜 빨갛게 보입니다.
+          }
           // 🚀 flyTo 대신 setCamera를 사용하여 채널 에러 원천 차단
           _map!.setCamera(
             CameraOptions(
               center: Point(coordinates: Position(lng, lat)),
-              zoom: 3.5,
+              zoom: focusZoom,
             ),
           );
         }

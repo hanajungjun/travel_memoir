@@ -76,7 +76,7 @@ class _MyPageState extends State<MyPage> {
         context: context,
         builder: (context) => AlertDialog(
           title: Text('premium_only_title'.tr()),
-          content: Text('premium_passport_desc'.tr()),
+          content: Text('premium_benefit_desc'.tr()),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),

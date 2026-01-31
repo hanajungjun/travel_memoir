@@ -5,7 +5,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:url_launcher/url_launcher.dart'; // ✅ URL 실행을 위해 필요
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
@@ -50,39 +50,24 @@ class _CoinShopPageState extends State<CoinShopPage> {
     super.dispose();
   }
 
-  // ===============================
-  // ✅ 언어별 약관/개인정보 URL 생성 로직
-  // ===============================
+  // ✅ 언어별 약관/개인정보 URL 실행
   void _openLegalPage(String type) {
     final isKorean = context.locale.languageCode == 'ko';
     final suffix = isKorean ? '' : '_en';
-
     String baseUrl = 'https://hanajungjun.github.io/travel-memoir-docs/';
     String fileName = (type == 'terms') ? 'terms' : 'index';
-
-    debugPrint('🔗 시도 중인 baseUrl: $baseUrl'); // 콘솔에서 이 주소를 클릭해 보세요.
-    debugPrint('🔗 시도 중인 fileName: $fileName'); // 콘솔에서 이 주소를 클릭해 보세요.
-
     _launchUrl('$baseUrl$fileName$suffix.html');
   }
 
-  // ===============================
-  // ✅ 외부 URL 실행 함수
-  // ===============================
   Future<void> _launchUrl(String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      debugPrint('🔗 시도 중인 URL: $urlString'); // 콘솔에서 이 주소를 클릭해 보세요.
-
       try {
-        // canLaunchUrl로 미리 체크하는 것이 안전합니다.
         if (await canLaunchUrl(url)) {
           await launchUrl(url, mode: LaunchMode.externalApplication);
-        } else {
-          debugPrint('❌ 이 URL을 열 수 없습니다: $urlString');
         }
       } catch (e) {
-        debugPrint('❌ URL 실행 중 에러 발생: $e');
+        debugPrint('❌ URL 실행 에러: $e');
       }
     }
   }
@@ -102,13 +87,11 @@ class _CoinShopPageState extends State<CoinShopPage> {
   Future<Map<String, int>> _fetchCoinBalances() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return {'free': 0, 'paid': 0};
-
     final res = await Supabase.instance.client
         .from('users')
         .select('daily_stamps, paid_stamps')
         .eq('auth_uid', user.id)
         .single();
-
     return {
       'free': (res['daily_stamps'] ?? 0).toInt(),
       'paid': (res['paid_stamps'] ?? 0).toInt(),
@@ -118,19 +101,13 @@ class _CoinShopPageState extends State<CoinShopPage> {
   Future<void> _loadAdRewardStatus() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-
     final userData = await _stampService.getStampData(user.id);
     final reward = await _stampService.getRewardConfig('ad_watch_stamp');
-
     if (userData == null || reward == null) return;
 
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final String? savedDate = userData['ad_reward_date'];
-
     int used = (userData['ad_reward_count'] ?? 0).toInt();
-    if (savedDate != today) {
-      used = 0;
-    }
+    if (userData['ad_reward_date'] != today) used = 0;
 
     setState(() {
       _adUsedToday = used;
@@ -144,7 +121,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
       Offerings? offerings = await PaymentService.getOfferings();
       if (offerings?.current != null) {
         final allPackages = offerings!.current!.availablePackages;
-
         setState(() {
           _subscriptionPackages = allPackages
               .where(
@@ -153,7 +129,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
                     p.packageType == PackageType.annual,
               )
               .toList();
-
           _coinPackages =
               allPackages
                   .where((p) => p.storeProduct.identifier.contains('coin'))
@@ -162,29 +137,23 @@ class _CoinShopPageState extends State<CoinShopPage> {
                   (a, b) =>
                       a.storeProduct.price.compareTo(b.storeProduct.price),
                 );
-
           _isProductsLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('❌ 상품 로드 실패: $e');
       setState(() => _isProductsLoading = false);
     }
   }
 
   Future<void> _handlePurchase(Package package) async {
     setState(() => _isProductsLoading = true);
-    final success = await PaymentService.purchasePackage(package);
-    if (success) {
+    if (await PaymentService.purchasePackage(package)) {
       await Future.delayed(const Duration(seconds: 1));
-      setState(() {
-        _balanceFuture = _fetchCoinBalances();
-      });
-      if (mounted) {
+      setState(() => _balanceFuture = _fetchCoinBalances());
+      if (mounted)
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('upgrade_success_msg'.tr())));
-      }
     }
     setState(() => _isProductsLoading = false);
   }
@@ -193,7 +162,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
     final adId = Platform.isAndroid
         ? 'ca-app-pub-3890698783881393/3553280276'
         : 'ca-app-pub-3890698783881393/4814391052';
-
     RewardedAd.load(
       adUnitId: adId,
       request: const AdRequest(),
@@ -210,19 +178,20 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
+  // ✅ [수정] 광고 보상 핸들러 (준비 안 됐을 때 팝업 추가)
   Future<void> _handleWatchAdReward() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
     if (_adUsedToday >= _adDailyLimit) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('ad_limit_reached'.tr())));
       return;
     }
+
     if (!_isAdLoaded || _rewardedAd == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('ad_not_ready'.tr())));
+      _showNoAdDialog();
       _loadAds();
       return;
     }
@@ -235,29 +204,58 @@ class _CoinShopPageState extends State<CoinShopPage> {
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
         _loadAds();
+        _showNoAdDialog();
       },
     );
 
     _rewardedAd!.show(
       onUserEarnedReward: (_, __) async {
+        // 1️⃣ 비동기 작업(DB 업데이트 등)은 setState 밖에서 먼저 수행
         final result = await _stampService.grantAdReward(user.id);
         if (result == null) return;
-        await _loadAdRewardStatus();
-        setState(() {
-          _balanceFuture = _fetchCoinBalances();
-        });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('ad_reward_success'.tr())));
+
+        await _loadAdRewardStatus(); // ✅ 이것도 async니까 밖에서 수행
+
+        // 2️⃣ 모든 데이터 준비가 끝나면 화면 갱신만 setState 안에서 수행
+        if (mounted) {
+          setState(() {
+            _balanceFuture = _fetchCoinBalances(); // ✅ 동기적으로 값만 할당
+          });
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('ad_reward_success'.tr())));
+        }
       },
+    );
+  }
+
+  // ✅ 광고 없음 안내 팝업 전용 함수
+  void _showNoAdDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'ad_not_ready_title'.tr(),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text('ad_not_ready_desc'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'confirm'.tr(),
+              style: const TextStyle(color: Colors.blue),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Future<void> _handleRestore() async {
     await PaymentService.restorePurchases();
-    setState(() {
-      _balanceFuture = _fetchCoinBalances();
-    });
+    setState(() => _balanceFuture = _fetchCoinBalances());
   }
 
   @override
@@ -283,7 +281,8 @@ class _CoinShopPageState extends State<CoinShopPage> {
             child: Text(
               '${'watch_ad_get_coin'.tr()} ($_adUsedToday/$_adDailyLimit)',
               style: TextStyle(
-                color: adDisabled ? Colors.grey : Colors.black54,
+                color: adDisabled ? Colors.grey : Colors.blueAccent,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
@@ -324,15 +323,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
                   Center(
                     child: TextButton(
                       onPressed: _handleRestore,
-                      style: TextButton.styleFrom(
-                        minimumSize: Size.zero,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 4,
-                          horizontal: 16,
-                        ),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        visualDensity: VisualDensity.compact,
-                      ),
                       child: Text(
                         'restore'.tr(),
                         style: const TextStyle(
@@ -349,6 +339,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
+  // ✅ [수정] Point / Credit 명칭 적용
   Widget _buildBalanceCard() {
     return FutureBuilder<Map<String, int>>(
       future: _balanceFuture,
@@ -367,9 +358,9 @@ class _CoinShopPageState extends State<CoinShopPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'free_coins'.tr(),
+                    'free_stamp'.tr(),
                     style: const TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
+                  ), // 👈 Point
                   Text(
                     '$free',
                     style: const TextStyle(
@@ -384,12 +375,12 @@ class _CoinShopPageState extends State<CoinShopPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'my_coins'.tr(),
+                    'paid_stamp'.tr(),
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
-                  ),
+                  ), // 👈 Credit
                   Text(
                     '$paid',
                     style: const TextStyle(fontWeight: FontWeight.bold),
@@ -526,7 +517,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
             ),
           ),
           const SizedBox(height: 8),
-          // ✅ 이용약관 및 개인정보 처리방침 링크
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
