@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // ✅ 추가
 import 'package:travel_memoir/services/travel_day_service.dart';
+import 'package:travel_memoir/services/travel_complete_service.dart'; // ✅ 추가
 import 'package:travel_memoir/features/travel_day/pages/travel_day_page.dart'
     hide TravelDayService;
 import 'package:travel_memoir/core/utils/date_utils.dart';
@@ -23,8 +25,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   List<Map<String, dynamic>> _diaries = [];
   bool _loading = true;
   bool _isChanged = false;
-
-  // ✅ 이미지 버벅임 방지용 타임스탬프 고정
   late String _imageTimestamp;
 
   @override
@@ -51,7 +51,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
       if (!mounted) return;
 
-      _updateTimestamp(); // 데이터를 새로 불러올 때만 이미지 주소 갱신
+      _updateTimestamp();
       setState(() {
         _diaries = List<Map<String, dynamic>>.from(response);
         _loading = false;
@@ -73,7 +73,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
   Future<void> _saveChanges() async {
     setState(() => _loading = true);
-    final messenger = ScaffoldMessenger.of(context); // ✅ 컨텍스트 에러 방지용 캡처
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final startDate = DateTime.parse(_travel['start_date']);
 
@@ -174,7 +174,9 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                               diaryId: diaryId,
                             );
                             if (rawUrl != null && rawUrl.isNotEmpty) {
-                              imageUrl = '$rawUrl?t=$_imageTimestamp';
+                              // ✅ [해결 1] 서버 측 리사이징 적용 (width=100)
+                              imageUrl =
+                                  '$rawUrl?t=$_imageTimestamp&width=100&quality=60';
                             }
                           }
                         }
@@ -247,7 +249,17 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                   ),
                                 ),
                               );
-                              if (changed == true) await _loadAllDiaries();
+                              if (changed == true && mounted) {
+                                await _loadAllDiaries();
+                                // ✅ [해결 2] 돌아오자마자 여행 완료 여부 체크!
+                                await TravelCompleteService.tryCompleteTravel(
+                                  travelId: _travel['id'],
+                                  startDate: startDate,
+                                  endDate: startDate.add(
+                                    Duration(days: _diaries.length - 1),
+                                  ),
+                                );
+                              }
                             },
                             child: _buildListItem(
                               diary,
@@ -280,7 +292,97 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     );
   }
 
-  // ✅ 헬퍼 위젯들을 모두 클래스 내부로 통합했습니다.
+  Widget _buildListItem(
+    Map<String, dynamic> diary,
+    DateTime date,
+    int dayIndex,
+    bool hasDiary,
+    String text,
+    String? imageUrl,
+    int index,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.fromLTRB(15, 15, 0, 15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          imageUrl != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: CachedNetworkImage(
+                    // ✅ [해결 3] CachedNetworkImage로 교체
+                    imageUrl: imageUrl,
+                    width: 46,
+                    height: 46,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 120, // ✅ [해결 4] 메모리 다이어트 (약 2.5배수)
+                    placeholder: (context, url) => _emptyThumb(),
+                    errorWidget: (context, url, error) => _emptyThumb(),
+                    fadeInDuration: const Duration(milliseconds: 300),
+                  ),
+                )
+              : _emptyThumb(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${DateUtilsHelper.formatMonthDay(date)} · ${'travel_day_unit'.tr(args: [dayIndex.toString()])}',
+                  style: AppTextStyles.bodyMuted.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                Text(
+                  hasDiary ? text.split('\n').first : 'please_write_diary'.tr(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: hasDiary ? FontWeight.w700 : FontWeight.w300,
+                    color: hasDiary
+                        ? AppColors.textColor01
+                        : AppColors.textColor07,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ReorderableDragStartListener(
+            index: index,
+            child: Container(
+              color: Colors.transparent,
+              padding: const EdgeInsets.fromLTRB(20, 20, 27, 20),
+              child: Image.asset(
+                'assets/icons/ico_Drag.png',
+                width: 13,
+                height: 10,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyThumb() => Container(
+    width: 46,
+    height: 46,
+    decoration: BoxDecoration(borderRadius: BorderRadius.circular(5)),
+    child: Image.asset('assets/icons/noImage.png', width: 46, height: 46),
+  );
+
   Widget _buildHeader(String travelType, String title) {
     final writtenCount = _diaries
         .where((e) => e['text'].toString().isNotEmpty)
@@ -376,98 +478,8 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       ),
     );
   }
-
-  Widget _buildListItem(
-    Map<String, dynamic> diary,
-    DateTime date,
-    int dayIndex,
-    bool hasDiary,
-    String text,
-    String? imageUrl,
-    int index,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.fromLTRB(15, 15, 0, 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          imageUrl != null
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: Image.network(
-                    imageUrl,
-                    width: 46,
-                    height: 46,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) =>
-                        loadingProgress == null ? child : _emptyThumb(),
-                    errorBuilder: (_, __, ___) => _emptyThumb(),
-                  ),
-                )
-              : _emptyThumb(),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${DateUtilsHelper.formatMonthDay(date)} · ${'travel_day_unit'.tr(args: [dayIndex.toString()])}',
-                  style: AppTextStyles.bodyMuted.copyWith(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-                Text(
-                  hasDiary ? text.split('\n').first : 'please_write_diary'.tr(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: hasDiary ? FontWeight.w700 : FontWeight.w300,
-                    color: hasDiary
-                        ? AppColors.textColor01
-                        : AppColors.textColor07,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ReorderableDragStartListener(
-            index: index,
-            child: Container(
-              color: Colors.transparent,
-              padding: const EdgeInsets.fromLTRB(20, 20, 27, 20),
-              child: Image.asset(
-                'assets/icons/ico_Drag.png',
-                width: 13,
-                height: 10,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyThumb() => Container(
-    width: 46,
-    height: 46,
-    decoration: BoxDecoration(borderRadius: BorderRadius.circular(5)),
-    child: Image.asset('assets/icons/noImage.png', width: 46, height: 46),
-  );
 }
 
-// 이 뱃지 위젯은 독립적이어도 상관없습니다.
 class _TypeBadge extends StatelessWidget {
   final String label;
   const _TypeBadge({required this.label});

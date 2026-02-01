@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:travel_memoir/services/travel_list_service.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
@@ -17,79 +17,37 @@ class RecordTabPage extends StatefulWidget {
 
 class _RecordTabPageState extends State<RecordTabPage> {
   final PageController _controller = PageController();
-  late Future<List<Map<String, dynamic>>> _future;
-  Timer? _pollingTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    _reload();
-  }
-
-  // ✅ 언어 변경을 감지하면 데이터를 다시 불러옵니다.
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _reload();
-  }
+  final _supabase = Supabase.instance.client;
 
   @override
   void dispose() {
-    _pollingTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
-  void _reload() {
-    if (!mounted) return;
-    setState(() {
-      _future = _getCompletedTravels();
-    });
-  }
-
-  Future<List<Map<String, dynamic>>> _getCompletedTravels() async {
-    final travels = await TravelListService.getTravels();
-    final completed = travels.where((t) => t['is_completed'] == true).toList();
-    completed.sort(
-      (a, b) => b['end_date'].toString().compareTo(a['end_date'].toString()),
-    );
-
-    final stillProcessing = completed.any(
-      (t) =>
-          (t['cover_image_url'] == null ||
-              t['cover_image_url'].toString().isEmpty) ||
-          (t['ai_cover_summary'] ?? '').toString().trim().isEmpty,
-    );
-
-    if (stillProcessing) {
-      if (_pollingTimer == null || !_pollingTimer!.isActive) {
-        _pollingTimer = Timer.periodic(
-          const Duration(seconds: 3),
-          (_) => _reload(),
-        );
-      }
-    } else {
-      _pollingTimer?.cancel();
-      _pollingTimer = null;
-    }
-    return completed;
-  }
-
   @override
   Widget build(BuildContext context) {
-    // 🎯 [필살기] 현재 언어(locale)를 Key로 사용합니다.
-    // 언어가 바뀌면 Key가 바뀌고, Flutter는 이 Scaffold를 아예 새로 빌드합니다.
     return Scaffold(
       key: ValueKey(context.locale.toString()),
       backgroundColor: AppColors.background,
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _future,
+      // ✅ FutureBuilder를 StreamBuilder로 교체하여 실시간 감시 시작!
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: _supabase
+            .from('travels')
+            .stream(primaryKey: ['id'])
+            .order('end_date', ascending: false),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               !snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-          final travels = snapshot.data ?? [];
+
+          // ✅ 완료된 여행만 실시간으로 필터링
+          final allTravels = snapshot.data ?? [];
+          final travels = allTravels
+              .where((t) => t['is_completed'] == true)
+              .toList();
+
           if (travels.isEmpty) {
             return Center(
               child: Text(
@@ -111,7 +69,10 @@ class _RecordTabPageState extends State<RecordTabPage> {
                 );
               }
               final travel = travels[index - 1];
-              return TravelRecordCard(travel: travel, onReturn: _reload);
+              return TravelRecordCard(
+                key: ValueKey(travel['id']), // ✅ 키를 지정하여 개별 카드 식별
+                travel: travel,
+              );
             },
           );
         },
@@ -120,6 +81,114 @@ class _RecordTabPageState extends State<RecordTabPage> {
   }
 }
 
+// =====================================================
+// 🧳 개별 여행 레코드 카드 (최적화 버전)
+// =====================================================
+class TravelRecordCard extends StatelessWidget {
+  final Map<String, dynamic> travel;
+
+  const TravelRecordCard({super.key, required this.travel});
+
+  @override
+  Widget build(BuildContext context) {
+    final isKo = context.locale.languageCode == 'ko';
+    final type = travel['travel_type'] ?? 'domestic';
+
+    String destination;
+    if (type == 'usa') {
+      destination =
+          travel['region_name'] ??
+          travel['region_key'] ??
+          (isKo ? '미국' : 'USA');
+    } else if (type == 'domestic') {
+      destination = isKo
+          ? (travel['region_name'] ?? '알 수 없음')
+          : (travel['region_key']?.split('_').last ?? 'Korea');
+    } else {
+      destination = isKo
+          ? (travel['country_name_ko'] ?? '알 수 없음')
+          : (travel['country_name_en'] ?? 'Unknown');
+    }
+
+    final String? coverUrl = travel['cover_image_url'] as String?;
+    final String summary = (travel['ai_cover_summary'] ?? '').toString().trim();
+
+    String finalImageUrl = '';
+    if (coverUrl != null && coverUrl.isNotEmpty) {
+      finalImageUrl = coverUrl.startsWith('http')
+          ? coverUrl
+          : Supabase.instance.client.storage
+                .from('travel_images')
+                .getPublicUrl(coverUrl);
+
+      // ✅ 썸네일 최적화 파라미터 추가 (여기도 적용!)
+      finalImageUrl =
+          '$finalImageUrl?t=${travel['completed_at']}&width=400&quality=70';
+    }
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TravelAlbumPage(travel: travel),
+              ),
+            );
+          },
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: finalImageUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: Uri.encodeFull(finalImageUrl),
+                          fit: BoxFit.cover,
+                          memCacheWidth: 800, // 커버니까 썸네일보다는 조금 더 크게 캐싱
+                          placeholder: (_, __) =>
+                              Container(color: AppColors.lightSurface),
+                          errorWidget: (_, __, ___) =>
+                              Container(color: AppColors.divider),
+                        )
+                      : Container(color: AppColors.divider),
+                ),
+                Positioned(
+                  top: 24,
+                  left: 20,
+                  right: 20,
+                  child: Text(
+                    destination,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black87,
+                          offset: Offset(0, 2),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (finalImageUrl.isNotEmpty && summary.isEmpty)
+                  const BottomLabel(text: 'AI가 여행을 정리하고 있어요...'),
+                if (summary.isNotEmpty)
+                  BottomLabel(text: summary, gradient: true),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// SummaryHeroCard와 BottomLabel 위젯은 기존과 동일하므로 생략하거나 그대로 유지하시면 됩니다.
 // =====================================================
 // 🧭 상단 요약 히어로 카드
 // =====================================================
@@ -169,116 +238,6 @@ class SummaryHeroCard extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// =====================================================
-// 🧳 개별 여행 레코드 카드
-// =====================================================
-class TravelRecordCard extends StatelessWidget {
-  final Map<String, dynamic> travel;
-  final VoidCallback onReturn;
-
-  const TravelRecordCard({
-    super.key,
-    required this.travel,
-    required this.onReturn,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isKo = context.locale.languageCode == 'ko';
-    final type = travel['travel_type'] ?? 'domestic';
-
-    String destination;
-    if (type == 'usa') {
-      destination =
-          travel['region_name'] ??
-          travel['region_key'] ??
-          (isKo ? '미국' : 'USA');
-    } else if (type == 'domestic') {
-      destination = isKo
-          ? (travel['region_name'] ?? '알 수 없음')
-          : (travel['region_key']?.split('_').last ?? 'Korea');
-    } else {
-      destination = isKo
-          ? (travel['country_name_ko'] ?? '알 수 없음')
-          : (travel['country_name_en'] ?? 'Unknown');
-    }
-
-    final String? coverUrl = travel['cover_image_url'] as String?;
-    final String summary = (travel['ai_cover_summary'] ?? '').toString().trim();
-    String finalImageUrl = (coverUrl != null && coverUrl.isNotEmpty)
-        ? '$coverUrl?t=${travel['completed_at']}'
-        : '';
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TravelAlbumPage(travel: travel),
-              ),
-            ).then((_) => onReturn());
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: finalImageUrl.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: Uri.encodeFull(finalImageUrl),
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: AppColors.lightSurface,
-                            child: const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            color: AppColors.divider,
-                            child: const Icon(
-                              Icons.broken_image,
-                              color: Colors.white,
-                            ),
-                          ),
-                        )
-                      : Container(color: AppColors.divider),
-                ),
-                Positioned(
-                  top: 24,
-                  left: 20,
-                  right: 20,
-                  child: Text(
-                    destination,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      shadows: [
-                        Shadow(
-                          color: Colors.black87,
-                          offset: Offset(0, 2),
-                          blurRadius: 10,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (finalImageUrl.isNotEmpty && summary.isEmpty)
-                  BottomLabel(text: 'ai_organizing'.tr()),
-                if (summary.isNotEmpty)
-                  BottomLabel(text: summary, gradient: true),
-              ],
-            ),
-          ),
         ),
       ),
     );

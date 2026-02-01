@@ -191,52 +191,82 @@ class TravelDayService {
     required String userId,
     required String travelId,
     required String date,
-    List<String>? photoPaths,
+    List<String>? photoPaths, // 이제 이 리스트에만 의존하지 않습니다!
   }) async {
     final tid = _clean(travelId);
     final uid = _clean(userId);
-
-    final List<String> pathsToDelete = [];
+    final trimmedDate = date.trim();
 
     try {
+      // 1. 해당 일기의 ID를 먼저 가져옵니다.
       final diary = await _supabase
           .from('travel_days')
           .select('id')
           .eq('travel_id', tid)
-          .eq('date', date.trim())
+          .eq('date', trimmedDate)
           .maybeSingle();
 
-      if (diary != null) {
-        pathsToDelete.add(
-          StoragePaths.travelDayImagePath(uid, tid, diary['id'].toString()),
+      if (diary == null) return;
+      final String diaryId = diary['id'].toString();
+
+      // 2. [핵심] moments 폴더 경로를 특정합니다.
+      final String momentsPath =
+          'users/$uid/travels/$tid/diaries/$diaryId/moments';
+
+      // 3. Storage에서 해당 폴더에 있는 파일 목록을 직접 조회합니다.
+      final List<FileObject> folderFiles = await _supabase.storage
+          .from('travel_images')
+          .list(path: momentsPath);
+
+      List<String> finalDeleteList = [];
+
+      // 폴더 내 파일이 있다면 삭제 목록에 추가
+      if (folderFiles.isNotEmpty) {
+        finalDeleteList.addAll(
+          folderFiles.map((f) => '$momentsPath/${f.name}'),
         );
       }
-    } catch (_) {}
 
-    pathsToDelete.add(StoragePaths.travelCoverPath(uid, tid));
-    pathsToDelete.add(StoragePaths.travelMapPath(uid, tid));
+      // AI 이미지 경로도 추가 (기존 로직 유지)
+      finalDeleteList.add(
+        'users/$uid/travels/$tid/diaries/$diaryId/ai_generated.png',
+      );
 
-    if (photoPaths != null) {
-      pathsToDelete.addAll(photoPaths.map(_clean));
+      // 기타 커버/지도 이미지 (필요시)
+      finalDeleteList.add('users/$uid/travels/$tid/travel_cover.png');
+      finalDeleteList.add('users/$uid/travels/$tid/travel_map.png');
+
+      // 4. [소탕 실시] 수집된 모든 경로를 한 번에 삭제합니다.
+      if (finalDeleteList.isNotEmpty) {
+        await _supabase.storage
+            .from('travel_images')
+            .remove(finalDeleteList.toSet().toList());
+      }
+
+      // 5. 마지막으로 DB 정보를 비웁니다.
+      await _supabase
+          .from('travel_days')
+          .update({
+            'text': '',
+            'ai_summary': null,
+            'ai_style': null,
+            'photo_urls': [], // DB 리스트 초기화
+            'is_completed': false,
+          })
+          .eq('travel_id', tid)
+          .eq('date', trimmedDate);
+
+      // ✅ [추가] 부모 여행 상태도 미완료로 리셋!
+      await _supabase
+          .from('travels')
+          .update({'is_completed': false}) // 여행(부모) 미완료 처리
+          .eq('id', tid);
+
+      debugPrint('✅ [소탕완료] Moments 폴더 및 DB 초기화 성공');
+    } catch (e) {
+      debugPrint('❌ [소탕실패] 에러 발생: $e');
+      rethrow;
     }
-
-    if (pathsToDelete.isNotEmpty) {
-      await _supabase.storage
-          .from('travel_images')
-          .remove(pathsToDelete.toSet().toList());
-    }
-
-    await _supabase
-        .from('travel_days')
-        .update({
-          'text': '',
-          'ai_summary': null,
-          'ai_style': null,
-          'photo_urls': [],
-          'is_completed': false,
-        })
-        .eq('travel_id', tid)
-        .eq('date', date.trim());
   }
 
   static String? getAiImageUrl({

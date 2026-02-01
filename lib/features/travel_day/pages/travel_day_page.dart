@@ -13,6 +13,7 @@ import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -20,7 +21,11 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ 설정 저장용
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img; // ✅ 버전 4.x 대응
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -79,11 +84,13 @@ class _TravelDayPageState extends State<TravelDayPage>
   List<String> _initialRemotePhotoUrls = [];
 
   bool _loading = false;
+  bool _isSharing = false;
   String _loadingMessage = "";
 
   int _dailyStamps = 0;
   int _paidStamps = 0;
-  bool _usePaidStampMode = false; // 기본값 (설정 로드 전)
+  bool _usePaidStampMode = false;
+  bool _isPremiumUser = false; // ✅ 프리미엄 상태 저장
 
   bool _isTripTypeLoaded = false;
   String? _travelType;
@@ -97,7 +104,8 @@ class _TravelDayPageState extends State<TravelDayPage>
   bool _isAiDone = false;
   bool _isAdDone = false;
 
-  // ✅ [추가] 상단 카드 높이 측정용 + 이미지 영역 높이 저장
+  final TransformationController _transformationController =
+      TransformationController();
   final GlobalKey _topCardKey = GlobalKey();
   double _dynamicImageHeight = 0;
 
@@ -128,28 +136,40 @@ class _TravelDayPageState extends State<TravelDayPage>
     _contentController.dispose();
     _rewardedAd?.dispose();
     _cardController.dispose();
+    _transformationController.dispose();
     super.dispose();
   }
 
   Future<void> _initData() async {
-    await _loadDefaultCoinSetting(); // 1. 설정 로드
-    await _loadDiary(); // 2. 일기 로드
-    await _refreshStampCounts(); // 3. 코인 로드
+    await _loadDefaultCoinSetting();
+    await _loadDiary();
+    await _refreshStampCounts();
     _loadAds();
     _checkTripType();
+    _checkPremiumStatus();
   }
 
-  // ✅ [추가] 디폴트 설정 로드 (SharedPreferences)
-  Future<void> _loadDefaultCoinSetting() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (mounted) {
-      setState(() {
-        _usePaidStampMode = prefs.getBool('use_credit_mode_default') ?? false;
-      });
+  Future<void> _checkPremiumStatus() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) return;
+    final data = await Supabase.instance.client
+        .from('users')
+        .select('is_premium')
+        .eq('auth_uid', userId)
+        .maybeSingle();
+    if (mounted && data != null) {
+      setState(() => _isPremiumUser = data['is_premium'] ?? false);
     }
   }
 
-  // ✅ [추가] 디폴트 설정 저장
+  Future<void> _loadDefaultCoinSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted)
+      setState(() {
+        _usePaidStampMode = prefs.getBool('use_credit_mode_default') ?? false;
+      });
+  }
+
   Future<void> _saveDefaultCoinSetting(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('use_credit_mode_default', value);
@@ -170,9 +190,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         .select('travel_type')
         .eq('id', _cleanTravelId)
         .maybeSingle();
-
     if (!mounted) return;
-
     setState(() {
       if (tripData != null) {
         _travelType = tripData['travel_type'] ?? 'domestic';
@@ -226,9 +244,70 @@ class _TravelDayPageState extends State<TravelDayPage>
           .from('travel_images')
           .getPublicUrl(aiPath);
       setState(
-        () => _imageUrl = "$rawUrl?v=${DateTime.now().millisecondsSinceEpoch}",
-      ); // ✅ 캐시 버스팅
+        () => _imageUrl =
+            "$rawUrl?v=${DateTime.now().millisecondsSinceEpoch}&width=800&quality=80",
+      );
       if (_imageUrl != null) _cardController.forward();
+    }
+  }
+
+  // ✅ 워터마크 합성 로직 (drawImage -> compositeImage로 수정 완료)
+  Future<void> _shareDiaryImage(BuildContext ctx) async {
+    if (_imageUrl == null && _generatedImage == null) return;
+    setState(() => _isSharing = true);
+    try {
+      Uint8List imageBytes;
+      if (_generatedImage != null) {
+        imageBytes = _generatedImage!;
+      } else {
+        final res = await http.get(Uri.parse(_imageUrl!));
+        imageBytes = res.bodyBytes;
+      }
+
+      // 💧 프리미엄이 아닐 때만 워터마크 도장 꾹!
+      if (!_isPremiumUser) {
+        final ByteData watermarkData = await rootBundle.load(
+          'assets/images/watermark.png',
+        );
+        final Uint8List watermarkBytes = watermarkData.buffer.asUint8List();
+
+        img.Image? originalImg = img.decodeImage(imageBytes);
+        img.Image? watermarkImg = img.decodeImage(watermarkBytes);
+
+        if (originalImg != null && watermarkImg != null) {
+          int targetWidth = (originalImg.width * 0.15).toInt();
+          img.Image resizedWatermark = img.copyResize(
+            watermarkImg,
+            width: targetWidth,
+          );
+          // 👻 2. 반투명 처리 (50% 투명도 적용)
+          for (var pixel in resizedWatermark) {
+            pixel.a = pixel.a * 0.5; // 알파값을 절반으로 줄임
+          }
+          int x = originalImg.width - resizedWatermark.width - 20;
+          int y = originalImg.height - resizedWatermark.height - 20;
+
+          // 🔥 핵심 수정: drawImage -> compositeImage
+          img.compositeImage(originalImg, resizedWatermark, dstX: x, dstY: y);
+          imageBytes = Uint8List.fromList(img.encodePng(originalImg));
+        }
+      }
+
+      final temp = await getTemporaryDirectory();
+      final file = await File('${temp.path}/share_diary.png').create();
+      await file.writeAsBytes(imageBytes);
+
+      final box = ctx.findRenderObject() as RenderBox?;
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        sharePositionOrigin: box != null
+            ? box.localToGlobal(Offset.zero) & box.size
+            : null,
+      );
+    } catch (e) {
+      debugPrint('공유 실패: $e');
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
     }
   }
 
@@ -275,19 +354,16 @@ class _TravelDayPageState extends State<TravelDayPage>
       return;
     }
     if (_contentController.text.trim().isEmpty) return;
-
     bool actualPaidMode = _usePaidStampMode;
     if (!actualPaidMode && _dailyStamps <= 0 && _paidStamps > 0)
       actualPaidMode = true;
     else if (actualPaidMode && _paidStamps <= 0 && _dailyStamps > 0)
       actualPaidMode = false;
-
     int currentCoins = actualPaidMode ? _paidStamps : _dailyStamps;
     if (currentCoins <= 0) {
       _showCoinEmptyDialog();
       return;
     }
-
     _isAiDone = false;
     _isAdDone = false;
     _startAiGeneration(actualPaidMode)
@@ -298,7 +374,6 @@ class _TravelDayPageState extends State<TravelDayPage>
         .catchError((e) {
           if (mounted) setState(() => _loading = false);
         });
-
     if (!actualPaidMode && _isAdLoaded && _rewardedAd != null) {
       _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
@@ -320,26 +395,14 @@ class _TravelDayPageState extends State<TravelDayPage>
     }
   }
 
-  // ✅ [추가] 화면에서 "남은 높이"를 계산해서 이미지 높이를 만든다
   void _updateDynamicImageHeight() {
     if (!mounted) return;
-
     final media = MediaQuery.of(context);
     final screenH = media.size.height;
-
-    // SafeArea(top) 값
     final topPadding = media.padding.top;
-
-    // 하단 저장바 높이 (너 코드 그대로 58)
     const bottomBarH = 58.0;
-
-    // SingleChildScrollView padding top: 5 (너 코드 그대로)
     const scrollTopPadding = 5.0;
-
-    // 카드 아래 여백 SizedBox(height: 27) (너 코드 그대로)
     const gapUnderCard = 27.0;
-
-    // 상단 카드 실제 높이(렌더된 뒤 측정)
     final ctx = _topCardKey.currentContext;
     double cardH = 0;
     if (ctx != null) {
@@ -348,8 +411,6 @@ class _TravelDayPageState extends State<TravelDayPage>
         cardH = box.size.height;
       }
     }
-
-    // 남는 높이 = 전체 - topSafe - 하단바 - 스크롤패딩 - 카드높이 - 카드아래간격
     double remain =
         screenH -
         topPadding -
@@ -357,13 +418,14 @@ class _TravelDayPageState extends State<TravelDayPage>
         scrollTopPadding -
         cardH -
         gapUnderCard;
-
-    // 너무 작으면 최소 높이 보장 (원하면 180 숫자만 변경)
     if (remain < 180) remain = 180;
-
-    // 변화 있을 때만 setState
     if ((_dynamicImageHeight - remain).abs() > 1) {
-      setState(() => _dynamicImageHeight = remain);
+      setState(() {
+        _dynamicImageHeight = remain;
+        final screenWidth = media.size.width;
+        _transformationController.value = Matrix4.identity()
+          ..translate(-screenWidth * 0.25, -_dynamicImageHeight * 0.25);
+      });
     }
   }
 
@@ -558,7 +620,7 @@ class _TravelDayPageState extends State<TravelDayPage>
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         backgroundColor: const Color(0xFFF6F6F6),
-        resizeToAvoidBottomInset: false, // ✅ 하단 바 고정
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           bottom: false,
           child: Stack(
@@ -573,7 +635,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 27),
                             child: Container(
-                              key: _topCardKey, // ✅ [추가] 카드 높이 측정용
+                              key: _topCardKey,
                               width: double.infinity,
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -625,7 +687,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                                                 ),
                                               ),
                                             ),
-                                            _buildAppBarCoinToggle(), // ✅ 다국어 대응 토글
+                                            _buildAppBarCoinToggle(),
                                           ],
                                         ),
                                         const SizedBox(height: 5),
@@ -664,16 +726,11 @@ class _TravelDayPageState extends State<TravelDayPage>
                             ),
                           ),
                           const SizedBox(height: 27),
-
-                          // ✅ [변경] 4:3 제거 → "남은 높이"만큼 이미지 영역 채우기
                           LayoutBuilder(
                             builder: (context, _) {
-                              // 매 빌드 후 다음 프레임에서 높이 업데이트(회전/기기 대응)
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 _updateDynamicImageHeight();
                               });
-
-                              // 아직 계산 전이면 기존 4:3 값을 임시 fallback으로 사용
                               final fallback =
                                   MediaQuery.of(context).size.width * 3 / 4;
                               final h = (_dynamicImageHeight > 0)
@@ -681,34 +738,68 @@ class _TravelDayPageState extends State<TravelDayPage>
                                   : fallback;
 
                               if (hasAiImage) {
+                                final imageWidget = _imageUrl != null
+                                    ? CachedNetworkImage(
+                                        imageUrl: _imageUrl!,
+                                        fit: BoxFit.cover,
+                                        memCacheWidth: 800,
+                                        placeholder: (_, __) => Container(
+                                          color: AppColors.lightSurface,
+                                          child: const Center(
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (_, __, ___) =>
+                                            const Center(
+                                              child: Icon(
+                                                Icons.broken_image,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                      )
+                                    : Image.memory(
+                                        _generatedImage!,
+                                        fit: BoxFit.cover,
+                                      );
+
                                 return GestureDetector(
-                                  onTap: _showImagePopup, // ✅ 팝업 호출
+                                  onTap: _showImagePopup,
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(0),
                                     child: SizedBox(
                                       width: MediaQuery.of(context).size.width,
                                       height: h,
-                                      child: _imageUrl != null
-                                          ? Image.network(
-                                              _imageUrl!,
-                                              fit: BoxFit.cover,
-                                            )
-                                          : Image.memory(
-                                              _generatedImage!,
-                                              fit: BoxFit.cover,
-                                            ),
+                                      child: InteractiveViewer(
+                                        transformationController:
+                                            _transformationController,
+                                        panEnabled: true,
+                                        scaleEnabled: true,
+                                        minScale: 0.5,
+                                        maxScale: 4.0,
+                                        constrained: false,
+                                        child: SizedBox(
+                                          width:
+                                              MediaQuery.of(
+                                                context,
+                                              ).size.width *
+                                              1.5,
+                                          height: h * 1.5,
+                                          child: imageWidget,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 );
                               }
-
                               return Container(
                                 width: MediaQuery.of(context).size.width,
                                 height: h,
                                 color: const Color(0xFFE6E6E6),
                                 child: Center(
                                   child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Image.asset(
                                         'assets/icons/ico_attached2.png',
@@ -747,19 +838,98 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
-  // ✅ [수정] 다국어 대응 코인 토글 (SharedPreferences 연동)
+  void _showImagePopup() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (_) {
+        return StatefulBuilder(
+          builder: (context, setPopupState) {
+            return Stack(
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Dialog(
+                    insetPadding: EdgeInsets.zero,
+                    backgroundColor: Colors.transparent,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: InteractiveViewer(
+                        minScale: 0.5,
+                        maxScale: 4.0,
+                        child: _imageUrl != null
+                            ? Image.network(_imageUrl!, fit: BoxFit.contain)
+                            : (_generatedImage != null
+                                  ? Image.memory(
+                                      _generatedImage!,
+                                      fit: BoxFit.contain,
+                                    )
+                                  : const SizedBox()),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: MediaQuery.of(context).padding.top + 10,
+                  right: 20,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: GestureDetector(
+                      onTap: _isSharing
+                          ? null
+                          : () async {
+                              setPopupState(() {});
+                              await _shareDiaryImage(context);
+                              setPopupState(() {});
+                            },
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: _isSharing
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.ios_share,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildAppBarCoinToggle() {
     return GestureDetector(
       onTap: () {
         bool newValue = !_usePaidStampMode;
         setState(() => _usePaidStampMode = newValue);
-        _saveDefaultCoinSetting(newValue); // ✅ 디폴트 설정 저장
+        _saveDefaultCoinSetting(newValue);
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
         padding: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          color: const Color(0xFF454B54), // ✅ 여기
+          color: const Color(0xFF454B54),
           borderRadius: BorderRadius.circular(6),
         ),
         child: Row(
@@ -770,7 +940,6 @@ class _TravelDayPageState extends State<TravelDayPage>
               const Color.fromARGB(255, 77, 181, 255),
               !_usePaidStampMode,
             ),
-            // ✅ 구분선
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 2),
               width: 1,
@@ -791,7 +960,6 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   Widget _coinUnit(String label, int count, Color activeBg, bool isActive) {
     final Color textColor = isActive ? Colors.white : activeBg;
-
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1019,42 +1187,6 @@ class _TravelDayPageState extends State<TravelDayPage>
           ],
         ),
       ),
-    );
-  } // ✅ [추가] 이미지 크게 보기 팝업
-
-  void _showImagePopup() {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.9),
-      builder: (_) {
-        return GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Dialog(
-            insetPadding: EdgeInsets.zero,
-            backgroundColor: Colors.transparent,
-            child: SizedBox(
-              width: double.infinity,
-              height: double.infinity,
-              child: _imageUrl != null
-                  ? InteractiveViewer(
-                      minScale: 1,
-                      maxScale: 4,
-                      child: Image.network(_imageUrl!, fit: BoxFit.contain),
-                    )
-                  : (_generatedImage != null
-                        ? InteractiveViewer(
-                            minScale: 1,
-                            maxScale: 4,
-                            child: Image.memory(
-                              _generatedImage!,
-                              fit: BoxFit.contain,
-                            ),
-                          )
-                        : const SizedBox()),
-            ),
-          ),
-        );
-      },
     );
   }
 

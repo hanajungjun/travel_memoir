@@ -105,4 +105,12 @@ class TravelListService {
       return [];
     }
   }
+
+  // travel_list_service.dart 에 추가
+  static Stream<List<Map<String, dynamic>>> getTravelsStream() {
+    return Supabase.instance.client
+        .from('travels')
+        .stream(primaryKey: ['id'])
+        .order('end_date', ascending: false);
+  }
 }

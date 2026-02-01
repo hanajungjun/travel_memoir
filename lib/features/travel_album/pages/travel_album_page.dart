@@ -5,11 +5,13 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show rootBundle; // ✅ 추가
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img; // ✅ 워터마크 합성용
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
@@ -59,7 +61,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   Uint8List? _premiumInfographic;
   String? _premiumImageUrl;
   bool _isPremiumLoading = false;
-  bool _isPremiumUser = false;
+  bool _isPremiumUser = false; // ✅ 프리미엄 여부
   bool _showStickers = false;
 
   List<StickerPlacement> _stickerPlacements = [];
@@ -112,7 +114,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     }
   }
 
-  // ✅ [수정] 사진들을 더 가장자리로 찢어놓는 좌표 설정
   void _extractAndShuffleStickers(Map<int, List<_AlbumItem>> data) {
     List<String> allPhotoUrls = [];
     data.forEach((day, items) {
@@ -124,12 +125,11 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
     if (allPhotoUrls.isEmpty) return;
 
-    // 좌표 숫자를 줄여서 가장자리에 바짝 붙임
     List<Map<String, double>> positions = [
-      {'top': 20, 'left': 10, 'angle': -0.15}, // 좌상단
-      {'top': 30, 'right': 10, 'angle': 0.18}, // 우상단
-      {'bottom': 15, 'left': 12, 'angle': -0.1}, // 좌하단
-      {'bottom': 25, 'right': 12, 'angle': 0.14}, // 우하단
+      {'top': 20, 'left': 10, 'angle': -0.15},
+      {'top': 30, 'right': 10, 'angle': 0.18},
+      {'bottom': 15, 'left': 12, 'angle': -0.1},
+      {'bottom': 25, 'right': 12, 'angle': 0.14},
     ];
     positions.shuffle();
 
@@ -439,6 +439,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                                     .expand((e) => e)
                                     .toList()
                                     .indexOf(item),
+                                isPremiumUser: _isPremiumUser, // ✅ 상태 전달
                               ),
                             ),
                           ),
@@ -540,7 +541,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     );
   }
 
-  // ✅ [수정] 카드 화면: 텍스트를 피해서 가장자리로 쫙 벌린 스티커 배치
   Widget _buildPremiumCard() {
     return AspectRatio(
       aspectRatio: 0.9,
@@ -555,6 +555,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                   imageBytes: _premiumInfographic,
                   imageUrl: _premiumImageUrl,
                   stickers: _stickerPlacements,
+                  isPremiumUser: _isPremiumUser, // ✅ 상태 전달
                 ),
               ),
             );
@@ -590,7 +591,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                 ),
               ),
             ),
-
             Positioned(
               top: 40,
               left: 20,
@@ -634,7 +634,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                 ],
               ),
             ),
-
             if (!_isPremiumUser)
               Positioned.fill(
                 child: Container(
@@ -664,7 +663,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                   ),
                 ),
               ),
-
             for (var sticker in _stickerPlacements)
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 600),
@@ -714,15 +712,17 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 }
 
-// ✅ 앨범 뷰어 클래스
+// ✅ 앨범 뷰어 클래스 (워터마크 로직 추가)
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
   final List<_AlbumItem> items;
   final int initialIndex;
+  final bool isPremiumUser; // ✅ 추가
   const _AlbumViewerPage({
     required this.title,
     required this.items,
     required this.initialIndex,
+    required this.isPremiumUser,
   });
 
   @override
@@ -771,19 +771,59 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
                   : const Icon(Icons.ios_share),
               onPressed: () async {
                 setState(() => _isSharing = true);
-                final res = await http.get(
-                  Uri.parse(widget.items[_index].imageUrl),
-                );
-                final temp = await getTemporaryDirectory();
-                final file = await File('${temp.path}/share.png').create();
-                await file.writeAsBytes(res.bodyBytes);
-                final box = ctx.findRenderObject() as RenderBox?;
-                await Share.shareXFiles(
-                  [XFile(file.path)],
-                  sharePositionOrigin: box != null
-                      ? box.localToGlobal(Offset.zero) & box.size
-                      : null,
-                );
+                try {
+                  final res = await http.get(
+                    Uri.parse(widget.items[_index].imageUrl),
+                  );
+                  Uint8List imageBytes = res.bodyBytes;
+
+                  // 💧 프리미엄이 아닐 때 워터마크 합성
+                  if (!widget.isPremiumUser) {
+                    final ByteData watermarkData = await rootBundle.load(
+                      'assets/images/watermark.png',
+                    );
+                    final Uint8List watermarkBytes = watermarkData.buffer
+                        .asUint8List();
+                    img.Image? originalImg = img.decodeImage(imageBytes);
+                    img.Image? watermarkImg = img.decodeImage(watermarkBytes);
+
+                    if (originalImg != null && watermarkImg != null) {
+                      int targetWidth = (originalImg.width * 0.15).toInt();
+                      img.Image resizedWatermark = img.copyResize(
+                        watermarkImg,
+                        width: targetWidth,
+                      );
+                      // 👻 2. 반투명 처리 (50% 투명도 적용)
+                      for (var pixel in resizedWatermark) {
+                        pixel.a = pixel.a * 0.5; // 알파값을 절반으로 줄임
+                      }
+                      int x = originalImg.width - resizedWatermark.width - 20;
+                      int y = originalImg.height - resizedWatermark.height - 20;
+                      img.compositeImage(
+                        originalImg,
+                        resizedWatermark,
+                        dstX: x,
+                        dstY: y,
+                      );
+                      imageBytes = Uint8List.fromList(
+                        img.encodePng(originalImg),
+                      );
+                    }
+                  }
+
+                  final temp = await getTemporaryDirectory();
+                  final file = await File('${temp.path}/share.png').create();
+                  await file.writeAsBytes(imageBytes);
+                  final box = ctx.findRenderObject() as RenderBox?;
+                  await Share.shareXFiles(
+                    [XFile(file.path)],
+                    sharePositionOrigin: box != null
+                        ? box.localToGlobal(Offset.zero) & box.size
+                        : null,
+                  );
+                } catch (e) {
+                  debugPrint('공유 실패: $e');
+                }
                 setState(() => _isSharing = false);
               },
             ),
@@ -802,18 +842,20 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   }
 }
 
-// ✅ [수정] 프리미엄 상세 공유 화면: 카드와 동일한 시각적 효과 적용
+// ✅ 프리미엄 리포트 뷰어 (워터마크 레이어 추가)
 class _PremiumViewerPage extends StatefulWidget {
   final String title;
   final Uint8List? imageBytes;
   final String? imageUrl;
   final List<StickerPlacement> stickers;
+  final bool isPremiumUser; // ✅ 추가
 
   const _PremiumViewerPage({
     required this.title,
     this.imageBytes,
     this.imageUrl,
     this.stickers = const [],
+    required this.isPremiumUser,
   });
 
   @override
@@ -894,9 +936,8 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
                   widget.imageBytes != null
                       ? Image.memory(widget.imageBytes!)
                       : Image.network(widget.imageUrl!),
-
                   Positioned(
-                    top: 50, // 제목 위치 유지
+                    top: 50,
                     left: 20,
                     right: 20,
                     child: Column(
@@ -930,17 +971,27 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
                       ],
                     ),
                   ),
-
                   for (var sticker in widget.stickers)
                     Positioned(
-                      // [수정] 개별 좌표에 맞춰서 구석탱이로 보냄
-                      top: sticker.top != null ? sticker.top! : null,
-                      bottom: sticker.bottom != null ? sticker.bottom! : null,
-                      left: sticker.left != null ? sticker.left! : null,
-                      right: sticker.right != null ? sticker.right! : null,
+                      top: sticker.top,
+                      bottom: sticker.bottom,
+                      left: sticker.left,
+                      right: sticker.right,
                       child: Transform.rotate(
                         angle: sticker.angle,
                         child: _buildSticker(sticker.url),
+                      ),
+                    ),
+
+                  // 💧 리포트 하단 워터마크 (비-프리미엄 유저 공유용)
+                  if (!widget.isPremiumUser)
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: Image.asset(
+                        'assets/images/watermark.png',
+                        width: 100,
+                        opacity: const AlwaysStoppedAnimation(0.8),
                       ),
                     ),
                 ],

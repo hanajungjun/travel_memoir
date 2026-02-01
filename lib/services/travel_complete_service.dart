@@ -36,6 +36,16 @@ class TravelCompleteService {
           .eq('id', travelId)
           .single();
 
+      debugPrint('➡️ 짜증나네is_completed =${travel['is_completed']}');
+      debugPrint('➡️ 짜증나네cover_image_url =${travel['cover_image_url']}');
+
+      // ✅ [여기입니다!] 기존의 if문을 아래 내용으로 교체하세요.
+      // 이미 완료되었더라도 '커버 이미지'가 없으면(null) 로직을 통과시킵니다.
+      if (travel['is_completed'] == true && travel['cover_image_url'] != null) {
+        debugPrint('⛔️ [COMPLETE_SERVICE] 이미 완료되었고 커버도 있습니다 → 리턴');
+        return;
+      }
+
       debugPrint(
         '➡️ [COMPLETE_SERVICE] travel fetched is_completed=${travel['is_completed']}',
       );
