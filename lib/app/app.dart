@@ -42,11 +42,11 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
       supportedLocales: context.supportedLocales,
       locale: context.locale,
       navigatorObservers: [routeObserver],
+
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'NotoSansKR',
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent),
-        textTheme: applyLetterSpacing(ThemeData.light().textTheme, -0.3),
 
         // ✅ 버튼 테마 설정 부분 수정
         elevatedButtonTheme: ElevatedButtonThemeData(

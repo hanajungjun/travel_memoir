@@ -140,13 +140,13 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                             TextSpan(
                               text: 'select_type_bold'.tr(),
                               style: const TextStyle(
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             TextSpan(
                               text: 'select_type_normal'.tr(),
                               style: const TextStyle(
-                                fontWeight: FontWeight.w100,
+                                fontWeight: FontWeight.w200,
                               ),
                             ),
                           ],
@@ -252,8 +252,8 @@ class _TravelTypeCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 20,
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 18,
                 offset: const Offset(0, 8),
               ),
             ],

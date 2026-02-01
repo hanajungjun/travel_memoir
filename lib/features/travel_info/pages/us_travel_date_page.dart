@@ -148,8 +148,8 @@ class _USTravelDatePageState extends State<USTravelDatePage> {
                       borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 20,
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
                       ],
