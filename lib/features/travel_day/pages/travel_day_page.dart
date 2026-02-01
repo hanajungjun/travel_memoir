@@ -25,7 +25,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
-import 'package:image/image.dart' as img; // ✅ 버전 4.x 대응
+import 'package:image/image.dart' as img;
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -90,7 +90,10 @@ class _TravelDayPageState extends State<TravelDayPage>
   int _dailyStamps = 0;
   int _paidStamps = 0;
   bool _usePaidStampMode = false;
-  bool _isPremiumUser = false; // ✅ 프리미엄 상태 저장
+  bool _isPremiumUser = false;
+
+  // ✅ [추가] 오늘의 AI 생성 횟수 상태
+  int _usageCountToday = 0;
 
   bool _isTripTypeLoaded = false;
   String? _travelType;
@@ -147,6 +150,35 @@ class _TravelDayPageState extends State<TravelDayPage>
     _loadAds();
     _checkTripType();
     _checkPremiumStatus();
+    _loadDailyUsage(); // ✅ 오늘의 사용량 로드 추가
+  }
+
+  // ✅ [추가] DB에서 오늘의 사용 횟수 가져오기
+  Future<void> _loadDailyUsage() async {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId == null) return;
+      final data = await Supabase.instance.client
+          .from('users')
+          .select('daily_usage_count, last_generated_at')
+          .eq('auth_uid', userId)
+          .maybeSingle();
+
+      if (mounted && data != null) {
+        final lastDate = DateTime.parse(data['last_generated_at']).toLocal();
+        final now = DateTime.now();
+        // 날짜가 다르면 0으로 표시 (자정 리셋 시각화)
+        if (lastDate.year != now.year ||
+            lastDate.month != now.month ||
+            lastDate.day != now.day) {
+          setState(() => _usageCountToday = 0);
+        } else {
+          setState(() => _usageCountToday = data['daily_usage_count'] ?? 0);
+        }
+      }
+    } catch (e) {
+      debugPrint('사용량 로드 실패: $e');
+    }
   }
 
   Future<void> _checkPremiumStatus() async {
@@ -251,7 +283,6 @@ class _TravelDayPageState extends State<TravelDayPage>
     }
   }
 
-  // ✅ 워터마크 합성 로직 (drawImage -> compositeImage로 수정 완료)
   Future<void> _shareDiaryImage(BuildContext ctx) async {
     if (_imageUrl == null && _generatedImage == null) return;
     setState(() => _isSharing = true);
@@ -264,7 +295,6 @@ class _TravelDayPageState extends State<TravelDayPage>
         imageBytes = res.bodyBytes;
       }
 
-      // 💧 프리미엄이 아닐 때만 워터마크 도장 꾹!
       if (!_isPremiumUser) {
         final ByteData watermarkData = await rootBundle.load(
           'assets/images/watermark.png',
@@ -280,14 +310,12 @@ class _TravelDayPageState extends State<TravelDayPage>
             watermarkImg,
             width: targetWidth,
           );
-          // 👻 2. 반투명 처리 (50% 투명도 적용)
           for (var pixel in resizedWatermark) {
-            pixel.a = pixel.a * 0.5; // 알파값을 절반으로 줄임
+            pixel.a = pixel.a * 0.5;
           }
           int x = originalImg.width - resizedWatermark.width - 20;
           int y = originalImg.height - resizedWatermark.height - 20;
 
-          // 🔥 핵심 수정: drawImage -> compositeImage
           img.compositeImage(originalImg, resizedWatermark, dstX: x, dstY: y);
           imageBytes = Uint8List.fromList(img.encodePng(originalImg));
         }
@@ -341,6 +369,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     );
   }
 
+  // ✅ [핵심 수정] 수문장 체크 로직이 포함된 생성 버튼 핸들러
   Future<void> _handleGenerateWithStamp() async {
     FocusScope.of(context).unfocus();
     if (_selectedStyle == null) {
@@ -354,18 +383,56 @@ class _TravelDayPageState extends State<TravelDayPage>
       return;
     }
     if (_contentController.text.trim().isEmpty) return;
+
+    // 🛡️ [STEP 1] 수파베이스 수문장 호출 (지갑 방어!)
+    setState(() => _loading = true); // 로딩 먼저 띄움
+    try {
+      final response = await Supabase.instance.client.rpc(
+        'check_ai_generation_limit',
+        params: {
+          'target_user_id': Supabase.instance.client.auth.currentUser!.id,
+        },
+      );
+
+      final bool canGenerate = response['can_generate'] ?? false;
+      final String? reason = response['reason'];
+
+      if (!canGenerate) {
+        setState(() => _loading = false);
+        if (reason == 'cooling_down') {
+          _showCooldownDialog(response['remaining_min'] ?? 0);
+        } else if (reason == 'daily_limit_exceeded') {
+          _showLimitExceededDialog();
+        }
+        return; // 생성 중단
+      }
+
+      // 통과했다면 내부 카운트 갱신
+      _loadDailyUsage();
+    } catch (e) {
+      setState(() => _loading = false);
+      debugPrint('수문장 체크 실패: $e');
+      return;
+    }
+
+    // 🛡️ [STEP 2] 기존 스탬프 & AI 로직 수행 (이미 로딩 중)
     bool actualPaidMode = _usePaidStampMode;
     if (!actualPaidMode && _dailyStamps <= 0 && _paidStamps > 0)
       actualPaidMode = true;
     else if (actualPaidMode && _paidStamps <= 0 && _dailyStamps > 0)
       actualPaidMode = false;
+
     int currentCoins = actualPaidMode ? _paidStamps : _dailyStamps;
     if (currentCoins <= 0) {
+      setState(() => _loading = false);
       _showCoinEmptyDialog();
       return;
     }
+
     _isAiDone = false;
     _isAdDone = false;
+
+    // AI 생성 시작 (이미 로딩 중이므로 별도 setState 생략 가능하나 _startAiGeneration 내부 로직 따름)
     _startAiGeneration(actualPaidMode)
         .then((_) {
           _isAiDone = true;
@@ -374,6 +441,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         .catchError((e) {
           if (mounted) setState(() => _loading = false);
         });
+
     if (!actualPaidMode && _isAdLoaded && _rewardedAd != null) {
       _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
@@ -393,6 +461,62 @@ class _TravelDayPageState extends State<TravelDayPage>
       _isAdDone = true;
       _checkSync();
     }
+  }
+
+  // 👻 [추가] 쿨타임 팝업
+  void _showCooldownDialog(int minutes) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          '🎨 AI 화가가 숨 고르는 중...',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          '컴퓨터에게도 조금의 휴식을~\n\n너무 열심히 그렸나 봐요! $minutes분 후에 다시 멋진 그림을 그려드릴게요.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                '확인',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🛑 [추가] 한도 초과 팝업
+  void _showLimitExceededDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          '오늘의 예술혼 완전 연소!',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          '오늘 준비된 생성 기회를 모두 사용하셨습니다.\n내일 자정에 다시 기회가 충전됩니다!',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          Center(
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                '내일 만나요',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _updateDynamicImageHeight() {
@@ -690,6 +814,22 @@ class _TravelDayPageState extends State<TravelDayPage>
                                             _buildAppBarCoinToggle(),
                                           ],
                                         ),
+                                        // ✅ [추가] 프리미엄 유저용 남은 횟수 표시
+                                        if (_isPremiumUser)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              left: 5,
+                                              top: 2,
+                                            ),
+                                            child: Text(
+                                              '오늘 남은 생성 횟수: ${100 - _usageCountToday}/100',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: Colors.amber[800],
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
                                         const SizedBox(height: 5),
                                         _buildDiaryInput(),
                                         const SizedBox(height: 17),

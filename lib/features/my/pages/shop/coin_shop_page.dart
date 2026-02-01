@@ -23,7 +23,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
   List<Package> _subscriptionPackages = [];
   List<Package> _coinPackages = [];
   bool _isProductsLoading = true;
-  bool _isPremium = false; // ✅ [추가] 프리미엄 여부 상태
+  bool _isPremium = false;
 
   late Future<Map<String, int>> _balanceFuture;
 
@@ -74,6 +74,10 @@ class _CoinShopPageState extends State<CoinShopPage> {
 
   String _packagePeriodLabel(BuildContext context, Package package) {
     final isKorean = context.locale.languageCode == 'ko';
+    if (package.identifier.toLowerCase().contains('vip') ||
+        package.identifier.toLowerCase().contains('777')) {
+      return isKorean ? '/ 1년 PASS' : 'per Year';
+    }
     switch (package.packageType) {
       case PackageType.monthly:
         return isKorean ? '/ 월' : 'per month';
@@ -104,41 +108,40 @@ class _CoinShopPageState extends State<CoinShopPage> {
     final userData = await _stampService.getStampData(user.id);
     final reward = await _stampService.getRewardConfig('ad_watch_stamp');
     if (userData == null || reward == null) return;
-
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     int used = (userData['ad_reward_count'] ?? 0).toInt();
     if (userData['ad_reward_date'] != today) used = 0;
-
-    if (mounted) {
+    if (mounted)
       setState(() {
         _adUsedToday = used;
         _adDailyLimit = (reward['daily_limit'] ?? 0).toInt();
         _adDate = today;
       });
-    }
   }
 
   Future<void> _fetchOfferings() async {
     try {
       Offerings? offerings = await PaymentService.getOfferings();
-      // ✅ [추가] 현재 유저의 프리미엄 상태도 함께 가져옴
       final customerInfo = await Purchases.getCustomerInfo();
-
       if (offerings?.current != null) {
         final allPackages = offerings!.current!.availablePackages;
         setState(() {
           _isPremium =
               customerInfo.entitlements.all["TravelMemoir Pro"]?.isActive ??
               false;
-          //2️⃣ 강제로 false를 넣어 일반 유저 상태를 만듭니다.
-          //_isPremium = false;
-          _subscriptionPackages = allPackages
-              .where(
-                (p) =>
-                    p.packageType == PackageType.monthly ||
-                    p.packageType == PackageType.annual,
-              )
-              .toList();
+          _isPremium = false; // 테스트용
+
+          _subscriptionPackages = allPackages.where((p) {
+            final id = p.identifier.toLowerCase();
+            return p.packageType == PackageType.monthly ||
+                p.packageType == PackageType.annual ||
+                id.contains('vip') ||
+                id.contains('777');
+          }).toList();
+
+          _subscriptionPackages.sort(
+            (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
+          );
           _coinPackages =
               allPackages
                   .where((p) => p.storeProduct.identifier.contains('coin'))
@@ -156,22 +159,14 @@ class _CoinShopPageState extends State<CoinShopPage> {
   }
 
   Future<void> _handlePurchase(Package package) async {
-    setState(() {
-      _isProductsLoading = true;
-    });
-
+    setState(() => _isProductsLoading = true);
     try {
       if (await PaymentService.purchasePackage(package)) {
         await Future.delayed(const Duration(seconds: 1));
-
-        // 결제 성공 후 상태 업데이트 (프리미엄 여부 포함)
         await _fetchOfferings();
         final newBalance = _fetchCoinBalances();
-
         if (mounted) {
-          setState(() {
-            _balanceFuture = newBalance;
-          });
+          setState(() => _balanceFuture = newBalance);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('upgrade_success_msg'.tr())));
@@ -180,11 +175,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
     } catch (e) {
       debugPrint('❌ 결제 실패: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isProductsLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isProductsLoading = false);
     }
   }
 
@@ -211,20 +202,17 @@ class _CoinShopPageState extends State<CoinShopPage> {
   Future<void> _handleWatchAdReward() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-
     if (_adUsedToday >= _adDailyLimit) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('ad_limit_reached'.tr())));
       return;
     }
-
     if (!_isAdLoaded || _rewardedAd == null) {
       _showNoAdDialog();
       _loadAds();
       return;
     }
-
     _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
@@ -236,19 +224,14 @@ class _CoinShopPageState extends State<CoinShopPage> {
         _showNoAdDialog();
       },
     );
-
     _rewardedAd!.show(
       onUserEarnedReward: (_, __) async {
         final result = await _stampService.grantAdReward(user.id);
         if (result == null) return;
-
         await _loadAdRewardStatus();
         final newBalance = _fetchCoinBalances();
-
         if (mounted) {
-          setState(() {
-            _balanceFuture = newBalance;
-          });
+          setState(() => _balanceFuture = newBalance);
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text('ad_reward_success'.tr())));
@@ -281,28 +264,16 @@ class _CoinShopPageState extends State<CoinShopPage> {
   }
 
   Future<void> _handleRestore() async {
-    setState(() {
-      _isProductsLoading = true;
-    });
-
+    setState(() => _isProductsLoading = true);
     try {
       await PaymentService.restorePurchases();
-      await _fetchOfferings(); // 복원 후 프리미엄 상태 갱신
+      await _fetchOfferings();
       final newBalance = _fetchCoinBalances();
-
-      if (mounted) {
-        setState(() {
-          _balanceFuture = newBalance;
-        });
-      }
+      if (mounted) setState(() => _balanceFuture = newBalance);
     } catch (e) {
       debugPrint('❌ 복원 실패: $e');
     } finally {
-      if (mounted) {
-        setState(() {
-          _isProductsLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isProductsLoading = false);
     }
   }
 
@@ -339,62 +310,93 @@ class _CoinShopPageState extends State<CoinShopPage> {
       body: _isProductsLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+              padding: const EdgeInsets.fromLTRB(
+                20,
+                10,
+                20,
+                20,
+              ), // ✅ 하단 패딩 40 -> 20 축소
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildBalanceCard(),
-                  const SizedBox(height: 10),
-
-                  // ✅ [개선] 구독 중일 때와 아닐 때의 화면 분기
+                  const SizedBox(height: 12),
                   Text(
                     'membership_plan'.tr(),
                     style: AppTextStyles.sectionTitle,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
 
                   if (_isPremium)
-                    _buildSubscribedCard() // ⭐ 구독 중이면 전용 카드 표시
+                    _buildSubscribedCard()
                   else
-                    ..._subscriptionPackages.map(
-                      (p) => _buildSubscriptionCard(
-                        title: p.storeProduct.title,
-                        price: p.storeProduct.priceString,
-                        period: _packagePeriodLabel(context, p),
-                        benefits: [
-                          'benefit_stickers'.tr(),
-                          'benefit_ai_picker'.tr(),
-                          'benefit_monthly_coins'.tr(),
-                          'benefit_ai_extra_image'.tr(),
-                        ],
-                        onTap: () => _handlePurchase(p),
+                    SizedBox(
+                      height: 185,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _subscriptionPackages.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(width: 12),
+                        itemBuilder: (context, index) {
+                          final p = _subscriptionPackages[index];
+                          final id = p.identifier.toLowerCase();
+                          bool isVip = id.contains('vip') || id.contains('777');
+                          return SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.78,
+                            child: _buildSubscriptionCard(
+                              title: p.storeProduct.title,
+                              price: p.storeProduct.priceString,
+                              period: _packagePeriodLabel(context, p),
+                              benefits: isVip
+                                  ? [
+                                      '매일 100회 AI 생성',
+                                      '워터마크 완전 제거',
+                                      'VVIP 전용 뱃지',
+                                      '모든 프리미엄 기능',
+                                    ]
+                                  : [
+                                      'benefit_stickers'.tr(),
+                                      'benefit_ai_picker'.tr(),
+                                      'benefit_monthly_coins'.tr(),
+                                      'benefit_ai_extra_image'.tr(),
+                                    ],
+                              onTap: () => _handlePurchase(p),
+                              isVip: isVip,
+                            ),
+                          );
+                        },
                       ),
                     ),
 
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 18), // ✅ 25 -> 18 축소
                   Text('charge_coins'.tr(), style: AppTextStyles.sectionTitle),
                   const SizedBox(height: 8),
                   _buildCoinGrid(),
+
+                  // ✅ 복원 버튼 영역 여백 최소화
                   Center(
-                    child: TextButton(
-                      onPressed: _handleRestore,
-                      child: Text(
-                        'restore'.tr(),
-                        style: const TextStyle(
-                          color: Colors.grey,
-                          fontSize: 13,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: TextButton(
+                        onPressed: _handleRestore,
+                        child: Text(
+                          'restore'.tr(),
+                          style: const TextStyle(
+                            color: Colors.grey,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  _buildFooterNotice(),
+
+                  _buildFooterNotice(), // ✅ 내부 여백 대폭 다이어트
                 ],
               ),
             ),
     );
   }
 
-  // ✅ 이미 구독 중일 때 보여줄 카드 UI
   Widget _buildSubscribedCard() {
     return Container(
       width: double.infinity,
@@ -412,7 +414,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
               Icon(Icons.stars_rounded, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
-                'premium_member_active'.tr(), // "프리미엄 혜택을 이용 중입니다"
+                'premium_member_active'.tr(),
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
@@ -423,7 +425,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'premium_thanks_msg'.tr(), // "감사합니다! 모든 기능을 마음껏 즐기세요."
+            'premium_thanks_msg'.tr(),
             style: TextStyle(color: Colors.blueGrey[600], fontSize: 13),
           ),
         ],
@@ -461,7 +463,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
                   ),
                 ],
               ),
-              const Divider(height: 24),
+              const Divider(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -491,14 +493,27 @@ class _CoinShopPageState extends State<CoinShopPage> {
     required String period,
     required List<String> benefits,
     required VoidCallback onTap,
+    bool isVip = false,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2E3192), Color(0xFF1BFFFF)],
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isVip
+              ? [const Color(0xFF1A1A1A), const Color(0xFFC5A028)]
+              : [const Color(0xFF2E3192), const Color(0xFF1BFFFF)],
         ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: isVip
+            ? [
+                BoxShadow(
+                  color: Colors.amber.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: InkWell(
         onTap: onTap,
@@ -506,39 +521,72 @@ class _CoinShopPageState extends State<CoinShopPage> {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                  if (isVip)
+                    const Icon(
+                      Icons.workspace_premium,
+                      color: Colors.amber,
+                      size: 20,
                     ),
-                  ),
-                  Text(
-                    '$price $period',
-                    style: const TextStyle(color: Colors.white70),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              const Divider(color: Colors.white24),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: benefits
-                    .map(
-                      (b) => Text(
-                        b,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                      ),
-                    )
-                    .toList(),
+              const SizedBox(height: 4),
+              Text(
+                '$price $period',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
               ),
+              const Divider(color: Colors.white24, height: 16),
+              ...benefits
+                  .take(4)
+                  .map(
+                    (b) => Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: isVip ? Colors.amber[200] : Colors.white70,
+                            size: 10,
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              b,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
             ],
           ),
         ),
@@ -591,23 +639,25 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
+  // ✅ [강조] 하단 영역 다이어트 (Ocean -> Pond 수준으로 압축)
   Widget _buildFooterNotice() {
-    return Center(
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: 5,
+        horizontal: 10,
+      ), // ✅ 20 -> 5 대폭 축소
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              'subscription_notice'.tr(),
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 10,
-                color: Colors.grey,
-                height: 1.4,
-              ),
+          Text(
+            'subscription_notice'.tr(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey[500],
+              height: 1.3,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 8), // ✅ 15 -> 8 축소
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -615,15 +665,22 @@ class _CoinShopPageState extends State<CoinShopPage> {
                 'terms_of_use'.tr(),
                 () => _openLegalPage('terms'),
               ),
-              const Text(
-                '  |  ',
-                style: TextStyle(color: Colors.grey, fontSize: 10),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                width: 1,
+                height: 8,
+                color: Colors.grey[300],
               ),
               _buildTextLink(
                 'privacy_policy'.tr(),
                 () => _openLegalPage('policy'),
               ),
             ],
+          ),
+          const SizedBox(height: 6), // ✅ 10 -> 6 축소
+          Text(
+            '© 2026 Travel Memoir.',
+            style: TextStyle(fontSize: 9, color: Colors.grey[400]),
           ),
         ],
       ),
@@ -636,8 +693,9 @@ class _CoinShopPageState extends State<CoinShopPage> {
       child: Text(
         label,
         style: const TextStyle(
-          fontSize: 10,
+          fontSize: 11,
           color: Colors.blueGrey,
+          fontWeight: FontWeight.w600,
           decoration: TextDecoration.underline,
         ),
       ),

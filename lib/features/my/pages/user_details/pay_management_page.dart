@@ -17,47 +17,37 @@ class PayManagementPage extends StatefulWidget {
   State<PayManagementPage> createState() => _PayManagementPageState();
 }
 
-// ✅ WidgetsBindingObserver를 추가하여 앱 복귀를 감지합니다.
 class _PayManagementPageState extends State<PayManagementPage>
     with WidgetsBindingObserver {
   CustomerInfo? _customerInfo;
   Offerings? _offerings;
   bool _isLoading = true;
 
-  // RevenueCat Entitlement ID
   static const String _entitlementId = "TravelMemoir Pro";
 
   @override
   void initState() {
     super.initState();
-    // ✅ 앱 생명주기 옵저버 등록
     WidgetsBinding.instance.addObserver(this);
     _loadSubscriptionStatus();
   }
 
   @override
   void dispose() {
-    // ✅ 옵저버 해제
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  // ✅ [핵심] 외부 설정창에서 구독 취소 후 앱으로 돌아올 때 자동 갱신
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      debugPrint("🏠 앱 복귀 감지: 구독 상태를 최신화합니다.");
       _loadSubscriptionStatus();
     }
   }
 
-  /// ✅ 구독 상태 로드 및 DB 동기화
   Future<void> _loadSubscriptionStatus() async {
     try {
-      // 1. 먼저 애플/구글 서버와 DB 상태를 강제로 맞춥니다.
       await PaymentService.syncSubscriptionStatus();
-
-      // 2. 최신 정보를 가져와서 화면을 갱신합니다.
       final offerings = await PaymentService.getOfferings();
       final customerInfo = await Purchases.getCustomerInfo();
 
@@ -69,15 +59,12 @@ class _PayManagementPageState extends State<PayManagementPage>
         });
       }
     } catch (e) {
-      debugPrint("❌ 정보 로드 실패: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// ✅ 결제 로직
   Future<void> _purchase(Package package) async {
     setState(() => _isLoading = true);
-
     try {
       bool success = await PaymentService.purchasePackage(package);
       if (success) {
@@ -102,7 +89,6 @@ class _PayManagementPageState extends State<PayManagementPage>
     }
   }
 
-  /// ✅ 구독 취소 (iOS/Android 설정창 이동)
   Future<void> _handleCancelSubscription() async {
     final bool? confirm = await showDialog<bool>(
       context: context,
@@ -143,19 +129,26 @@ class _PayManagementPageState extends State<PayManagementPage>
 
   @override
   Widget build(BuildContext context) {
-    final bool isPremium =
+    // ✅ [테스트 모드] 서버 상태를 가져오되, 변수에는 강제로 false를 할당합니다.
+    final bool serverPremiumStatus =
         _customerInfo?.entitlements.all[_entitlementId]?.isActive ?? false;
 
-    // 구독 전용 패키지 필터링
+    // 🔥 대표님, 테스트가 끝나면 아래 줄을 지우거나 true/false를 서버 상태로 돌려주세요!
+    bool isPremium = false;
+
     final List<Package> subscriptionPackages =
-        _offerings?.current?.availablePackages
-            .where(
-              (p) =>
-                  p.packageType == PackageType.monthly ||
-                  p.packageType == PackageType.annual,
-            )
-            .toList() ??
+        _offerings?.current?.availablePackages.where((p) {
+          final id = p.identifier.toLowerCase();
+          return p.packageType == PackageType.monthly ||
+              p.packageType == PackageType.annual ||
+              id.contains('vip') ||
+              id.contains('777');
+        }).toList() ??
         [];
+
+    subscriptionPackages.sort(
+      (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
+    );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -187,10 +180,8 @@ class _PayManagementPageState extends State<PayManagementPage>
                     style: AppTextStyles.pageTitle,
                   ),
                   const SizedBox(height: 20),
-
-                  _buildStatusCard(isPremium),
-
-                  const SizedBox(height: 40),
+                  _buildStatusCard(isPremium), // 강제 false 상태 반영
+                  const SizedBox(height: 35),
 
                   if (!isPremium) ...[
                     Text(
@@ -208,7 +199,7 @@ class _PayManagementPageState extends State<PayManagementPage>
                     _buildCancelSection(),
                   ],
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
                   _buildRestoreButton(),
                 ],
               ),
@@ -267,12 +258,9 @@ class _PayManagementPageState extends State<PayManagementPage>
   }
 
   Widget _buildPackageCard(Package package) {
+    final id = package.identifier.toLowerCase();
+    bool isVip = id.contains('vip') || id.contains('777');
     bool isYearly = package.packageType == PackageType.annual;
-    final String localizedTitle = package.storeProduct.identifier.tr();
-    final String displayTitle =
-        (localizedTitle == package.storeProduct.identifier)
-        ? package.storeProduct.title.split('(').first.trim()
-        : localizedTitle;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -281,29 +269,59 @@ class _PayManagementPageState extends State<PayManagementPage>
         onTap: () => _purchase(package),
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
           decoration: BoxDecoration(
-            color: isYearly ? AppColors.primary : Colors.white,
-            border: Border.all(color: AppColors.primary),
+            gradient: isVip
+                ? const LinearGradient(
+                    colors: [Color(0xFF1A1A1A), Color(0xFFC5A028)],
+                  )
+                : null,
+            color: !isVip && isYearly ? AppColors.primary : Colors.white,
+            border: Border.all(
+              color: isVip ? Colors.transparent : AppColors.primary,
+            ),
             borderRadius: BorderRadius.circular(16),
+            boxShadow: isVip
+                ? [
+                    BoxShadow(
+                      color: Colors.amber.withOpacity(0.2),
+                      blurRadius: 8,
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                displayTitle,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isYearly ? Colors.white : AppColors.primary,
-                ),
+              Row(
+                children: [
+                  if (isVip)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 6),
+                      child: Icon(
+                        Icons.workspace_premium,
+                        color: Colors.amber,
+                        size: 20,
+                      ),
+                    ),
+                  Text(
+                    package.storeProduct.title.split('(').first.trim(),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: (isVip || isYearly)
+                          ? Colors.white
+                          : AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
               Text(
                 package.storeProduct.priceString,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: isYearly ? Colors.white : AppColors.primary,
+                  color: (isVip || isYearly) ? Colors.white : AppColors.primary,
                 ),
               ),
             ],
@@ -342,6 +360,7 @@ class _PayManagementPageState extends State<PayManagementPage>
           await _loadSubscriptionStatus();
           if (mounted) {
             setState(() => _isLoading = false);
+            // 복원 로직에서는 실제 서버 상태를 보여줍니다.
             final bool isPremiumNow =
                 _customerInfo?.entitlements.all[_entitlementId]?.isActive ??
                 false;
