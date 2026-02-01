@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:lottie/lottie.dart'; // ✅ Lottie 추가
 
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/my_travel_summary_page.dart';
@@ -174,7 +175,7 @@ class _MyPageState extends State<MyPage> {
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 12), // 닉네임 하단 간격 축소
+                              const SizedBox(height: 12),
                             ],
                           ),
                         ),
@@ -244,7 +245,6 @@ class _MyPageState extends State<MyPage> {
                     ),
                   ),
 
-                  // 🔽 1. 이메일 유무에 따른 간격 조절
                   if (email != null && email.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -253,7 +253,6 @@ class _MyPageState extends State<MyPage> {
                     ),
                   ],
 
-                  // 🔽 2. 그리드 상단 간격
                   const SizedBox(height: 20),
 
                   GridView.count(
@@ -261,7 +260,7 @@ class _MyPageState extends State<MyPage> {
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
                     shrinkWrap: true,
-                    padding: EdgeInsets.zero, // 🔽 3. GridView 자체 내부 패딩 제거 (중요)
+                    padding: EdgeInsets.zero,
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       _MenuTile(
@@ -328,6 +327,21 @@ class _MyPageState extends State<MyPage> {
                           );
                           _refreshPage();
                         },
+                      ),
+                      // ✅ 6번째 빈칸: 여기에 지구본이 바로 돌아갑니다!
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFF0F0F0)),
+                        ),
+                        child: Center(
+                          child: Lottie.asset(
+                            'assets/lottie/Earth globe rotating with Seamless loop animation.json',
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
                     ],
                   ),

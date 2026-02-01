@@ -344,14 +344,14 @@ class _CoinShopPageState extends State<CoinShopPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildBalanceCard(),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
                   // ✅ [개선] 구독 중일 때와 아닐 때의 화면 분기
                   Text(
                     'membership_plan'.tr(),
                     style: AppTextStyles.sectionTitle,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
 
                   if (_isPremium)
                     _buildSubscribedCard() // ⭐ 구독 중이면 전용 카드 표시
@@ -371,9 +371,9 @@ class _CoinShopPageState extends State<CoinShopPage> {
                       ),
                     ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 2),
                   Text('charge_coins'.tr(), style: AppTextStyles.sectionTitle),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   _buildCoinGrid(),
                   Center(
                     child: TextButton(

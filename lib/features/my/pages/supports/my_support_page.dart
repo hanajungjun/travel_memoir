@@ -75,6 +75,19 @@ class MySupportPage extends StatelessWidget {
                     : 'https://hanajungjun.github.io/travel-memoir-docs/faq_en.html',
               ),
             ),
+            const _Divider(),
+            // ✨ 새롭게 추가된 [사용법] 메뉴
+            _SupportTile(
+              title: 'how_to_use'.tr(), // "사용법" 또는 "가이드"
+              trailing: const Icon(
+                Icons.open_in_new,
+                size: 18,
+                color: Colors.grey,
+              ),
+              onTap: () => _launchURL(
+                'https://www.notion.so/2fa8fcc97af880ac968dfc493fbd0fcf?source=copy_link',
+              ), // ✅ 노션 주소 입력
+            ),
 
             const SizedBox(height: 32),
 
@@ -148,9 +161,9 @@ class MySupportPage extends StatelessWidget {
             ),
             const _Divider(),
 
-            const SizedBox(height: 56),
+            const SizedBox(height: 26),
 
-            // 4️⃣ 하단 버전 정보 (이미지 삭제)
+            // 4️⃣ 하단 버전 정보
             Center(
               child: Column(
                 children: [

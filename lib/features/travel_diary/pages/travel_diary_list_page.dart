@@ -10,11 +10,8 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_diary_list_skeleton.dart';
 
-import 'package:travel_memoir/storage_urls.dart';
-
 class TravelDiaryListPage extends StatefulWidget {
   final Map<String, dynamic> travel;
-
   const TravelDiaryListPage({super.key, required this.travel});
 
   @override
@@ -27,14 +24,23 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   bool _loading = true;
   bool _isChanged = false;
 
+  // ✅ 이미지 버벅임 방지용 타임스탬프 고정
+  late String _imageTimestamp;
+
   @override
   void initState() {
     super.initState();
     _travel = widget.travel;
+    _updateTimestamp();
     _loadAllDiaries();
   }
 
+  void _updateTimestamp() {
+    _imageTimestamp = DateTime.now().millisecondsSinceEpoch.toString();
+  }
+
   Future<void> _loadAllDiaries() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final response = await Supabase.instance.client
@@ -45,13 +51,13 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
       if (!mounted) return;
 
+      _updateTimestamp(); // 데이터를 새로 불러올 때만 이미지 주소 갱신
       setState(() {
         _diaries = List<Map<String, dynamic>>.from(response);
         _loading = false;
         _isChanged = false;
       });
     } catch (e) {
-      debugPrint('❌ Data load error: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -67,6 +73,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
   Future<void> _saveChanges() async {
     setState(() => _loading = true);
+    final messenger = ScaffoldMessenger.of(context); // ✅ 컨텍스트 에러 방지용 캡처
     try {
       final startDate = DateTime.parse(_travel['start_date']);
 
@@ -92,19 +99,14 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
             .eq('id', _diaries[i]['id']);
       }
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('save_reorder_success'.tr())));
+      messenger.showSnackBar(
+        SnackBar(content: Text('save_reorder_success'.tr())),
+      );
       await _loadAllDiaries();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('save_reorder_error'.tr(args: [e.toString()])),
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('save_reorder_error'.tr(args: [e.toString()]))),
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -113,15 +115,12 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   @override
   Widget build(BuildContext context) {
     final startDate = DateTime.parse(_travel['start_date']);
-
     final travelType = _travel['travel_type'] ?? '';
     final isDomestic = travelType == 'domestic';
     final isUSA = travelType == 'usa';
-
     final bool isKo = context.locale.languageCode == 'ko';
 
     String title = '';
-
     if (isUSA || isDomestic) {
       title =
           _travel['region_name'] ??
@@ -142,161 +141,146 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
           Expanded(
             child: _loading
                 ? const TravelDiaryListSkeleton()
-                : ReorderableListView.builder(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 27,
-                      vertical: 21,
-                    ),
-                    itemCount: _diaries.length,
-                    buildDefaultDragHandles: false,
-                    onReorder: _onReorder,
-                    proxyDecorator: (child, index, animation) {
-                      return AnimatedBuilder(
-                        animation: animation,
-                        builder: (context, _) {
-                          return Material(
-                            color: Colors.transparent,
-                            elevation: 8,
-                            shadowColor: Colors.black.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            child: child,
-                          );
-                        },
-                      );
-                    },
-                    itemBuilder: (context, index) {
-                      final diary = _diaries[index];
-                      final displayDate = startDate.add(Duration(days: index));
-                      final dayIndex = index + 1;
-                      final text = diary['text']?.toString().trim() ?? '';
-                      final hasDiary = text.isNotEmpty;
+                : SlidableAutoCloseBehavior(
+                    child: ReorderableListView.builder(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 27,
+                        vertical: 21,
+                      ),
+                      itemCount: _diaries.length,
+                      buildDefaultDragHandles: false,
+                      onReorder: _onReorder,
+                      itemBuilder: (context, index) {
+                        final diary = _diaries[index];
+                        final displayDate = startDate.add(
+                          Duration(days: index),
+                        );
+                        final dayIndex = index + 1;
+                        final text = diary['text']?.toString().trim() ?? '';
+                        final hasDiary = text.isNotEmpty;
 
-                      String? imageUrl;
-                      if (hasDiary) {
-                        //  debugPrint('🧪 [THUMB] diary id = ${diary['id']}');
+                        String? imageUrl;
+                        if (hasDiary) {
+                          final userId = _travel['user_id']?.toString();
+                          final travelId = _travel['id']?.toString();
+                          final diaryId = diary['id']?.toString();
 
-                        final userId = _travel['user_id']?.toString();
-                        final travelId = _travel['id']?.toString();
-                        final diaryId = diary['id']?.toString();
-
-                        //debugPrint(
-                        //   '🧪 [THUMB] userId=$userId travelId=$travelId diaryId=$diaryId',
-                        //);
-
-                        if (userId != null &&
-                            travelId != null &&
-                            diaryId != null) {
-                          final rawUrl = TravelDayService.getAiImageUrl(
-                            userId: userId,
-                            travelId: travelId,
-                            diaryId: diaryId,
-                          );
-                          if (rawUrl != null && rawUrl.isNotEmpty) {
-                            imageUrl =
-                                '$rawUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+                          if (userId != null &&
+                              travelId != null &&
+                              diaryId != null) {
+                            final rawUrl = TravelDayService.getAiImageUrl(
+                              userId: userId,
+                              travelId: travelId,
+                              diaryId: diaryId,
+                            );
+                            if (rawUrl != null && rawUrl.isNotEmpty) {
+                              imageUrl = '$rawUrl?t=$_imageTimestamp';
+                            }
                           }
                         }
-                      }
 
-                      return Slidable(
-                        key: ValueKey(diary['id']),
-                        endActionPane: ActionPane(
-                          motion: const StretchMotion(),
-                          extentRatio: 0.18,
-                          children: [
-                            const SizedBox(width: 13),
-                            CustomSlidableAction(
-                              onPressed: (context) async {
-                                // 🔥 위에서 지운 onPressed 내용 그대로 복붙
-                              },
-                              backgroundColor: Colors.transparent,
-                              padding: const EdgeInsets.only(
-                                bottom: 15,
-                              ), // 👈 여기
-                              child: Center(
-                                child: Container(
-                                  width: 52,
-                                  height: 52,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error,
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Image.asset(
-                                    'assets/icons/ico_delete.png',
-                                    width: 19,
-                                    height: 19,
-                                    color: Colors.white,
+                        return Slidable(
+                          key: ValueKey(diary['id']),
+                          endActionPane: ActionPane(
+                            motion: const BehindMotion(),
+                            extentRatio: 0.22,
+                            children: [
+                              CustomSlidableAction(
+                                onPressed: (context) async {
+                                  final messenger = ScaffoldMessenger.of(
+                                    context,
+                                  );
+                                  await TravelDayService.clearDiaryRecord(
+                                    userId: _travel['user_id'],
+                                    travelId: _travel['id'],
+                                    date: diary['date'],
+                                    photoPaths: List<String>.from(
+                                      diary['photo_urls'] ?? [],
+                                    ),
+                                  );
+
+                                  messenger.hideCurrentSnackBar();
+                                  messenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text('diary_clear_success'.tr()),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                  await _loadAllDiaries();
+                                },
+                                backgroundColor: Colors.transparent,
+                                padding: const EdgeInsets.only(left: 6),
+                                child: Center(
+                                  child: Container(
+                                    width: 52,
+                                    height: 52,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Image.asset(
+                                      'assets/icons/ico_delete.png',
+                                      width: 19,
+                                      height: 19,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        child: GestureDetector(
-                          onTap: () async {
-                            final changed = await Navigator.push<bool>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => TravelDayPage(
-                                  travelId: _travel['id'],
-                                  placeName: title,
-                                  startDate: startDate,
-                                  endDate: startDate.add(
-                                    Duration(days: _diaries.length - 1),
-                                  ),
-                                  date: displayDate,
-                                  initialDiary: diary,
-                                ),
-                              ),
-                            );
-                            if (changed == true && mounted) {
-                              await _loadAllDiaries();
-                            }
-                          },
-                          child: _buildListItem(
-                            diary,
-                            displayDate,
-                            dayIndex,
-                            hasDiary,
-                            text,
-                            imageUrl,
-                            index,
+                            ],
                           ),
-                        ),
-                      );
-                    },
+                          child: GestureDetector(
+                            onTap: () async {
+                              final changed = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TravelDayPage(
+                                    travelId: _travel['id'],
+                                    placeName: title,
+                                    startDate: startDate,
+                                    endDate: startDate.add(
+                                      Duration(days: _diaries.length - 1),
+                                    ),
+                                    date: displayDate,
+                                    initialDiary: diary,
+                                  ),
+                                ),
+                              );
+                              if (changed == true) await _loadAllDiaries();
+                            },
+                            child: _buildListItem(
+                              diary,
+                              displayDate,
+                              dayIndex,
+                              hasDiary,
+                              text,
+                              imageUrl,
+                              index,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
           ),
         ],
       ),
       floatingActionButton: _isChanged
-          ? Padding(
-              padding: const EdgeInsets.only(bottom: 5, right: 2),
-              child: Material(
-                color: Colors.transparent,
-                elevation: 14,
-                shadowColor: Colors.black.withOpacity(0.25),
-                shape: const CircleBorder(),
-                child: FloatingActionButton(
-                  elevation: 0,
-                  backgroundColor: travelType == 'domestic'
-                      ? AppColors.travelingBlue
-                      : travelType == 'usa'
-                      ? AppColors.travelingRed
-                      : AppColors.travelingPurple,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  onPressed: _saveChanges,
-                  child: const Icon(Icons.check, color: Colors.white, size: 28),
-                ),
-              ),
+          ? FloatingActionButton(
+              backgroundColor: isDomestic
+                  ? AppColors.travelingBlue
+                  : isUSA
+                  ? AppColors.travelingRed
+                  : AppColors.travelingPurple,
+              onPressed: _saveChanges,
+              child: const Icon(Icons.check, color: Colors.white),
             )
           : null,
     );
   }
 
+  // ✅ 헬퍼 위젯들을 모두 클래스 내부로 통합했습니다.
   Widget _buildHeader(String travelType, String title) {
     final writtenCount = _diaries
         .where((e) => e['text'].toString().isNotEmpty)
@@ -380,18 +364,13 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
             ],
           ),
           const SizedBox(height: 2),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${_travel['start_date'].toString().replaceAll('-', '.')} ~ ${_travel['end_date'].toString().replaceAll('-', '.')}',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.6),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w200,
-                ),
-              ),
-            ],
+          Text(
+            '${_travel['start_date'].toString().replaceAll('-', '.')} ~ ${_travel['end_date'].toString().replaceAll('-', '.')}',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.6),
+              fontSize: 14,
+              fontWeight: FontWeight.w200,
+            ),
           ),
         ],
       ),
@@ -409,7 +388,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.fromLTRB(15, 15, 0, 15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -465,8 +444,9 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
           ),
           ReorderableDragStartListener(
             index: index,
-            child: Padding(
-              padding: const EdgeInsets.all(5.20),
+            child: Container(
+              color: Colors.transparent,
+              padding: const EdgeInsets.fromLTRB(20, 20, 27, 20),
               child: Image.asset(
                 'assets/icons/ico_Drag.png',
                 width: 13,
@@ -487,6 +467,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
   );
 }
 
+// 이 뱃지 위젯은 독립적이어도 상관없습니다.
 class _TypeBadge extends StatelessWidget {
   final String label;
   const _TypeBadge({required this.label});
