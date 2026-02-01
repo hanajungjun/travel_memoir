@@ -11,6 +11,8 @@ import 'package:travel_memoir/core/widgets/range_calendar_page.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
+import 'package:flutter_svg/flutter_svg.dart'; // SVG 아이콘을 사용하기 위해 추가
+
 class OverseasTravelDatePage extends StatefulWidget {
   const OverseasTravelDatePage({super.key});
 
@@ -78,52 +80,51 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.fromLTRB(27, 75, 27, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(
-                        Icons.public_rounded,
+                      const SizedBox(width: 5),
+                      SvgPicture.asset(
+                        'assets/icons/ico_Abroad.svg', // 원하는 위치 아이콘으로 변경
                         color: themeColor,
-                        size: 32,
+                        width: 24,
+                        height: 24,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'overseas_travel'.tr(), // ✅ 번역 적용
-                        style: const TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
-                          color: themeColor,
+                      const SizedBox(width: 6),
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: 2,
+                        ), // 하단 패딩값을 줄여줌
+                        child: Text(
+                          'overseas_travel'.tr(),
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                            color: themeColor,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 14),
 
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(25),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 20,
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
                       ],
@@ -131,14 +132,19 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'when_is_trip'.tr(), // ✅ 번역 적용
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: 6,
+                          ), // 하단 패딩값을 줄여줌
+                          child: Text(
+                            'when_is_trip'.tr(),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 7),
                         _buildInputField(
                           text: _startDate == null || _endDate == null
                               ? 'select_date_hint'
@@ -147,15 +153,21 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
                           isSelected: _startDate != null,
                           onTap: _pickDateRange,
                         ),
-                        const SizedBox(height: 24),
-                        Text(
-                          'where_did_you_go'.tr(), // ✅ 번역 적용
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.only(
+                            left: 6,
+                          ), // 하단 패딩값을 줄여줌
+                          child: Text(
+                            'where_did_you_go'.tr(),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 8),
                         _buildInputField(
                           text:
                               _country?.displayName() ??
@@ -175,15 +187,15 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
             onTap: _canCreate ? _createTravel : null,
             child: Container(
               width: double.infinity,
-              height: 70,
-              color: _canCreate ? themeColor : themeColor.withOpacity(0.4),
+              height: 58,
+              color: _canCreate ? themeColor : const Color(0xFFCACBCC),
               child: Center(
                 child: Text(
                   'save_as_memory'.tr(), // ✅ 번역 적용
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -203,18 +215,18 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFEEEEEE), width: 1.5),
+          border: Border.all(color: const Color(0xFFE7E7E7), width: 1),
         ),
         child: Text(
           text,
           style: TextStyle(
-            fontSize: 15,
-            color: isSelected ? Colors.black87 : Colors.black26,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            fontSize: 14,
+            color: isSelected ? AppColors.textColor01 : const Color(0xFFAAAAAA),
+            fontWeight: FontWeight.w400,
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:scrollable_clean_calendar/scrollable_clean_calendar.dart';
 import 'package:scrollable_clean_calendar/controllers/clean_calendar_controller.dart';
 import 'package:scrollable_clean_calendar/utils/enums.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
 
 class CustomRangeCalendarPage extends StatefulWidget {
   const CustomRangeCalendarPage({super.key});
@@ -43,23 +44,23 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
 
   @override
   Widget build(BuildContext context) {
-    const themeColor = Color(0xFF3498DB);
+    const themeColor = AppColors.travelActiveBlue;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF6F6F6),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
                     icon: const Icon(
                       Icons.close,
-                      size: 28,
-                      color: Colors.black45,
+                      size: 27,
+                      color: const Color(0xFF909090),
                     ),
                     onPressed: () => Navigator.pop(context),
                   ),
@@ -73,18 +74,22 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: const BoxDecoration(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
                         color: themeColor,
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(color: Colors.black12, blurRadius: 10),
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
                         ],
                       ),
                       child: const Icon(
                         Icons.check,
                         color: Colors.white,
-                        size: 24,
+                        size: 17,
                       ),
                     ),
                   ),
@@ -92,18 +97,18 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 27, vertical: 0),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.fromLTRB(25, 22, 25, 22),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
@@ -114,29 +119,29 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                       children: [
                         const Icon(
                           Icons.calendar_today_outlined,
-                          size: 18,
-                          color: Colors.black54,
+                          size: 12,
+                          color: AppColors.textColor01,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 4),
                         Text(
                           'select_date'.tr(),
                           style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: Colors.black87,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            color: AppColors.textColor01,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 2),
                     Text(
                       rangeMin == null || rangeMax == null
                           ? 'please_select_travel_period'.tr()
                           : '${DateFormat('yyyy. MM. dd').format(rangeMin!)} ~ ${DateFormat('yyyy. MM. dd').format(rangeMax!)}',
                       style: const TextStyle(
-                        fontSize: 22,
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w400,
+                        fontSize: 20,
+                        color: const Color(0xFF7f7f7f),
+                        fontWeight: FontWeight.w300,
                       ),
                     ),
                   ],
@@ -151,14 +156,14 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                 calendarCrossAxisSpacing: 0,
                 showWeekdays: true,
                 weekdayTextStyle: const TextStyle(
-                  fontSize: 14,
-                  color: Colors.black45,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.textColor01,
+                  fontWeight: FontWeight.w400,
                 ),
                 monthTextStyle: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textColor01,
                 ),
                 dayBuilder: (context, values) {
                   final date = values.day;
