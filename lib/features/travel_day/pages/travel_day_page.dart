@@ -697,11 +697,12 @@ class _TravelDayPageState extends State<TravelDayPage>
                     memCacheWidth: 800,
                     placeholder: (_, __) => Container(
                       color: Colors.white.withOpacity(0), // 은은하게
-                      child: Center(
+                      child: Align(
+                        alignment: const Alignment(0, 0.2), // ✅ 살짝 아래로
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.grey.withOpacity(0.25), // 은은하게
+                            Colors.grey.withOpacity(0.25),
                           ),
                         ),
                       ),
