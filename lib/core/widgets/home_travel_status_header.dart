@@ -54,11 +54,21 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
         }
 
         final isTraveling = travel != null;
-        final isDomestic = travel?['travel_type'] == 'domestic';
+        final type = travel?['travel_type'] ?? '';
 
-        final bgColor = isTraveling
-            ? (isDomestic ? AppColors.travelingBlue : AppColors.travelingPurple)
-            : AppColors.travelReadyGray;
+        // ✅ [수정] 배경색 로직: 미국(usa) 케이스 명시적 추가
+        Color bgColor;
+        if (!isTraveling) {
+          bgColor = AppColors.travelReadyGray;
+        } else if (type == 'domestic') {
+          bgColor = AppColors.travelingBlue;
+        } else if (type == 'usa') {
+          // 미국 여행 시 사용할 배경색 (현재는 Purple 유지, 필요시 변경 가능)
+          bgColor = AppColors.travelingRed;
+        } else {
+          // 그 외 일반 해외 여행
+          bgColor = AppColors.travelingPurple;
+        }
 
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 250),
