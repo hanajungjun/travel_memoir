@@ -5,13 +5,13 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show rootBundle; // ✅ 추가
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:image/image.dart' as img;
+import 'package:image/image.dart' as img; // ✅ 워터마크 합성용
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
@@ -58,10 +58,10 @@ class TravelAlbumPage extends StatefulWidget {
 
 class _TravelAlbumPageState extends State<TravelAlbumPage> {
   late Future<Map<int, List<_AlbumItem>>> _groupedFuture;
-  Uint8List? _vipInfographic;
+  Uint8List? _premiumInfographic;
   String? _premiumImageUrl;
-  bool _isVipLoading = false;
-  bool _isVipUser = false;
+  bool _isPremiumLoading = false;
+  bool _isPremiumUser = false; // ✅ 프리미엄 여부
   bool _showStickers = false;
 
   List<StickerPlacement> _stickerPlacements = [];
@@ -73,24 +73,20 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     _checkUserStatusAndInit();
   }
 
-  // 🛠️ 초기화 로직: VIP라면 자동으로 생성을 시작함
   Future<void> _checkUserStatusAndInit() async {
     final client = Supabase.instance.client;
     final userId = client.auth.currentUser?.id;
     if (userId == null) return;
 
-    // 1. VIP 여부 확인
     final userRes = await client
         .from('users')
-        .select('is_vip')
+        .select('is_premium')
         .eq('auth_uid', userId)
         .maybeSingle();
 
-    final bool currentVipStatus = userRes?['is_vip'] ?? false;
-
     if (mounted) {
       setState(() {
-        _isVipUser = currentVipStatus;
+        _isPremiumUser = userRes?['is_premium'] ?? false;
       });
     }
 
@@ -98,7 +94,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     final groupedData = await _groupedFuture;
     _extractAndShuffleStickers(groupedData);
 
-    // 2. 이미 생성된 리포트가 있는지 확인
     final res = await client
         .from('travels')
         .select('premium_report_url')
@@ -108,17 +103,14 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     if (res != null &&
         res['premium_report_url'] != null &&
         res['premium_report_url'].toString().isNotEmpty) {
-      // 이미 리포트가 있는 경우: 이미지 표시
       setState(() {
         _premiumImageUrl = res['premium_report_url'];
         Future.delayed(const Duration(milliseconds: 800), () {
           if (mounted) setState(() => _showStickers = true);
         });
       });
-    } else if (currentVipStatus &&
-        groupedData.values.any((l) => l.isNotEmpty)) {
-      // 🚀 VIP인데 리포트가 없는 경우: 자동으로 생성 프로세스 시작
-      _generateAndSaveVipInfographic(groupedData);
+    } else if (_isPremiumUser && groupedData.values.any((l) => l.isNotEmpty)) {
+      _generateAndSavePremiumInfographic(groupedData);
     }
   }
 
@@ -161,19 +153,17 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     setState(() => _stickerPlacements = tempPlacements);
   }
 
-  Future<void> _generateAndSaveVipInfographic(
+  Future<void> _generateAndSavePremiumInfographic(
     Map<int, List<_AlbumItem>> data,
   ) async {
-    if (!_isVipUser) {
-      _showVipRequiredDialog();
+    if (!_isPremiumUser) {
+      _showPremiumRequiredDialog();
       return;
     }
 
-    if (_isVipLoading) return;
-
-    // 로딩 상태를 즉시 반영하여 버튼 대신 로딩바가 보이게 함
+    if (_isPremiumLoading) return;
     setState(() {
-      _isVipLoading = true;
+      _isPremiumLoading = true;
       _showStickers = false;
     });
 
@@ -215,20 +205,20 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
       if (mounted) {
         setState(() {
-          _vipInfographic = imageBytes;
+          _premiumInfographic = imageBytes;
           _premiumImageUrl = publicUrl;
-          _isVipLoading = false;
+          _isPremiumLoading = false;
         });
         Future.delayed(const Duration(milliseconds: 500), () {
           if (mounted) setState(() => _showStickers = true);
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isVipLoading = false);
+      if (mounted) setState(() => _isPremiumLoading = false);
     }
   }
 
-  void _showVipRequiredDialog() {
+  void _showPremiumRequiredDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -449,7 +439,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                                     .expand((e) => e)
                                     .toList()
                                     .indexOf(item),
-                                isVipUser: _isVipUser,
+                                isPremiumUser: _isPremiumUser, // ✅ 상태 전달
                               ),
                             ),
                           ),
@@ -508,7 +498,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                         ],
                       ),
                       const SizedBox(height: 25),
-                      _buildVipCardContainer(groupedData),
+                      _buildPremiumCardContainer(groupedData),
                     ],
                   ),
                 ),
@@ -520,10 +510,10 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     );
   }
 
-  Widget _buildVipCardContainer(Map<int, List<_AlbumItem>> groupedData) {
+  Widget _buildPremiumCardContainer(Map<int, List<_AlbumItem>> groupedData) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
-      child: _isVipLoading
+      child: _isPremiumLoading
           ? AspectRatio(
               key: const ValueKey('loading'),
               aspectRatio: 0.9,
@@ -541,36 +531,36 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                 ),
               ),
             )
-          : (_premiumImageUrl == null && _vipInfographic == null)
+          : (_premiumImageUrl == null && _premiumInfographic == null)
           ? ElevatedButton(
               key: const ValueKey('button'),
-              onPressed: () => _generateAndSaveVipInfographic(groupedData),
+              onPressed: () => _generateAndSavePremiumInfographic(groupedData),
               child: Text('generate_infographic'.tr()),
             )
-          : _buildVipCard(),
+          : _buildPremiumCard(),
     );
   }
 
-  Widget _buildVipCard() {
+  Widget _buildPremiumCard() {
     return AspectRatio(
       aspectRatio: 0.9,
       child: GestureDetector(
         onTap: () {
-          if (_isVipUser) {
+          if (_isPremiumUser) {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => _VipViewerPage(
+                builder: (_) => _PremiumViewerPage(
                   title: _travelTitle(),
-                  imageBytes: _vipInfographic,
+                  imageBytes: _premiumInfographic,
                   imageUrl: _premiumImageUrl,
                   stickers: _stickerPlacements,
-                  isVipUser: _isVipUser,
+                  isPremiumUser: _isPremiumUser, // ✅ 상태 전달
                 ),
               ),
             );
           } else {
-            _showVipRequiredDialog();
+            _showPremiumRequiredDialog();
           }
         },
         child: Stack(
@@ -590,8 +580,8 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: _vipInfographic != null
-                      ? Image.memory(_vipInfographic!, fit: BoxFit.cover)
+                  child: _premiumInfographic != null
+                      ? Image.memory(_premiumInfographic!, fit: BoxFit.cover)
                       : Image.network(
                           _premiumImageUrl!,
                           fit: BoxFit.cover,
@@ -644,7 +634,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                 ],
               ),
             ),
-            if (!_isVipUser)
+            if (!_isPremiumUser)
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -687,7 +677,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                 right: sticker.right,
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 500),
-                  opacity: _showStickers ? (_isVipUser ? 1.0 : 0.6) : 0.0,
+                  opacity: _showStickers ? (_isPremiumUser ? 1.0 : 0.6) : 0.0,
                   child: Transform.rotate(
                     angle: sticker.angle,
                     child: _buildStickerFrame(sticker.url),
@@ -722,17 +712,17 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 }
 
-// ✅ 앨범 뷰어 클래스
+// ✅ 앨범 뷰어 클래스 (워터마크 로직 추가)
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
   final List<_AlbumItem> items;
   final int initialIndex;
-  final bool isVipUser;
+  final bool isPremiumUser; // ✅ 추가
   const _AlbumViewerPage({
     required this.title,
     required this.items,
     required this.initialIndex,
-    required this.isVipUser,
+    required this.isPremiumUser,
   });
 
   @override
@@ -787,7 +777,8 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
                   );
                   Uint8List imageBytes = res.bodyBytes;
 
-                  if (!widget.isVipUser) {
+                  // 💧 프리미엄이 아닐 때 워터마크 합성
+                  if (!widget.isPremiumUser) {
                     final ByteData watermarkData = await rootBundle.load(
                       'assets/images/watermark.png',
                     );
@@ -802,8 +793,9 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
                         watermarkImg,
                         width: targetWidth,
                       );
+                      // 👻 2. 반투명 처리 (50% 투명도 적용)
                       for (var pixel in resizedWatermark) {
-                        pixel.a = pixel.a * 0.5;
+                        pixel.a = pixel.a * 0.5; // 알파값을 절반으로 줄임
                       }
                       int x = originalImg.width - resizedWatermark.width - 20;
                       int y = originalImg.height - resizedWatermark.height - 20;
@@ -850,27 +842,27 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   }
 }
 
-// ✅ VIP 리포트 뷰어
-class _VipViewerPage extends StatefulWidget {
+// ✅ 프리미엄 리포트 뷰어 (워터마크 레이어 추가)
+class _PremiumViewerPage extends StatefulWidget {
   final String title;
   final Uint8List? imageBytes;
   final String? imageUrl;
   final List<StickerPlacement> stickers;
-  final bool isVipUser;
+  final bool isPremiumUser; // ✅ 추가
 
-  const _VipViewerPage({
+  const _PremiumViewerPage({
     required this.title,
     this.imageBytes,
     this.imageUrl,
     this.stickers = const [],
-    required this.isVipUser,
+    required this.isPremiumUser,
   });
 
   @override
-  State<_VipViewerPage> createState() => _VipViewerPageState();
+  State<_PremiumViewerPage> createState() => _PremiumViewerPageState();
 }
 
-class _VipViewerPageState extends State<_VipViewerPage> {
+class _PremiumViewerPageState extends State<_PremiumViewerPage> {
   bool _isSharing = false;
   final GlobalKey _boundaryKey = GlobalKey();
 
@@ -897,7 +889,7 @@ class _VipViewerPageState extends State<_VipViewerPage> {
             : null,
       );
     } catch (e) {
-      debugPrint('VIP 공유 실패: $e');
+      debugPrint('프리미엄 공유 실패: $e');
     } finally {
       setState(() => _isSharing = false);
     }
@@ -991,7 +983,8 @@ class _VipViewerPageState extends State<_VipViewerPage> {
                       ),
                     ),
 
-                  if (!widget.isVipUser)
+                  // 💧 리포트 하단 워터마크 (비-프리미엄 유저 공유용)
+                  if (!widget.isPremiumUser)
                     Positioned(
                       bottom: 10,
                       right: 10,
