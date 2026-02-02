@@ -50,6 +50,13 @@ class _HomePageState extends State<HomePage> with RouteAware {
 
     final reward = await _stampService.checkAndGrantDailyReward(user.id);
 
+    // ✅ [VIP 전용 로그 추가] 보상 확인 시점에 VIP 스탬프 수량 로그 출력
+    if (reward != null) {
+      debugPrint(
+        "🎁 [Stamp Reward Log] Daily: ${reward['daily_stamps']}, VIP: ${reward['vip_stamps']}, Paid: ${reward['paid_stamps']}",
+      );
+    }
+
     if (reward != null && mounted) {
       _showRewardPopup(reward);
     }
@@ -178,7 +185,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
                             ? travels.first['id']?.toString() ?? 'preview'
                             : 'preview';
 
-                        // ⭐ 핵심: widget이 아니라 travels에서 직접 꺼낸다
                         final String travelType = travels.isNotEmpty
                             ? travels.first['travel_type']?.toString() ??
                                   'overseas'
@@ -202,7 +208,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                                   ),
                                   child: TravelMapPager(
                                     travelId: travelId,
-                                    travelType: travelType, // ✅ 진짜 값 전달
+                                    travelType: travelType,
                                   ),
                                 ),
                         );

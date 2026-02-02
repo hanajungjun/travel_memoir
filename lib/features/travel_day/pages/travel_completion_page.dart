@@ -8,11 +8,14 @@ class TravelCompletionPage extends StatefulWidget {
   final Future<void> processingTask;
   final RewardedAd? rewardedAd;
   final bool usedPaidStamp;
+  final bool isVip; // ✅ [추가] VIP 여부 파라미터
+
   const TravelCompletionPage({
     super.key,
     required this.processingTask,
     this.rewardedAd,
     required this.usedPaidStamp,
+    required this.isVip, // ✅ 필수 값으로 추가
   });
 
   @override
@@ -31,8 +34,12 @@ class _TravelCompletionPageState extends State<TravelCompletionPage> {
       final Future<void> backgroundTask = widget.processingTask;
       await Future.delayed(const Duration(milliseconds: 100));
 
-      // ✅ 바로 여기
-      if (!widget.usedPaidStamp && widget.rewardedAd != null) {
+      // ✅ [핵심 로직 수정]
+      // 1. VIP가 아니고 (!isVip)
+      // 2. 유료 코인을 쓰지 않았고 (!usedPaidStamp)
+      // 3. 광고가 준비되어 있다면
+      // -> 이때만 광고를 보여줍니다. 즉, VIP는 무조건 PASS!
+      if (!widget.isVip && !widget.usedPaidStamp && widget.rewardedAd != null) {
         final adCompleter = Completer<void>();
 
         widget.rewardedAd!.fullScreenContentCallback =
@@ -67,19 +74,18 @@ class _TravelCompletionPageState extends State<TravelCompletionPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Container(
-        width: double.infinity, // 부모 너비를 꽉 채우게 설정
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // 세로 중앙 정렬
-          crossAxisAlignment: CrossAxisAlignment.center, // 가로 중앙 정렬
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Lottie.asset(
               'assets/lottie/travel_success.json',
               width: 250,
-              height: 250, // 높이 추가
+              height: 250,
               fit: BoxFit.contain,
             ),
-
             const SizedBox(height: 30),
             Text(
               'completing_travel_loading'.tr(),
@@ -97,7 +103,6 @@ class _TravelCompletionPageState extends State<TravelCompletionPage> {
               style: const TextStyle(color: Colors.grey, fontSize: 15),
             ),
             const SizedBox(height: 50),
-            // 하단에 로딩 인디케이터 하나 더 두면 심심하지 않아요.
             const CircularProgressIndicator(
               strokeWidth: 3,
               valueColor: AlwaysStoppedAnimation<Color>(Colors.blueAccent),

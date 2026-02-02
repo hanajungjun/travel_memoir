@@ -229,7 +229,7 @@
   "mission_reward_desc": "Get 1 free stamp upon completion",
   "mission_complete_btn": "Go", 
   "coin_shop": "Coin Shop",
-  "membership_plan": "Membership Plan",
+  "membership_plan": "Membership Plan",  
   "charge_coins": "Top-up Coins",
   "free_coins": "Free Coins",
   "my_coins": "My Coin Balance",
@@ -239,7 +239,7 @@
   "benefit_no_ads": "Instant AI image generation without ads",
   "benefit_stickers": "use of all passport stickers",
   "benefit_ai_picker": "All AI styles are available",
-  "benefit_monthly_coins": "50 coins monthly",
+  "benefit_monthly_coins": "50 ticket(benefit_coins) monthly",
   "benefit_ai_extra_image": "An extra premium AI image upon trip completion",
   "benefit_gold_badge": "Exclusive premium gold badge",
   "coin_count": "{} Coins",
@@ -363,5 +363,9 @@
   "skip": "Skip",
   "start": "Start",
   "how_to_use": "How to Use",
-  "diary_clear_success": "Diary Clear"
+  "diary_clear_success": "Diary Clear",
+  "daily_50_ai_generations": "Daily 50 AI More generations",
+  "complete_removal_of_watermark": "Complete removal of watermark",
+  "vvip_exclusive_badge": "VVIP exclusive badge",
+  "all_premium_features": "All premium features"
 }

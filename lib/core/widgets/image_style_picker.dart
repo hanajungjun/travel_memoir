@@ -23,6 +23,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   int _selectedIndex = -1;
 
   bool _isPremiumUser = false;
+  bool _isVipUser = false; // ✅ [추가] VIP 여부 상태
   bool _isLoadingStatus = true;
 
   @override
@@ -40,15 +41,17 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
     try {
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
+        // ✅ [수정] is_premium과 is_vip를 동시에 조회
         final res = await Supabase.instance.client
             .from('users')
-            .select('is_premium')
+            .select('is_premium, is_vip')
             .eq('auth_uid', user.id)
             .maybeSingle();
 
         if (mounted) {
           setState(() {
             _isPremiumUser = res?['is_premium'] ?? false;
+            _isVipUser = res?['is_vip'] ?? false; // ✅ VIP 정보 업데이트
             _isLoadingStatus = false;
           });
         }
@@ -63,6 +66,9 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
     if (!mounted) return;
     setState(() => _styles = styles);
   }
+
+  // ✅ [도움 함수] 프리미엄 혹은 VIP 권한이 있는지 확인
+  bool get _hasProAccess => _isPremiumUser || _isVipUser;
 
   void _showPremiumRequiredDialog() {
     showDialog(
@@ -129,7 +135,10 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
         itemBuilder: (_, i) {
           final style = _styles[i];
           final selected = i == _selectedIndex;
-          final bool locked = style.isPremium && !_isPremiumUser;
+
+          // ✅ [핵심 변경] locked 조건에 VIP 권한 합산
+          final bool locked = style.isPremium && !_hasProAccess;
+
           final String displayTitle =
               (currentLang == 'en' && style.titleEn.isNotEmpty)
               ? style.titleEn
@@ -137,7 +146,6 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
 
           return GestureDetector(
             onTap: () {
-              // 🔥 [핵심 추가] 어떤 상황에서도 키보드를 즉시 내리는 전역 명령
               FocusManager.instance.primaryFocus?.unfocus();
 
               if (locked) {
@@ -158,7 +166,6 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(5),
                         color: Colors.white,
-                        // ✅ 선택 시 보더 디자인 유지 (필요시 색상 조정)
                         border: selected
                             ? Border.all(
                                 color: AppColors.travelingBlue,

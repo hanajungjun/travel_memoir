@@ -1,10 +1,10 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:intl/intl.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
@@ -23,7 +23,9 @@ class _PayManagementPageState extends State<PayManagementPage>
   Offerings? _offerings;
   bool _isLoading = true;
 
-  static const String _entitlementId = "TravelMemoir Pro";
+  // RevenueCat 대시보드에 설정된 Entitlement ID와 일치해야 합니다.
+  static const String _proEntitlementId = "TravelMemoir Pro";
+  static const String _vipEntitlementId = "TravelMemoir VIP";
 
   @override
   void initState() {
@@ -47,7 +49,10 @@ class _PayManagementPageState extends State<PayManagementPage>
 
   Future<void> _loadSubscriptionStatus() async {
     try {
+      // 1. 서버 동기화 먼저 수행
       await PaymentService.syncSubscriptionStatus();
+
+      // 2. 최신 오퍼링(상품목록) 및 고객 정보 가져오기
       final offerings = await PaymentService.getOfferings();
       final customerInfo = await Purchases.getCustomerInfo();
 
@@ -59,6 +64,7 @@ class _PayManagementPageState extends State<PayManagementPage>
         });
       }
     } catch (e) {
+      debugPrint("❌ 결제 정보 로드 실패: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -129,12 +135,12 @@ class _PayManagementPageState extends State<PayManagementPage>
 
   @override
   Widget build(BuildContext context) {
-    // ✅ [테스트 모드] 서버 상태를 가져오되, 변수에는 강제로 false를 할당합니다.
-    final bool serverPremiumStatus =
-        _customerInfo?.entitlements.all[_entitlementId]?.isActive ?? false;
-
-    // 🔥 대표님, 테스트가 끝나면 아래 줄을 지우거나 true/false를 서버 상태로 돌려주세요!
-    bool isPremium = false;
+    // 🔍 RevenueCat에서 직접 권한 상태 확인
+    final bool isPro =
+        _customerInfo?.entitlements.all[_proEntitlementId]?.isActive ?? false;
+    final bool isVip =
+        _customerInfo?.entitlements.all[_vipEntitlementId]?.isActive ?? false;
+    final bool isPremium = isPro || isVip;
 
     final List<Package> subscriptionPackages =
         _offerings?.current?.availablePackages.where((p) {
@@ -180,7 +186,10 @@ class _PayManagementPageState extends State<PayManagementPage>
                     style: AppTextStyles.pageTitle,
                   ),
                   const SizedBox(height: 20),
-                  _buildStatusCard(isPremium), // 강제 false 상태 반영
+
+                  // ✨ RC 상태값이 직접 반영되는 카드
+                  _buildStatusCard(isPremium, isVip),
+
                   const SizedBox(height: 35),
 
                   if (!isPremium) ...[
@@ -207,9 +216,13 @@ class _PayManagementPageState extends State<PayManagementPage>
     );
   }
 
-  Widget _buildStatusCard(bool isPremium) {
-    String? rawDate =
-        _customerInfo?.entitlements.all[_entitlementId]?.expirationDate;
+  Widget _buildStatusCard(bool isPremium, bool isVip) {
+    // 활성화된 권한의 만료일 추출 (VIP 우선)
+    final activeEntitlement = isVip
+        ? _customerInfo?.entitlements.all[_vipEntitlementId]
+        : _customerInfo?.entitlements.all[_proEntitlementId];
+
+    String? rawDate = activeEntitlement?.expirationDate;
     String formattedDate = rawDate != null
         ? DateFormat('yyyy. MM. dd').format(DateTime.parse(rawDate))
         : '-';
@@ -218,12 +231,17 @@ class _PayManagementPageState extends State<PayManagementPage>
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isPremium ? const Color(0xFFF0F7FF) : const Color(0xFFF8F9FA),
+        color: isVip
+            ? const Color(0xFFFFF9E6)
+            : (isPremium ? const Color(0xFFF0F7FF) : const Color(0xFFF8F9FA)),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isPremium
-              ? AppColors.primary.withOpacity(0.3)
-              : Colors.transparent,
+          color: isVip
+              ? Colors.amber.withOpacity(0.5)
+              : (isPremium
+                    ? AppColors.primary.withOpacity(0.3)
+                    : Colors.transparent),
+          width: 2,
         ),
       ),
       child: Column(
@@ -232,15 +250,24 @@ class _PayManagementPageState extends State<PayManagementPage>
           Row(
             children: [
               Icon(
-                isPremium ? Icons.stars_rounded : Icons.person_outline_rounded,
-                color: isPremium ? AppColors.primary : Colors.grey,
+                isVip
+                    ? Icons.workspace_premium_rounded
+                    : (isPremium
+                          ? Icons.stars_rounded
+                          : Icons.person_outline_rounded),
+                color: isVip
+                    ? Colors.amber[800]
+                    : (isPremium ? AppColors.primary : Colors.grey),
               ),
               const SizedBox(width: 8),
               Text(
-                isPremium ? 'premium_member'.tr() : 'free_member'.tr(),
-                style: const TextStyle(
+                isVip
+                    ? 'VIP MEMBER'
+                    : (isPremium ? 'premium_member'.tr() : 'free_member'.tr()),
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: isVip ? Colors.amber[900] : Colors.black87,
                 ),
               ),
             ],
@@ -259,7 +286,7 @@ class _PayManagementPageState extends State<PayManagementPage>
 
   Widget _buildPackageCard(Package package) {
     final id = package.identifier.toLowerCase();
-    bool isVip = id.contains('vip') || id.contains('777');
+    bool isVipProduct = id.contains('vip') || id.contains('777');
     bool isYearly = package.packageType == PackageType.annual;
 
     return Container(
@@ -271,21 +298,24 @@ class _PayManagementPageState extends State<PayManagementPage>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
           decoration: BoxDecoration(
-            gradient: isVip
+            gradient: isVipProduct
                 ? const LinearGradient(
                     colors: [Color(0xFF1A1A1A), Color(0xFFC5A028)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   )
                 : null,
-            color: !isVip && isYearly ? AppColors.primary : Colors.white,
+            color: !isVipProduct && isYearly ? AppColors.primary : Colors.white,
             border: Border.all(
-              color: isVip ? Colors.transparent : AppColors.primary,
+              color: isVipProduct ? Colors.transparent : AppColors.primary,
             ),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: isVip
+            boxShadow: isVipProduct
                 ? [
                     BoxShadow(
-                      color: Colors.amber.withOpacity(0.2),
-                      blurRadius: 8,
+                      color: Colors.amber.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
                   ]
                 : null,
@@ -293,35 +323,41 @@ class _PayManagementPageState extends State<PayManagementPage>
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  if (isVip)
-                    const Padding(
-                      padding: EdgeInsets.only(right: 6),
-                      child: Icon(
-                        Icons.workspace_premium,
-                        color: Colors.amber,
-                        size: 20,
+              Expanded(
+                child: Row(
+                  children: [
+                    if (isVipProduct)
+                      const Padding(
+                        padding: EdgeInsets.only(right: 8),
+                        child: Icon(
+                          Icons.workspace_premium,
+                          color: Colors.amber,
+                          size: 22,
+                        ),
+                      ),
+                    Flexible(
+                      child: Text(
+                        package.storeProduct.title.split('(').first.trim(),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: (isVipProduct || isYearly)
+                              ? Colors.white
+                              : AppColors.primary,
+                        ),
                       ),
                     ),
-                  Text(
-                    package.storeProduct.title.split('(').first.trim(),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: (isVip || isYearly)
-                          ? Colors.white
-                          : AppColors.primary,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Text(
                 package.storeProduct.priceString,
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: (isVip || isYearly) ? Colors.white : AppColors.primary,
+                  color: (isVipProduct || isYearly)
+                      ? Colors.white
+                      : AppColors.primary,
                 ),
               ),
             ],
@@ -360,10 +396,12 @@ class _PayManagementPageState extends State<PayManagementPage>
           await _loadSubscriptionStatus();
           if (mounted) {
             setState(() => _isLoading = false);
-            // 복원 로직에서는 실제 서버 상태를 보여줍니다.
             final bool isPremiumNow =
-                _customerInfo?.entitlements.all[_entitlementId]?.isActive ??
-                false;
+                (_customerInfo?.entitlements.all[_proEntitlementId]?.isActive ??
+                    false) ||
+                (_customerInfo?.entitlements.all[_vipEntitlementId]?.isActive ??
+                    false);
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(

@@ -311,10 +311,10 @@ class _CoinShopPageState extends State<CoinShopPage> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
-                20,
+                10,
                 10,
                 20,
-                20,
+                10,
               ), // ✅ 하단 패딩 40 -> 20 축소
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,11 +336,11 @@ class _CoinShopPageState extends State<CoinShopPage> {
                         scrollDirection: Axis.horizontal,
                         itemCount: _subscriptionPackages.length,
                         separatorBuilder: (context, index) =>
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 10),
                         itemBuilder: (context, index) {
                           final p = _subscriptionPackages[index];
                           final id = p.identifier.toLowerCase();
-                          bool isVip = id.contains('vip') || id.contains('777');
+                          bool isVip = id.contains('vip');
                           return SizedBox(
                             width: MediaQuery.of(context).size.width * 0.78,
                             child: _buildSubscriptionCard(
@@ -349,16 +349,15 @@ class _CoinShopPageState extends State<CoinShopPage> {
                               period: _packagePeriodLabel(context, p),
                               benefits: isVip
                                   ? [
-                                      '매일 100회 AI 생성',
-                                      '워터마크 완전 제거',
-                                      'VVIP 전용 뱃지',
-                                      '모든 프리미엄 기능',
+                                      'daily_50_ai_generations'.tr(),
+                                      'all_premium_features'.tr(),
                                     ]
                                   : [
-                                      'benefit_stickers'.tr(),
                                       'benefit_ai_picker'.tr(),
                                       'benefit_monthly_coins'.tr(),
                                       'benefit_ai_extra_image'.tr(),
+                                      'complete_removal_of_watermark'.tr(),
+                                      'benefit_stickers'.tr(),
                                     ],
                               onTap: () => _handlePurchase(p),
                               isVip: isVip,
@@ -519,9 +518,12 @@ class _CoinShopPageState extends State<CoinShopPage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          // ✅ [다이어트] 상하 패딩을 16 -> 12로 줄여 공간 확보
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            // ✅ [핵심] 위쪽으로 바짝 붙여서 바닥 공간을 확보합니다.
+            mainAxisAlignment: MainAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
@@ -530,7 +532,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
                     const Icon(
                       Icons.workspace_premium,
                       color: Colors.amber,
-                      size: 20,
+                      size: 18, // 살짝 축소
                     ),
                   const SizedBox(width: 4),
                   Expanded(
@@ -541,13 +543,13 @@ class _CoinShopPageState extends State<CoinShopPage> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                        fontSize: 16,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2), // ✅ 간격 4 -> 2로 축소
               Text(
                 '$price $period',
                 style: const TextStyle(
@@ -556,12 +558,15 @@ class _CoinShopPageState extends State<CoinShopPage> {
                   fontSize: 16,
                 ),
               ),
-              const Divider(color: Colors.white24, height: 16),
+              // ✅ [다이어트] 디바이더 높이를 16 -> 12로 축소
+              const Divider(color: Colors.white24, height: 14),
+
+              // ✅ [범인 검거] .take(4)를 삭제하여 모든 혜택(5개 이상)이 나오게 수정
               ...benefits
-                  .take(4)
                   .map(
                     (b) => Padding(
-                      padding: const EdgeInsets.only(bottom: 3),
+                      // ✅ 줄 간격을 3 -> 2.5로 미세 조정
+                      padding: const EdgeInsets.only(bottom: 2.5),
                       child: Row(
                         children: [
                           Icon(
@@ -577,6 +582,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
                                 color: Colors.white,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w500,
+                                height: 1.1, // 줄 간격 촘촘하게
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,

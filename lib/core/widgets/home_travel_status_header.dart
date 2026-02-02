@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:supabase_flutter/supabase_flutter.dart'; // ✅ 추가
 import 'package:travel_memoir/services/travel_service.dart';
+import 'package:travel_memoir/services/stamp_service.dart'; // ✅ 추가
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
@@ -16,21 +18,41 @@ class HomeTravelStatusHeader extends StatefulWidget {
 }
 
 class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
-  // ✅ Future를 변수에 저장하여 리빌드 시 데이터가 다시 호출되는 것을 방지합니다.
-  late Future<Map<String, dynamic>?> _todayTravelFuture;
+  // ✅ 여행 데이터와 스탬프 데이터를 동시에 관리하기 위해 Future 타입을 수정합니다.
+  late Future<List<dynamic>> _headerDataFuture;
+  final StampService _stampService = StampService();
 
   @override
   void initState() {
     super.initState();
-    _todayTravelFuture = TravelService.getTodayTravel();
+    _headerDataFuture = _loadHeaderData();
+  }
+
+  // ✅ 여행 정보와 스탬프 정보를 한 번에 가져오는 묶음 함수
+  Future<List<dynamic>> _loadHeaderData() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
+    return Future.wait([
+      TravelService.getTodayTravel(),
+      _stampService.getStampData(userId),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Map<String, dynamic>?>(
-      future: _todayTravelFuture,
+    return FutureBuilder<List<dynamic>>(
+      future: _headerDataFuture,
       builder: (context, snapshot) {
-        final travel = snapshot.data;
+        // 데이터 구조 분해
+        final travel = snapshot.data?[0] as Map<String, dynamic>?;
+        final stampData = snapshot.data?[1] as Map<String, dynamic>?;
+
+        // ✅ [VIP 로그 출력] 대표님 요청대로 vip_stamps를 로그로 찍습니다.
+        if (stampData != null) {
+          debugPrint(
+            "🎫 [Header Stamp Log] Daily: ${stampData['daily_stamps']}, VIP: ${stampData['vip_stamps']}, Paid: ${stampData['paid_stamps']}, IS_VIP: ${stampData['is_vip']}",
+          );
+        }
+
         final isTraveling = travel != null;
         final isDomestic = travel?['travel_type'] == 'domestic';
 
@@ -40,22 +62,21 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
 
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 250),
-          // ✅ 상태 변화에 따라 확실히 다른 위젯과 키를 반환하도록 분리했습니다.
-          child: _buildAnimatedContent(snapshot, travel, bgColor),
+          child: _buildAnimatedContent(snapshot, travel, stampData, bgColor),
         );
       },
     );
   }
 
   Widget _buildAnimatedContent(
-    AsyncSnapshot<Map<String, dynamic>?> snapshot,
+    AsyncSnapshot<List<dynamic>> snapshot,
     Map<String, dynamic>? travel,
+    Map<String, dynamic>? stampData,
     Color bgColor,
   ) {
-    // 1. 로딩 중일 때 (Skeleton)
     if (snapshot.connectionState == ConnectionState.waiting) {
       return Container(
-        key: const ValueKey('header-skeleton-state'), // ✅ 중복되지 않는 고유 키
+        key: const ValueKey('header-skeleton-state'),
         color: bgColor,
         child: const SafeArea(
           bottom: false,
@@ -64,14 +85,14 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
       );
     }
 
-    // 2. 데이터 로드가 완료되었을 때 (Content)
     return Container(
-      key: const ValueKey('header-ready-state'), // ✅ 중복되지 않는 고유 키
+      key: const ValueKey('header-ready-state'),
       color: bgColor,
       child: SafeArea(
         bottom: false,
         child: _HeaderContent(
           travel: travel,
+          stampData: stampData, // ✅ 스탬프 데이터 전달 (추후 UI 노출용)
           onGoToTravel: widget.onGoToTravel,
           bgColor: bgColor,
         ),
@@ -82,12 +103,14 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
 
 class _HeaderContent extends StatelessWidget {
   final Map<String, dynamic>? travel;
+  final Map<String, dynamic>? stampData; // ✅ 추가
   final VoidCallback onGoToTravel;
   final Color bgColor;
 
   const _HeaderContent({
     super.key,
     required this.travel,
+    this.stampData,
     required this.onGoToTravel,
     required this.bgColor,
   });
@@ -97,6 +120,11 @@ class _HeaderContent extends StatelessWidget {
     final t = travel;
     final isTraveling = t != null;
     final isDomestic = t?['travel_type'] == 'domestic';
+
+    // 스탬프 수량 (로그 확인용 데이터)
+    final int daily = (stampData?['daily_stamps'] ?? 0).toInt();
+    final int vip = (stampData?['vip_stamps'] ?? 0).toInt();
+    final int paid = (stampData?['paid_stamps'] ?? 0).toInt();
 
     final String location;
     if (isTraveling) {
@@ -138,9 +166,8 @@ class _HeaderContent extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     text: (() {
-                      final fullTitle = title;
                       final loc = location;
-                      final rest = fullTitle.replaceFirst(loc, '').trim();
+                      final rest = title.replaceFirst(loc, '').trim();
 
                       return TextSpan(
                         children: [
@@ -184,6 +211,9 @@ class _HeaderContent extends StatelessWidget {
                   )
                 else
                   Text(subtitle, style: AppTextStyles.homeTravelInfo),
+
+                // 💡 [참고] 대표님, 나중에 vip_stamps를 화면에 보여주고 싶으시면
+                // 여기에 Text("VIP: $vip") 같은 코드를 추가하시면 됩니다!
               ],
             ),
           ),

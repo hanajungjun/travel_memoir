@@ -168,8 +168,21 @@ class _MyStickerPageState extends State<MyStickerPage> {
   }
 
   Widget _buildIdentityPage(dynamic profile) {
-    String issueDate = _formatPassportDate(profile?['premium_since']);
-    String expiryDate = _formatPassportDate(profile?['premium_until']);
+    // 🛠️ 파서 에러 방지를 위해 명확하게 괄호를 사용한 로직
+    bool isVip = profile?['is_vip'] ?? false;
+
+    // 괄호를 추가하여 삼항 연산자와 Null-aware 연산자를 분리했습니다.
+    final String? rawSince = isVip
+        ? (profile?['vip_since']?.toString())
+        : (profile?['premium_since']?.toString());
+
+    final String? rawUntil = isVip
+        ? (profile?['vip_until']?.toString())
+        : (profile?['premium_until']?.toString());
+
+    String issueDate = _formatPassportDate(rawSince);
+    String expiryDate = _formatPassportDate(rawUntil);
+
     String displayNationality =
         profile?['nationality']?.toString().toUpperCase() ?? "KOREA";
 

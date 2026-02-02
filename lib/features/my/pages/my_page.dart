@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:lottie/lottie.dart'; // ✅ Lottie 추가
+import 'package:lottie/lottie.dart';
 
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/my_travel_summary_page.dart';
@@ -69,13 +69,17 @@ class _MyPageState extends State<MyPage> {
     }
   }
 
-  void _handlePassportTap(bool isPremium) {
-    if (isPremium) {
+  // ✅ [수정] 프리미엄 혹은 VIP 유저라면 통과
+  void _handlePassportTap(bool hasAccess) {
+    if (hasAccess) {
       _showStickerPopup(context);
     } else {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           title: Text('premium_only_title'.tr()),
           content: Text('premium_benefit_desc'.tr()),
           actions: [
@@ -84,6 +88,12 @@ class _MyPageState extends State<MyPage> {
               child: Text('close'.tr()),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               onPressed: () async {
                 Navigator.pop(context);
                 await Navigator.push(
@@ -92,7 +102,13 @@ class _MyPageState extends State<MyPage> {
                 );
                 _refreshPage();
               },
-              child: Text('go_to_shop'.tr()),
+              child: Text(
+                'go_to_shop'.tr(),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ],
         ),
@@ -133,7 +149,12 @@ class _MyPageState extends State<MyPage> {
             final nickname = profile['nickname'] ?? 'default_nickname'.tr();
             final imageUrl = profile['profile_image_url'];
             final badge = getBadge(travelCount);
+
+            // ✅ VIP 및 프리미엄 권한 확인
             final bool isPremium = profile['is_premium'] ?? false;
+            final bool isVip = profile['is_vip'] ?? false;
+            final bool hasAccess = isPremium || isVip;
+
             final String? email = profile['email'];
 
             return SingleChildScrollView(
@@ -169,7 +190,12 @@ class _MyPageState extends State<MyPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   _buildBadge(badge),
-                                  if (isPremium) ...[
+
+                                  // ✅ VIP 혹은 프리미엄 마크 표시 (VIP 우선순위)
+                                  if (isVip) ...[
+                                    const SizedBox(width: 6),
+                                    _buildVipMark(), // VIP 전용 마크
+                                  ] else if (isPremium) ...[
                                     const SizedBox(width: 6),
                                     _buildPremiumMark(),
                                   ],
@@ -197,9 +223,9 @@ class _MyPageState extends State<MyPage> {
                     ),
                   ),
 
-                  // 📘 여권 버튼
+                  // 📘 여권 버튼 (VIP/프리미엄 통합 권한 적용)
                   GestureDetector(
-                    onTap: () => _handlePassportTap(isPremium),
+                    onTap: () => _handlePassportTap(hasAccess),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -232,7 +258,8 @@ class _MyPageState extends State<MyPage> {
                               letterSpacing: 1.2,
                             ),
                           ),
-                          if (!isPremium) ...[
+                          // ✅ 권한이 없을 때만 잠금 아이콘 표시
+                          if (!hasAccess) ...[
                             const SizedBox(width: 8),
                             const Icon(
                               Icons.lock_outline_rounded,
@@ -328,7 +355,7 @@ class _MyPageState extends State<MyPage> {
                           _refreshPage();
                         },
                       ),
-                      // ✅ 6번째 빈칸: 여기에 지구본이 바로 돌아갑니다!
+                      // ✅ 6번째 빈칸: 지구본 Lottie 유지
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -350,6 +377,44 @@ class _MyPageState extends State<MyPage> {
             );
           },
         ),
+      ),
+    );
+  }
+
+  // ✅ [추가] VIP 전용 마크 디자인
+  Widget _buildVipMark() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF000000), Color(0xFF434343)], // 블랙 & 다크그레이 간지
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFFFD700), width: 1), // 금색 테두리
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.stars, color: Color(0xFFFFD700), size: 14),
+          SizedBox(width: 4),
+          Text(
+            'VIP',
+            style: TextStyle(
+              color: Color(0xFFFFD700),
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }

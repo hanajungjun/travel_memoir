@@ -229,7 +229,7 @@
   "coin_shop": "코인 상점",
   "membership_plan": "멤버십 플랜",
   "charge_coins": "코인 충전하기",
-  "free_coins": "무료 코인",
+  "free_coins": "무료 코인", 
   "my_coins": "나의 보유 코인",
   "please_wait_moment": "잠시만 기다려 주세요.",
   "most_popular": "가장 인기",
@@ -237,7 +237,7 @@
   "benefit_no_ads": "광고 없이 즉시 AI 이미지 생성",
   "benefit_stickers": "프리미엄 여권 스티커 사용",
   "benefit_ai_picker": "모든 AI 스타일 선택 가능",
-  "benefit_monthly_coins": "매달 유료 코인 50개 즉시 지급",
+  "benefit_monthly_coins": "매달 티켓(유료코인) 50개 즉시 지급",
   "benefit_ai_extra_image": "여행 완료 시 프리미엄 AI 이미지 추가 제공",
   "benefit_gold_badge": "프리미엄 전용 골드 뱃지 부여",
   "coin_count": "코인 {}개",
@@ -361,5 +361,9 @@
   "skip": "건너뛰기",
   "start": "시작하기",
   "how_to_use": "사용법",
-  "diary_clear_success": "삭제 완료" 
+  "diary_clear_success": "삭제 완료",
+  "daily_50_ai_generations": "매일 50회 AI 추가 생성",
+  "complete_removal_of_watermark": "워터마크 완전 제거",
+  "vvip_exclusive_badge": "VVIP 전용 뱃지",
+  "all_premium_features": "모든 프리미엄 기능" 
 }

@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'dart:ui' as ui; // ✅ ui.TextDirection 해결을 위해 추가
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
@@ -29,7 +29,7 @@ Future<void> main() async {
   await EasyLocalization.ensureInitialized();
   EasyLocalization.logger.enableLevels = [];
 
-  // 2. 저장된 설정값 로드 (온보딩 완료 여부 확인)
+  // 2. 저장된 설정값 로드
   final prefs = await SharedPreferences.getInstance();
   final bool onboardingDone = prefs.getBool('onboarding_done') ?? false;
   final bool notificationEnabled =
@@ -41,7 +41,6 @@ Future<void> main() async {
   // 4. Firebase 초기화 및 알림 설정
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // FCM 토큰 처리 (iOS 시뮬레이터 대응 포함)
   String? token;
   try {
     if (Platform.isIOS) {
@@ -70,6 +69,10 @@ Future<void> main() async {
     url: AppEnv.supabaseUrl,
     anonKey: AppEnv.supabaseAnonKey,
   );
+
+  // 🚀 [추가 로직] 스탬프 자동 리셋 안전장치
+  await _checkAndResetStamps();
+
   await PromptCache.refresh();
   await initializeDateFormatting('ko_KR', null);
 
@@ -92,10 +95,24 @@ Future<void> main() async {
       path: 'assets/translations',
       fallbackLocale: const Locale('ko'),
       useOnlyLangCode: true,
-      // 래퍼 위젯을 통해 인터넷 체크와 온보딩 여부를 관리합니다.
       child: _TravelMemoirAppWrapper(showOnboarding: !onboardingDone),
     ),
   );
+}
+
+// 🛡️ 스탬프 리셋 안전장치 함수
+Future<void> _checkAndResetStamps() async {
+  try {
+    final client = Supabase.instance.client;
+    // 세션(로그인 상태)이 있을 때만 RPC 호출
+    if (client.auth.currentSession != null) {
+      await client.rpc('reset_daily_stamps');
+      debugPrint("✅ [VIP/일반] 일일 스탬프 리셋 체크 완료");
+    }
+  } catch (e) {
+    // 네트워크 오류 등으로 실패해도 앱 실행은 방해하지 않도록 예외 처리
+    debugPrint("⚠️ 스탬프 리셋 호출 실패 (미로그인 또는 네트워크): $e");
+  }
 }
 
 // RevenueCat 초기화 상세
@@ -116,7 +133,6 @@ Future<void> _initRevenueCat() async {
 // 위젯 클래스들
 // ---------------------------------------------------------------------
 
-/// 앱 전체를 감싸서 인터넷 상태를 감시하고 온보딩을 제어하는 래퍼
 class _TravelMemoirAppWrapper extends StatelessWidget {
   final bool showOnboarding;
 
@@ -128,37 +144,27 @@ class _TravelMemoirAppWrapper extends StatelessWidget {
       valueListenable: NetworkService().isConnectedNotifier,
       builder: (context, isConnected, child) {
         return Stack(
-          textDirection: ui.TextDirection.ltr, // ✅ 에러 방지: ui. 추가
-          children: [
-            // 1층: 메인 앱 화면
-            // (key를 추가하여 PlatformView 충돌 에러 방지)
-            child!,
-
-            // 2층: 오프라인 시 안내 화면 덮기
-            if (!isConnected) const _OfflineFullScreen(),
-          ],
+          textDirection: ui.TextDirection.ltr,
+          children: [child!, if (!isConnected) const _OfflineFullScreen()],
         );
       },
-      // ✅ 실제 앱 위젯 호출 (기존 로직 유지)
       child: TravelMemoirApp(
-        key: const ValueKey('MainApp'), // ✅ 뷰 재사용 에러 방지용 키
+        key: const ValueKey('MainApp'),
         showOnboarding: showOnboarding,
       ),
     );
   }
 }
 
-/// 인터넷 끊겼을 때 나타나는 오프라인 화면
 class _OfflineFullScreen extends StatelessWidget {
   const _OfflineFullScreen();
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ui.TextDirection.ltr 로 수정해서 충돌을 해결했습니다.
     return Directionality(
       textDirection: ui.TextDirection.ltr,
       child: Material(
-        color: Colors.black.withAlpha(204), // 반투명 검정
+        color: Colors.black.withAlpha(204),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
