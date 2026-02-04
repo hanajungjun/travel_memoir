@@ -370,5 +370,10 @@
   "no_infographic_yet": "인포그래픽을 생성해 보세요!",
   "include_photos": "사진 포함",
   "generate_with_count": "생성({}회)",
-  "generating_infographic": "인포그래픽 생성 중..."
+  "generating_infographic": "인포그래픽 생성 중...",
+  "please_enter_diary_text": "일기를 입력해주세요",
+  "select_style_msg": "오늘을 그리는 방식을 선택해주세요",
+  "today_image_hint": "오늘의 하루를\n그림으로 남겨보세요",
+  "remaining_usage_today": "오늘 남은 생성 횟수: {}/50",
+  "generate_error": "이미지 생성 중 오류가 발생했습니다"
 }

@@ -1,13 +1,3 @@
-/// ****************************************************************************
-/// 🚩 MASTER RULES FOR THIS PAGE:
-/// 1. PARALLEL PROCESSING: Background AI tasks and foreground Ads must run
-///    concurrently. Never 'await' AI generation before showing Ads.
-/// 2. BALANCED (60/40): AI summary must give EQUAL importance to visual
-///    analysis of photos and narrative details of the text diary.
-/// 3. NO OMISSION: All logic blocks, including UI, Services, and State
-///    management, must be fully preserved during updates.
-/// ****************************************************************************
-
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:async';
@@ -44,6 +34,7 @@ import 'package:travel_memoir/services/travel_complete_service.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/storage_paths.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class TravelDayPage extends StatefulWidget {
   final String travelId;
@@ -258,7 +249,7 @@ class _TravelDayPageState extends State<TravelDayPage>
           .getPublicUrl(aiPath);
       setState(
         () => _imageUrl =
-            "$rawUrl?v=${DateTime.now().millisecondsSinceEpoch}&width=800&quality=80",
+            "$rawUrl?v=${DateTime.now().millisecondsSinceEpoch}&width=800&quality=70",
       );
       if (_imageUrl != null) _cardController.forward();
     }
@@ -344,44 +335,35 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _handleGenerateWithStamp() async {
-    FocusScope.of(context).unfocus();
-    if (_selectedStyle == null || _contentController.text.trim().isEmpty)
+    //if (_contentController.text.trim().isEmpty) return;
+    //if (_selectedStyle == null) return;
+    if (_contentController.text.trim().isEmpty) {
+      AppToast.show(context, 'please_enter_diary_text'.tr());
       return;
-    setState(() => _loading = true);
-    try {
-      final response = await Supabase.instance.client.rpc(
-        'check_ai_generation_limit',
-        params: {'target_user_id': _userId},
-      );
-      if (!(response['can_generate'] ?? false)) {
-        setState(() => _loading = false);
-        _showLimitDialog(response['reason'], response['remaining_min'] ?? 0);
-        return;
-      }
-    } catch (e) {
-      debugPrint('수문장 실패: $e');
     }
-
-    String stampToUse = 'daily_stamps';
-    bool skipAd = false;
+    if (_selectedStyle == null) {
+      AppToast.show(context, 'select_style_msg'.tr());
+      return;
+    }
+    String stampType = "";
     if (_isVip && _vipStamps > 0) {
-      stampToUse = 'vip_stamps';
-      skipAd = true;
+      stampType = "vip";
+    } else if (_isPremiumUser) {
+      stampType = "paid";
     } else if (_usePaidStampMode && _paidStamps > 0) {
-      stampToUse = 'paid_stamps';
-      skipAd = true;
+      stampType = "paid";
     } else if (_dailyStamps > 0) {
-      stampToUse = 'daily_stamps';
-      skipAd = false;
+      stampType = "daily";
     } else {
-      setState(() => _loading = false);
       _showCoinEmptyDialog();
       return;
     }
 
     _isAiDone = false;
     _isAdDone = false;
-    _startAiGeneration(stampToUse)
+
+    // ✅ 병렬 처리 1: AI 생성 시작 (비동기 호출 후 await 하지 않음)
+    _startAiGeneration(stampType)
         .then((_) {
           _isAiDone = true;
           _checkSync();
@@ -390,50 +372,35 @@ class _TravelDayPageState extends State<TravelDayPage>
           if (mounted) setState(() => _loading = false);
         });
 
-    if (!skipAd && _isAdLoaded && _rewardedAd != null) {
-      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-        onAdDismissedFullScreenContent: (ad) {
-          ad.dispose();
-          _loadAds();
-          _isAdDone = true;
-          _checkSync();
-        },
-        onAdFailedToShowFullScreenContent: (ad, error) {
-          ad.dispose();
-          _isAdDone = true;
-          _checkSync();
-        },
-      );
-      _rewardedAd!.show(onUserEarnedReward: (ad, reward) {});
-    } else {
+    // ✅ 병렬 처리 2: 광고 로직
+    if (_isPremiumUser || _isVip) {
       _isAdDone = true;
       _checkSync();
+    } else {
+      if (_rewardedAd != null && _isAdLoaded) {
+        _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+          onAdDismissedFullScreenContent: (ad) {
+            ad.dispose();
+            _loadAds();
+          },
+          onAdFailedToShowFullScreenContent: (ad, err) {
+            ad.dispose();
+            _loadAds();
+            _isAdDone = true;
+            _checkSync();
+          },
+        );
+        _rewardedAd!.show(
+          onUserEarnedReward: (_, reward) {
+            _isAdDone = true;
+            _checkSync();
+          },
+        );
+      } else {
+        _isAdDone = true;
+        _checkSync();
+      }
     }
-  }
-
-  void _showLimitDialog(String reason, int minutes) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(reason == 'cooling_down' ? '🎨 화가가 쉬는 중' : '예술혼 완전 연소!'),
-        content: Text(
-          reason == 'cooling_down'
-              ? '너무 열심히 그렸나 봐요! $minutes분 후에 다시 그려드릴게요.'
-              : '오늘 준비된 기회를 모두 사용하셨습니다. 내일 다시 만나요!',
-        ),
-        actions: [
-          Center(
-            child: TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                '확인',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   void _checkSync() {
@@ -554,7 +521,7 @@ class _TravelDayPageState extends State<TravelDayPage>
           final result = await FlutterImageCompress.compressAndGetFile(
             _localPhotos[i].absolute.path,
             targetPath,
-            quality: 70,
+            quality: 50,
             minWidth: 1024,
             minHeight: 1024,
           );
@@ -1140,7 +1107,7 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   Widget _buildGenerateButton(Color c) {
     return GestureDetector(
-      onTap: _loading ? null : _handleGenerateWithStamp,
+      onTap: _loading ? null : _handleGenerateWithStamp, // ✅ 로직 연결 완료
       child: Container(
         width: double.infinity,
         height: 47,

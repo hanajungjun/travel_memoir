@@ -372,5 +372,10 @@
   "no_infographic_yet": "Try generating an infographic!",
   "include_photos": "Include Photos",
   "generate_with_count": "Generate ({} left)",
-  "generating_infographic": "Generating..."
+  "generating_infographic": "Generating...",
+  "please_enter_diary_text": "Please enter today's diary",
+  "select_style_msg": "Please select a drawing style",
+  "today_image_hint": "Capture your day\nwith a drawing",
+  "remaining_usage_today": "Remaining today: {}/50",
+  "generate_error": "An error occurred during image generation" 
 }

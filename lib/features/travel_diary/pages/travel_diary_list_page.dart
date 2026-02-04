@@ -173,7 +173,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                             if (rawUrl != null && rawUrl.isNotEmpty) {
                               // ✅ [해결 1] 서버 측 리사이징 적용 (width=100)
                               imageUrl =
-                                  '$rawUrl?t=$_imageTimestamp&width=100&quality=60';
+                                  '$rawUrl?t=$_imageTimestamp&width=100&quality=20';
                             }
                           }
                         }
