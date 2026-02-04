@@ -178,7 +178,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     }
 
     if (_remainingCount <= 0) {
-      // ✅ [개선] AppToast 적용
       AppToast.error(context, 'infographic_limit_reached'.tr());
       return;
     }
@@ -253,7 +252,6 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     } catch (e) {
       if (mounted) {
         setState(() => _isPremiumLoading = false);
-        // ✅ [개선] 실패 알림도 AppToast로 통일
         AppToast.error(context, 'generating_infographic_failed'.tr());
       }
     }
@@ -917,8 +915,13 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
         controller: _controller,
         itemCount: widget.items.length,
         onPageChanged: (i) => setState(() => _index = i),
-        itemBuilder: (_, i) => InteractiveViewer(
-          child: Center(child: Image.network(widget.items[i].imageUrl)),
+        itemBuilder: (_, i) => GestureDetector(
+          // 👈 빈 영역 클릭 감지를 위해 추가
+          onTap: () => Navigator.pop(context),
+          behavior: HitTestBehavior.opaque,
+          child: InteractiveViewer(
+            child: Center(child: Image.network(widget.items[i].imageUrl)),
+          ),
         ),
       ),
     );
@@ -967,7 +970,7 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
       final box = ctx.findRenderObject() as RenderBox?;
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'share_report_text'.tr(),
+        // text: 'share_report_text'.tr(),
         sharePositionOrigin: box != null
             ? box.localToGlobal(Offset.zero) & box.size
             : null,
@@ -1012,14 +1015,13 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
           child: InteractiveViewer(
             minScale: 0.5,
             maxScale: 3.0,
-            child: RepaintBoundary(
-              key: _boundaryKey,
-              child: Container(
-                color: Colors.black,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 60,
-                ),
+            child: Container(
+              // 이 컨테이너의 패딩이 캡처에 포함되지 않도록 RepaintBoundary를 내부로 이동
+              color: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
+              child: RepaintBoundary(
+                // 👈 캡처 범위를 딱 맞는 Stack 영역으로 이동
+                key: _boundaryKey,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [

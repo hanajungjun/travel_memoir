@@ -521,7 +521,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
           .from('travels')
           .select('region_lat, region_lng, country_lat, country_lng')
           .eq('user_id', user.id)
-          .order('created_at', ascending: false)
+          .order('end_date', ascending: false)
           .limit(1)
           .maybeSingle();
 
