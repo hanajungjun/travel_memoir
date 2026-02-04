@@ -209,6 +209,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
 
       final imageBytes = await GeminiService().generateFullTravelInfographic(
         allDiaryTexts: allTexts,
+        placeName: _travelTitle(),
         photoUrls: _includePhotos
             ? _stickerPlacements.map((e) => e.url).toList()
             : null,

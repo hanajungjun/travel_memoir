@@ -91,102 +91,6 @@ $finalPrompt
   ''');
   }
 
-  Future<Uint8List> generateFullTravelInfographic({
-    required List<String> allDiaryTexts,
-    List<String>? photoUrls,
-  }) async {
-    final url =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey';
-
-    final premiumPrompt = await AiPremiumPromptService.fetchActive();
-
-    if (premiumPrompt == null) {
-      throw Exception('❌ 활성 프리미엄 프롬프트 없음');
-    }
-
-    // 1️⃣ 여행 기간에 따른 컨셉 지시문 (기존 로직 유지)
-    String durationInstruction = "";
-    int dayCount = allDiaryTexts.length;
-
-    if (dayCount <= 1) {
-      durationInstruction = """
-\n[Style Focus: Day Trip Snapshot]
-- This is a single-day trip. Focus on capturing the intense mood and atmosphere of this one day.
-- Highlight the core events of the day in a centralized, large-scale infographic design.
-- Don't split the page; use a unified, high-impact layout that emphasizes the key emotion.
-""";
-    } else {
-      durationInstruction =
-          """
-\n[Style Focus: Multi-day Journey Timeline]
-- This is a journey of $dayCount days. Focus on the chronological flow (Day 1, Day 2, etc.).
-- Use a timeline or road-map style layout to distinguish between different days.
-- Ensure each day's highlights are summarized and visually partitioned within the graphic.
-""";
-
-      // 각 날짜별 하이라이트 추가
-      List<String> dayInstructions = [];
-      for (int i = 0; i < dayCount; i++) {
-        dayInstructions.add("""
-      [Day ${i + 1} Highlights]:
-      - ${allDiaryTexts[i]}
-      """);
-      }
-
-      // "DAY ~" 대신 구체적인 날짜 추가
-      durationInstruction += dayInstructions.join("\n");
-    }
-
-    // 2️⃣ 사진 배치 지시문 (기존 로직 유지)
-    String photoInstruction = "";
-    if (photoUrls != null && photoUrls.isNotEmpty) {
-      photoInstruction =
-          "\n[Photo Overlay Note]: Real photos will be placed inside the top-left and bottom-right corners as stickers. Keep these areas simple to let the photos stand out.";
-    }
-
-    // 3️⃣ [중요] 텍스트 생성 금지 지시 (제목을 지우기 위함)
-    String noTextInstruction =
-        "\n[STRICT REQUIREMENT: NO TEXT] Do not include any text or letters in the image.";
-
-    // 4️⃣ 최종 프롬프트 조립
-    String finalPrompt =
-        premiumPrompt.prompt.replaceAll(
-          '\${allDiaryTexts.join(\'\\n\')}',
-          allDiaryTexts.join('\n'),
-        ) +
-        durationInstruction +
-        photoInstruction +
-        noTextInstruction;
-
-    final parts = <Map<String, dynamic>>[
-      {'text': finalPrompt},
-    ];
-
-    final res = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'contents': [
-          {'parts': parts},
-        ],
-        'generationConfig': {
-          'responseModalities': ['IMAGE'],
-        },
-      }),
-    );
-
-    if (res.statusCode != 200) {
-      debugPrint('❌ [GEMINI] error body: ${res.body}');
-      throw Exception('❌ 이미지 생성 실패 (${res.statusCode})');
-    }
-
-    final data = jsonDecode(res.body);
-    final imageBase64 =
-        data['candidates'][0]['content']['parts'][0]['inlineData']['data'];
-
-    return base64Decode(imageBase64);
-  }
-
   // ============================
   // 내부 이미지 요청 (공통 헬퍼) - 기존 동일
   // ============================
@@ -222,5 +126,107 @@ $finalPrompt
     }
 
     return base64Decode(base64Str);
+  }
+
+  Future<Uint8List> generateFullTravelInfographic({
+    required List<String> allDiaryTexts,
+    required String placeName, // 👈 widget.placeName 대신 파라미터로 받음
+    List<String>? photoUrls,
+  }) async {
+    final url =
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey';
+
+    final premiumPrompt = await AiPremiumPromptService.fetchActive();
+
+    if (premiumPrompt == null) {
+      throw Exception('❌ 활성 프리미엄 프롬프트 없음');
+    }
+
+    // 1️⃣ 'Infographic' 단어 제거 -> 'Mural Illustration'으로 교체 (배너 방지)
+    String basePrompt = premiumPrompt.prompt.replaceAll(
+      'Infographic',
+      'Seamless Cinematic Travel Mural Illustration',
+    );
+
+    String durationInstruction = "";
+    String textStrictRule = "";
+    int dayCount = allDiaryTexts.length;
+
+    // 2️⃣ 여행 기간별 텍스트 및 로직 처리
+    if (dayCount <= 1) {
+      // 당일치기: 텍스트/숫자/배너 완전 금지
+      durationInstruction =
+          """
+\n[Style Focus: Single Landscape Masterpiece]
+- This is a 1-day journey. [CRITICAL] ABSOLUTELY NO TEXT, NO NUMBERS, NO LABELS.
+- Do not create any banner or title plate at the top.
+- Focus 100% on a single, unified, atmospheric scenery of $placeName.
+""";
+      textStrictRule = "ZERO TEXT ALLOWED. No letters, no numbers, no words.";
+    } else {
+      // 다일 여행: 'Day X' 라벨만 허용 (박스/동그라미 숫자 금지)
+      durationInstruction =
+          """
+\n[Style Focus: Artistic Journey Path of $dayCount Days]
+- Visualize the sequence as a natural flow (e.g., a winding path through $placeName).
+- Label each zone with VERY SMALL, simple English text: 'Day 1', 'Day 2' ... 'Day $dayCount'.
+- [CRITICAL] Do not create any additional circles, icons, or buttons containing other numbers.
+- Each 'Day X' label should be placed simply in the corner of its respective area.
+""";
+      textStrictRule =
+          "The ONLY allowed text is 'Day 1', 'Day 2', etc. No other numbers or words.";
+
+      for (int i = 0; i < dayCount; i++) {
+        durationInstruction += "\n[Day ${i + 1} Scene]: ${allDiaryTexts[i]}";
+      }
+    }
+
+    // 3️⃣ 레이아웃 파괴 명령 (상단 배너 및 네모칸 제거)
+    String layoutAndTextInstruction =
+        """
+\n[STRICT LAYOUT OVERRIDE]
+- NO HEADERS, NO BANNERS, NO TITLE PLATES, NO RECTANGULAR BOXES.
+- The top of the image MUST be filled with the sky, clouds, or landscape scenery. 
+- Ensure there is NO blank or solid-colored bar at the top or bottom.
+- $textStrictRule
+- Entire image must be edge-to-edge illustration with no borders.
+""";
+
+    // 4️⃣ 최종 프롬프트 조립
+    String finalPrompt =
+        basePrompt.replaceAll(
+          '\${allDiaryTexts.join(\'\\n\')}',
+          allDiaryTexts.join('\n'),
+        ) +
+        durationInstruction +
+        layoutAndTextInstruction;
+
+    final parts = <Map<String, dynamic>>[
+      {'text': finalPrompt},
+    ];
+
+    final res = await http.post(
+      Uri.parse(url),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'contents': [
+          {'parts': parts},
+        ],
+        'generationConfig': {
+          'responseModalities': ['IMAGE'],
+        },
+      }),
+    );
+
+    if (res.statusCode != 200) {
+      debugPrint('❌ [GEMINI] error body: ${res.body}');
+      throw Exception('❌ 이미지 생성 실패 (${res.statusCode})');
+    }
+
+    final data = jsonDecode(res.body);
+    final imageBase64 =
+        data['candidates'][0]['content']['parts'][0]['inlineData']['data'];
+
+    return base64Decode(imageBase64);
   }
 }
