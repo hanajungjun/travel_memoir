@@ -37,7 +37,7 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
     final DateTimeRange? range = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const CustomRangeCalendarPage(),
+        builder: (_) => const CustomRangeCalendarPage(travelType: 'domestic'),
         fullscreenDialog: true,
       ),
     );

@@ -70,7 +70,7 @@ class _USTravelDatePageState extends State<USTravelDatePage> {
     final DateTimeRange? range = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const CustomRangeCalendarPage(),
+        builder: (_) => const CustomRangeCalendarPage(travelType: 'us'),
         fullscreenDialog: true,
       ),
     );

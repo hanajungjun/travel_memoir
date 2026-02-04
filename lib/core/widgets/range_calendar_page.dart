@@ -7,7 +7,13 @@ import 'package:scrollable_clean_calendar/utils/enums.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 
 class CustomRangeCalendarPage extends StatefulWidget {
-  const CustomRangeCalendarPage({super.key});
+  // ✅ 여행 타입을 외부에서 받기 위한 필드 추가 (기존 생성자 유지하며 추가)
+  final String travelType;
+
+  const CustomRangeCalendarPage({
+    super.key,
+    required this.travelType, // 'domestic', 'overseas', 'us'
+  });
 
   @override
   State<CustomRangeCalendarPage> createState() =>
@@ -38,13 +44,21 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
         });
       },
       initialFocusDate: DateTime.now(),
-      weekdayStart: DateTime.monday,
+      weekdayStart: DateTime.sunday,
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    const themeColor = AppColors.travelActiveBlue;
+    // ✅ 여행 타입별 색상 결정 로직 추가 (기존 themeColor 변수 활용)
+    Color themeColor;
+    if (widget.travelType == 'overseas') {
+      themeColor = AppColors.travelingPurple; // 해외
+    } else if (widget.travelType == 'us') {
+      themeColor = AppColors.travelingRed; // 미국
+    } else {
+      themeColor = AppColors.travelingBlue; // 국내
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
@@ -52,7 +66,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+              padding: const EdgeInsets.fromLTRB(23, 10, 32, 7),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -74,7 +88,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: themeColor,
                         shape: BoxShape.circle,
@@ -89,7 +103,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                       child: const Icon(
                         Icons.check,
                         color: Colors.white,
-                        size: 17,
+                        size: 20,
                       ),
                     ),
                   ),
@@ -97,7 +111,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 27, vertical: 0),
+              padding: const EdgeInsets.fromLTRB(27, 0, 27, 20),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(25, 22, 25, 22),
@@ -149,80 +163,158 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
               ),
             ),
             Expanded(
-              child: ScrollableCleanCalendar(
-                calendarController: calendarController,
-                layout: Layout.BEAUTY,
-                locale: context.locale.languageCode, // ✅ 현재 언어 자동 반영
-                calendarCrossAxisSpacing: 0,
-                showWeekdays: true,
-                weekdayTextStyle: const TextStyle(
-                  fontSize: 13,
-                  color: AppColors.textColor01,
-                  fontWeight: FontWeight.w400,
-                ),
-                monthTextStyle: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textColor01,
-                ),
-                dayBuilder: (context, values) {
-                  final date = values.day;
-
-                  bool isStartOrEnd =
-                      (rangeMin != null &&
-                          date.year == rangeMin!.year &&
-                          date.month == rangeMin!.month &&
-                          date.day == rangeMin!.day) ||
-                      (rangeMax != null &&
-                          date.year == rangeMax!.year &&
-                          date.month == rangeMax!.month &&
-                          date.day == rangeMax!.day);
-
-                  bool isBetween =
-                      rangeMin != null &&
-                      rangeMax != null &&
-                      date.isAfter(rangeMin!) &&
-                      date.isBefore(rangeMax!);
-
-                  BoxDecoration? decoration;
-                  if (isStartOrEnd) {
-                    decoration = const BoxDecoration(
-                      color: themeColor,
-                      shape: BoxShape.circle,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 10, right: 10),
+                child: ScrollableCleanCalendar(
+                  calendarController: calendarController,
+                  layout: Layout.BEAUTY,
+                  locale: 'en',
+                  calendarCrossAxisSpacing: 0,
+                  showWeekdays: false,
+                  monthBuilder: (context, month) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12, top: 15),
+                          child: Text(
+                            month,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textColor01,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children:
+                              [
+                                'Sun',
+                                'Mon',
+                                'Tue',
+                                'Wed',
+                                'Thu',
+                                'Fri',
+                                'Sat',
+                              ].map((d) {
+                                return Expanded(
+                                  child: Center(
+                                    child: Text(
+                                      d,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppColors.textColor01,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                        ),
+                        const SizedBox(height: 13),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Row(
+                            children: List.generate(
+                              100,
+                              (index) => Expanded(
+                                child: Container(
+                                  color: index % 2 == 0
+                                      ? const Color(0xFFD1D1D1)
+                                      : Colors.transparent,
+                                  height: 1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 0),
+                      ],
                     );
-                  } else if (isBetween) {
-                    decoration = BoxDecoration(
-                      color: themeColor.withOpacity(0.15),
-                      shape: BoxShape.rectangle,
-                    );
-                  }
+                  },
+                  dayBuilder: (context, values) {
+                    final date = values.day;
 
-                  Color textColor = Colors.black;
-                  if (isStartOrEnd) {
-                    textColor = Colors.white;
-                  } else if (isBetween) {
-                    textColor = themeColor;
-                  } else if (date.weekday == DateTime.saturday) {
-                    textColor = Colors.blue;
-                  } else if (date.weekday == DateTime.sunday) {
-                    textColor = Colors.red;
-                  }
+                    bool isStart =
+                        rangeMin != null &&
+                        date.year == rangeMin!.year &&
+                        date.month == rangeMin!.month &&
+                        date.day == rangeMin!.day;
+                    bool isEnd =
+                        rangeMax != null &&
+                        date.year == rangeMax!.year &&
+                        date.month == rangeMax!.month &&
+                        date.day == rangeMax!.day;
+                    bool isBetween =
+                        rangeMin != null &&
+                        rangeMax != null &&
+                        date.isAfter(rangeMin!) &&
+                        date.isBefore(rangeMax!);
 
-                  return Container(
-                    alignment: Alignment.center,
-                    decoration: decoration,
-                    child: Text(
-                      values.text,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 16,
-                        fontWeight: (isStartOrEnd || isBetween)
-                            ? FontWeight.bold
-                            : FontWeight.w500,
+                    Color textColor = (isStart || isEnd || isBetween)
+                        ? Colors.white
+                        : (date.weekday == DateTime.sunday
+                              ? AppColors.travelingRed
+                              : (date.weekday == DateTime.saturday
+                                    ? AppColors.travelingBlue
+                                    : Colors.black));
+
+                    // ✅ 터치 영역 확장을 위해 Container로 감싸고 HitTestBehavior 추가
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      child: Transform.translate(
+                        offset: const Offset(0, -18),
+                        child: Container(
+                          // ✅ 중요: 투명색이라도 배경색이 있어야 전체 영역이 터치됩니다.
+                          color: Colors.transparent,
+                          width: double.infinity,
+                          height: double.infinity,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              if (isStart || isEnd || isBetween)
+                                Positioned.fill(
+                                  top: 3,
+                                  bottom: 3,
+                                  left: 0,
+                                  right: 0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: themeColor,
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: isStart
+                                            ? const Radius.circular(50)
+                                            : Radius.zero,
+                                        bottomLeft: isStart
+                                            ? const Radius.circular(50)
+                                            : Radius.zero,
+                                        topRight: isEnd
+                                            ? const Radius.circular(50)
+                                            : Radius.zero,
+                                        bottomRight: isEnd
+                                            ? const Radius.circular(50)
+                                            : Radius.zero,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              Text(
+                                values.text,
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           ],
