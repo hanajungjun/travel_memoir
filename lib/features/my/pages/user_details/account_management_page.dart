@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart'; // 추가
 
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/auth/login_page.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class AccountManagementPage extends StatefulWidget {
   const AccountManagementPage({super.key});
@@ -61,12 +62,7 @@ class _AccountManagementPageState extends State<AccountManagementPage> {
 
       setState(() => _deleting = false);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('error_delete_account'.tr(args: [e.toString()])),
-          backgroundColor: Colors.red,
-        ),
-      );
+      AppToast.error(context, 'error_delete_account'.tr(args: [e.toString()]));
     }
   }
 

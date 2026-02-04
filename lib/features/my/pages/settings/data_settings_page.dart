@@ -3,6 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class DataSettingsPage extends StatefulWidget {
   const DataSettingsPage({super.key});
@@ -138,9 +139,7 @@ class _DataSettingsPageState extends State<DataSettingsPage> {
                     title: 'clear_image_cache'.tr(),
                     onTap: () {
                       PaintingBinding.instance.imageCache.clear();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('cache_cleared'.tr())),
-                      );
+                      AppToast.show(context, 'cache_cleared'.tr());
                     },
                   ),
                   const SizedBox(height: 50),

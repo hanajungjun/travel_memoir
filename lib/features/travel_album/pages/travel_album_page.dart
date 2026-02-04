@@ -5,25 +5,26 @@ import 'dart:typed_data';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart' show rootBundle; // ✅ 추가
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:image/image.dart' as img; // ✅ 워터마크 합성용
+import 'package:image/image.dart' as img;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
-// ✅ 스티커 위치 정보를 담는 클래스
+// ✅ 스티커 위치 정보 모델
 class StickerPlacement {
   final String url;
   final double? top, bottom, left, right;
   final double angle;
-
   StickerPlacement({
     required this.url,
     this.top,
@@ -61,36 +62,50 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   Uint8List? _premiumInfographic;
   String? _premiumImageUrl;
   bool _isPremiumLoading = false;
-  bool _isPremiumUser = false; // ✅ 프리미엄 여부
+  bool _isPremiumUser = false;
+  bool _isVipUser = false;
   bool _showStickers = false;
+  bool _includePhotos = true;
+  int _remainingCount = 0;
 
   List<StickerPlacement> _stickerPlacements = [];
+  late SharedPreferences _prefs;
 
   @override
   void initState() {
     super.initState();
     _groupedFuture = _loadGroupedAlbum();
-    _checkUserStatusAndInit();
+    _initSettings();
   }
 
-  Future<void> _checkUserStatusAndInit() async {
+  Future<void> _initSettings() async {
+    _prefs = await SharedPreferences.getInstance();
     final client = Supabase.instance.client;
     final userId = client.auth.currentUser?.id;
     if (userId == null) return;
 
     final userRes = await client
         .from('users')
-        .select('is_premium')
+        .select('is_premium, is_vip')
         .eq('auth_uid', userId)
         .maybeSingle();
-
     if (mounted) {
       setState(() {
         _isPremiumUser = userRes?['is_premium'] ?? false;
+        _isVipUser = userRes?['is_vip'] ?? false;
       });
     }
 
     final travelId = widget.travel['id']?.toString() ?? '';
+    int maxLimit = _isVipUser ? 5 : 3;
+    int usedCount = _prefs.getInt('infographic_count_$travelId') ?? 0;
+
+    setState(() {
+      _remainingCount = math.max(0, maxLimit - usedCount);
+      _includePhotos = _prefs.getBool('include_photos_option') ?? true;
+      _showStickers = _includePhotos;
+    });
+
     final groupedData = await _groupedFuture;
     _extractAndShuffleStickers(groupedData);
 
@@ -104,13 +119,14 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
         res['premium_report_url'] != null &&
         res['premium_report_url'].toString().isNotEmpty) {
       setState(() {
-        _premiumImageUrl = res['premium_report_url'];
-        Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted) setState(() => _showStickers = true);
-        });
+        String url = res['premium_report_url'];
+        _premiumImageUrl = '$url?t=${DateTime.now().millisecondsSinceEpoch}';
+        if (_includePhotos) {
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted) setState(() => _showStickers = true);
+          });
+        }
       });
-    } else if (_isPremiumUser && groupedData.values.any((l) => l.isNotEmpty)) {
-      _generateAndSavePremiumInfographic(groupedData);
     }
   }
 
@@ -134,7 +150,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     positions.shuffle();
 
     List<StickerPlacement> tempPlacements = [];
-    int takeCount = math.min(allPhotoUrls.length, 4);
+    int takeCount = math.min(allPhotoUrls.length, math.Random().nextInt(4) + 1);
     allPhotoUrls.shuffle();
 
     for (int i = 0; i < takeCount; i++) {
@@ -156,8 +172,14 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   Future<void> _generateAndSavePremiumInfographic(
     Map<int, List<_AlbumItem>> data,
   ) async {
-    if (!_isPremiumUser) {
+    if (!_isPremiumUser && !_isVipUser) {
       _showPremiumRequiredDialog();
+      return;
+    }
+
+    if (_remainingCount <= 0) {
+      // ✅ [개선] AppToast 적용
+      AppToast.error(context, 'infographic_limit_reached'.tr());
       return;
     }
 
@@ -166,6 +188,9 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
       _isPremiumLoading = true;
       _showStickers = false;
     });
+
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
 
     final client = Supabase.instance.client;
     final userId = client.auth.currentUser!.id;
@@ -180,10 +205,13 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
         }
       });
 
+      _extractAndShuffleStickers(data);
+
       final imageBytes = await GeminiService().generateFullTravelInfographic(
-        travelTitle: _travelTitle(),
         allDiaryTexts: allTexts,
-        photoUrls: _stickerPlacements.map((e) => e.url).toList(),
+        photoUrls: _includePhotos
+            ? _stickerPlacements.map((e) => e.url).toList()
+            : null,
       );
 
       final String storagePath =
@@ -195,26 +223,38 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
             imageBytes,
             fileOptions: const FileOptions(upsert: true),
           );
-      final String publicUrl = client.storage
+      final String baseUrl = client.storage
           .from('travel_images')
           .getPublicUrl(storagePath);
       await client
           .from('travels')
-          .update({'premium_report_url': publicUrl})
+          .update({'premium_report_url': baseUrl})
           .eq('id', travelId);
+
+      int maxLimit = _isVipUser ? 5 : 3;
+      setState(() {
+        _remainingCount--;
+      });
+      await _prefs.setInt(
+        'infographic_count_$travelId',
+        maxLimit - _remainingCount,
+      );
 
       if (mounted) {
         setState(() {
           _premiumInfographic = imageBytes;
-          _premiumImageUrl = publicUrl;
+          _premiumImageUrl =
+              '$baseUrl?t=${DateTime.now().millisecondsSinceEpoch}';
           _isPremiumLoading = false;
-        });
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) setState(() => _showStickers = true);
+          _showStickers = _includePhotos;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isPremiumLoading = false);
+      if (mounted) {
+        setState(() => _isPremiumLoading = false);
+        // ✅ [개선] 실패 알림도 AppToast로 통일
+        AppToast.error(context, 'generating_infographic_failed'.tr());
+      }
     }
   }
 
@@ -235,7 +275,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const CoinShopPage()),
-              ).then((_) => _checkUserStatusAndInit());
+              ).then((_) => _initSettings());
             },
             child: Text('go_to_shop'.tr()),
           ),
@@ -439,7 +479,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                                     .expand((e) => e)
                                     .toList()
                                     .indexOf(item),
-                                isPremiumUser: _isPremiumUser, // ✅ 상태 전달
+                                isPremiumUser: _isPremiumUser || _isVipUser,
                               ),
                             ),
                           ),
@@ -483,18 +523,86 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                   child: Column(
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.stars, color: Colors.amber),
-                          const SizedBox(width: 8),
-                          Text(
-                            'premium_infographic_title'.tr().toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.amber[800],
+                          const Icon(
+                            Icons.stars,
+                            color: Colors.amber,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'premium_infographic_title'.tr().toUpperCase(),
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.amber[800],
+                              ),
                             ),
                           ),
+                          if (_isPremiumUser || _isVipUser) ...[
+                            const SizedBox(width: 4),
+                            SizedBox(
+                              width: 24,
+                              child: Checkbox(
+                                value: _showStickers,
+                                activeColor: Colors.amber,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                onChanged: (val) {
+                                  final newValue = val ?? false;
+                                  setState(() {
+                                    _showStickers = newValue;
+                                    _includePhotos = newValue;
+                                    _prefs.setBool(
+                                      'include_photos_option',
+                                      newValue,
+                                    );
+                                    if (_showStickers &&
+                                        _stickerPlacements.isEmpty) {
+                                      _extractAndShuffleStickers(groupedData);
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                            Text(
+                              'include_photos'.tr(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () =>
+                                    _generateAndSavePremiumInfographic(
+                                      groupedData,
+                                    ),
+                                child: FittedBox(
+                                  child: Text(
+                                    'generate_with_count'.tr(
+                                      args: [_remainingCount.toString()],
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 25),
@@ -532,10 +640,10 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
               ),
             )
           : (_premiumImageUrl == null && _premiumInfographic == null)
-          ? ElevatedButton(
-              key: const ValueKey('button'),
-              onPressed: () => _generateAndSavePremiumInfographic(groupedData),
-              child: Text('generate_infographic'.tr()),
+          ? Container(
+              key: const ValueKey('no_image'),
+              height: 100,
+              child: Center(child: Text('no_infographic_yet'.tr())),
             )
           : _buildPremiumCard(),
     );
@@ -546,7 +654,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
       aspectRatio: 0.9,
       child: GestureDetector(
         onTap: () {
-          if (_isPremiumUser) {
+          if (_isPremiumUser || _isVipUser) {
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -555,7 +663,8 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                   imageBytes: _premiumInfographic,
                   imageUrl: _premiumImageUrl,
                   stickers: _stickerPlacements,
-                  isPremiumUser: _isPremiumUser, // ✅ 상태 전달
+                  isPremiumUser: _isPremiumUser || _isVipUser,
+                  showStickers: _showStickers,
                 ),
               ),
             );
@@ -592,49 +701,28 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
               ),
             ),
             Positioned(
-              top: 40,
+              top: 20,
               left: 20,
               right: 20,
-              child: Column(
-                children: [
-                  Text(
-                    _travelTitle(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                      shadows: [
-                        Shadow(
-                          offset: const Offset(0, 2),
-                          blurRadius: 10.0,
-                          color: Colors.black.withOpacity(0.6),
-                        ),
-                      ],
+              child: Text(
+                _travelTitle(),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                  shadows: [
+                    Shadow(
+                      offset: const Offset(0, 2),
+                      blurRadius: 10.0,
+                      color: Colors.black.withOpacity(0.6),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "SPECIAL TRAVEL REPORT",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white.withOpacity(0.9),
-                      letterSpacing: 2.5,
-                      shadows: [
-                        Shadow(
-                          offset: const Offset(0, 1),
-                          blurRadius: 4.0,
-                          color: Colors.black.withOpacity(0.4),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            if (!_isPremiumUser)
+            if (!_isPremiumUser && !_isVipUser)
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -677,7 +765,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                 right: sticker.right,
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 500),
-                  opacity: _showStickers ? (_isPremiumUser ? 1.0 : 0.6) : 0.0,
+                  opacity: _showStickers ? 1.0 : 0.0,
                   child: Transform.rotate(
                     angle: sticker.angle,
                     child: _buildStickerFrame(sticker.url),
@@ -712,12 +800,11 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
   }
 }
 
-// ✅ 앨범 뷰어 클래스 (워터마크 로직 추가)
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
   final List<_AlbumItem> items;
   final int initialIndex;
-  final bool isPremiumUser; // ✅ 추가
+  final bool isPremiumUser;
   const _AlbumViewerPage({
     required this.title,
     required this.items,
@@ -776,8 +863,6 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
                     Uri.parse(widget.items[_index].imageUrl),
                   );
                   Uint8List imageBytes = res.bodyBytes;
-
-                  // 💧 프리미엄이 아닐 때 워터마크 합성
                   if (!widget.isPremiumUser) {
                     final ByteData watermarkData = await rootBundle.load(
                       'assets/images/watermark.png',
@@ -786,16 +871,14 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
                         .asUint8List();
                     img.Image? originalImg = img.decodeImage(imageBytes);
                     img.Image? watermarkImg = img.decodeImage(watermarkBytes);
-
                     if (originalImg != null && watermarkImg != null) {
                       int targetWidth = (originalImg.width * 0.15).toInt();
                       img.Image resizedWatermark = img.copyResize(
                         watermarkImg,
                         width: targetWidth,
                       );
-                      // 👻 2. 반투명 처리 (50% 투명도 적용)
                       for (var pixel in resizedWatermark) {
-                        pixel.a = pixel.a * 0.5; // 알파값을 절반으로 줄임
+                        pixel.a = pixel.a * 0.5;
                       }
                       int x = originalImg.width - resizedWatermark.width - 20;
                       int y = originalImg.height - resizedWatermark.height - 20;
@@ -810,7 +893,6 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
                       );
                     }
                   }
-
                   final temp = await getTemporaryDirectory();
                   final file = await File('${temp.path}/share.png').create();
                   await file.writeAsBytes(imageBytes);
@@ -822,7 +904,7 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
                         : null,
                   );
                 } catch (e) {
-                  debugPrint('공유 실패: $e');
+                  AppToast.error(context, 'share_failed'.tr());
                 }
                 setState(() => _isSharing = false);
               },
@@ -842,13 +924,13 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   }
 }
 
-// ✅ 프리미엄 리포트 뷰어 (워터마크 레이어 추가)
 class _PremiumViewerPage extends StatefulWidget {
   final String title;
   final Uint8List? imageBytes;
   final String? imageUrl;
   final List<StickerPlacement> stickers;
-  final bool isPremiumUser; // ✅ 추가
+  final bool isPremiumUser;
+  final bool showStickers;
 
   const _PremiumViewerPage({
     required this.title,
@@ -856,6 +938,7 @@ class _PremiumViewerPage extends StatefulWidget {
     this.imageUrl,
     this.stickers = const [],
     required this.isPremiumUser,
+    required this.showStickers,
   });
 
   @override
@@ -889,7 +972,7 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
             : null,
       );
     } catch (e) {
-      debugPrint('프리미엄 공유 실패: $e');
+      AppToast.error(context, 'share_failed'.tr());
     } finally {
       setState(() => _isSharing = false);
     }
@@ -921,80 +1004,72 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
           ),
         ],
       ),
-      body: Center(
-        child: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 3.0,
-          child: RepaintBoundary(
-            key: _boundaryKey,
-            child: Container(
-              color: Colors.black,
-              padding: const EdgeInsets.all(40),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  widget.imageBytes != null
-                      ? Image.memory(widget.imageBytes!)
-                      : Image.network(widget.imageUrl!),
-                  Positioned(
-                    top: 50,
-                    left: 20,
-                    right: 20,
-                    child: Column(
-                      children: [
-                        Text(
-                          widget.title,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                offset: const Offset(0, 3),
-                                blurRadius: 15.0,
-                                color: Colors.black.withOpacity(0.7),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "SPECIAL TRAVEL REPORT",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white.withOpacity(0.9),
-                            letterSpacing: 4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  for (var sticker in widget.stickers)
+      body: GestureDetector(
+        onTap: () => Navigator.pop(context),
+        behavior: HitTestBehavior.opaque,
+        child: Center(
+          child: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 3.0,
+            child: RepaintBoundary(
+              key: _boundaryKey,
+              child: Container(
+                color: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 60,
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    widget.imageBytes != null
+                        ? Image.memory(widget.imageBytes!)
+                        : Image.network(widget.imageUrl!),
                     Positioned(
-                      top: sticker.top,
-                      bottom: sticker.bottom,
-                      left: sticker.left,
-                      right: sticker.right,
-                      child: Transform.rotate(
-                        angle: sticker.angle,
-                        child: _buildSticker(sticker.url),
+                      top: 15,
+                      left: 20,
+                      right: 20,
+                      child: Text(
+                        widget.title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              offset: const Offset(0, 2),
+                              blurRadius: 10.0,
+                              color: Colors.black.withOpacity(0.6),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-
-                  // 💧 리포트 하단 워터마크 (비-프리미엄 유저 공유용)
-                  if (!widget.isPremiumUser)
-                    Positioned(
-                      bottom: 10,
-                      right: 10,
-                      child: Image.asset(
-                        'assets/images/watermark.png',
-                        width: 100,
-                        opacity: const AlwaysStoppedAnimation(0.8),
+                    if (widget.showStickers)
+                      for (var sticker in widget.stickers)
+                        Positioned(
+                          top: sticker.top,
+                          bottom: sticker.bottom,
+                          left: sticker.left,
+                          right: sticker.right,
+                          child: Transform.rotate(
+                            angle: sticker.angle,
+                            child: _buildSticker(sticker.url),
+                          ),
+                        ),
+                    if (!widget.isPremiumUser)
+                      Positioned(
+                        bottom: 10,
+                        right: 10,
+                        child: Image.asset(
+                          'assets/images/watermark.png',
+                          width: 100,
+                          opacity: const AlwaysStoppedAnimation(0.8),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1005,15 +1080,21 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
 
   Widget _buildSticker(String url) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black45,
+            blurRadius: 12,
+            offset: const Offset(2, 6),
+          ),
+        ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: Image.network(url, width: 75, height: 75, fit: BoxFit.cover),
+        borderRadius: BorderRadius.circular(2),
+        child: Image.network(url, width: 95, height: 95, fit: BoxFit.cover),
       ),
     );
   }

@@ -11,6 +11,7 @@ import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_diary_list_skeleton.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class TravelDiaryListPage extends StatefulWidget {
   final Map<String, dynamic> travel;
@@ -99,14 +100,10 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
             .eq('id', _diaries[i]['id']);
       }
 
-      messenger.showSnackBar(
-        SnackBar(content: Text('save_reorder_success'.tr())),
-      );
+      AppToast.show(context, 'save_reorder_success'.tr());
       await _loadAllDiaries();
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('save_reorder_error'.tr(args: [e.toString()]))),
-      );
+      AppToast.error(context, 'save_reorder_error'.tr(args: [e.toString()]));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -201,12 +198,9 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                     ),
                                   );
 
-                                  messenger.hideCurrentSnackBar();
-                                  messenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text('diary_clear_success'.tr()),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
+                                  AppToast.show(
+                                    context,
+                                    'diary_clear_success'.tr(),
                                   );
                                   await _loadAllDiaries();
                                 },

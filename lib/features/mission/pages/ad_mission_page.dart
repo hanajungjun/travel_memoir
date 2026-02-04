@@ -5,6 +5,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class AdMissionPage extends StatefulWidget {
   const AdMissionPage({super.key});
@@ -62,9 +63,7 @@ class _AdMissionPageState extends State<AdMissionPage> {
         // 보상으로 무료 스탬프 지급
         await _stampService.addFreeStamp(_userId, 1);
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('ad_reward_msg'.tr())));
+          AppToast.show(context, 'ad_reward_msg'.tr());
           setState(() => _isProcessing = false);
           _loadAds();
         }

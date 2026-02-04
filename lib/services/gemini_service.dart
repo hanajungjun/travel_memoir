@@ -91,27 +91,10 @@ $finalPrompt
   ''');
   }
 
-  // ==================================================
-  // ✅ 프리미엄 전용: 여행 전체 통합 인포그래픽 이미지 생성
-  // [수정내용] 당일치기 vs 다일 여행 자동 분기 로직 추가
-  // ==================================================
   Future<Uint8List> generateFullTravelInfographic({
-    required String travelTitle,
     required List<String> allDiaryTexts,
     List<String>? photoUrls,
   }) async {
-    // 🔍 디버깅 로그 추가
-    //debugPrint('--- [GEMINI DEBUG START] ---');
-    //debugPrint('📍 여행 제목: $travelTitle');
-    //debugPrint('📍 전달된 일기 개수 (dayCount): ${allDiaryTexts.length}');
-
-    // for (int i = 0; i < allDiaryTexts.length; i++) {
-    //   debugPrint(
-    //     '   👉 [Day ${i + 1}] 내용 요약: ${allDiaryTexts[i].substring(0, math.min(20, allDiaryTexts[i].length))}...',
-    //   );
-    // }
-    //debugPrint('--- [GEMINI DEBUG END] ---');
-
     final url =
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey';
 
@@ -121,22 +104,18 @@ $finalPrompt
       throw Exception('❌ 활성 프리미엄 프롬프트 없음');
     }
 
-    // --------------------------------------------------
-    // 1️⃣ 여행 기간에 따른 컨셉 지시문 (핵심 분기)
-    // --------------------------------------------------
+    // 1️⃣ 여행 기간에 따른 컨셉 지시문 (기존 로직 유지)
     String durationInstruction = "";
     int dayCount = allDiaryTexts.length;
 
     if (dayCount <= 1) {
-      // 당일치기 컨셉
       durationInstruction = """
 \n[Style Focus: Day Trip Snapshot]
 - This is a single-day trip. Focus on capturing the intense mood and atmosphere of this one day.
 - Highlight the core events of the day in a centralized, large-scale infographic design.
-- Don't split the page; use a unified, high-impact layout that emphasizes the title and the key emotion.
+- Don't split the page; use a unified, high-impact layout that emphasizes the key emotion.
 """;
     } else {
-      // 다일 여행 컨셉
       durationInstruction =
           """
 \n[Style Focus: Multi-day Journey Timeline]
@@ -144,29 +123,40 @@ $finalPrompt
 - Use a timeline or road-map style layout to distinguish between different days.
 - Ensure each day's highlights are summarized and visually partitioned within the graphic.
 """;
+
+      // 각 날짜별 하이라이트 추가
+      List<String> dayInstructions = [];
+      for (int i = 0; i < dayCount; i++) {
+        dayInstructions.add("""
+      [Day ${i + 1} Highlights]:
+      - ${allDiaryTexts[i]}
+      """);
+      }
+
+      // "DAY ~" 대신 구체적인 날짜 추가
+      durationInstruction += dayInstructions.join("\n");
     }
 
-    // --------------------------------------------------
-    // 2️⃣ 사진 배치 지시문 (네모네모 컨셉 반영)
-    // --------------------------------------------------
+    // 2️⃣ 사진 배치 지시문 (기존 로직 유지)
     String photoInstruction = "";
     if (photoUrls != null && photoUrls.isNotEmpty) {
       photoInstruction =
           "\n[Photo Overlay Note]: Real photos will be placed inside the top-left and bottom-right corners as stickers. Keep these areas simple to let the photos stand out.";
     }
 
-    // --------------------------------------------------
-    // 3️⃣ 최종 프롬프트 조립
-    // --------------------------------------------------
+    // 3️⃣ [중요] 텍스트 생성 금지 지시 (제목을 지우기 위함)
+    String noTextInstruction =
+        "\n[STRICT REQUIREMENT: NO TEXT] Do not include any text or letters in the image.";
+
+    // 4️⃣ 최종 프롬프트 조립
     String finalPrompt =
-        premiumPrompt.prompt
-            .replaceAll('\${travelTitle}', travelTitle)
-            .replaceAll(
-              '\${allDiaryTexts.join(\'\\n\')}',
-              allDiaryTexts.join('\n'),
-            ) +
+        premiumPrompt.prompt.replaceAll(
+          '\${allDiaryTexts.join(\'\\n\')}',
+          allDiaryTexts.join('\n'),
+        ) +
         durationInstruction +
-        photoInstruction;
+        photoInstruction +
+        noTextInstruction;
 
     final parts = <Map<String, dynamic>>[
       {'text': finalPrompt},
@@ -193,8 +183,6 @@ $finalPrompt
     final data = jsonDecode(res.body);
     final imageBase64 =
         data['candidates'][0]['content']['parts'][0]['inlineData']['data'];
-
-    debugPrint('🤖 [GEMINI] image success (Size: ${imageBase64.length} bytes)');
 
     return base64Decode(imageBase64);
   }

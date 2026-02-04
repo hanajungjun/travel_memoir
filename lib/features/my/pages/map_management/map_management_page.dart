@@ -7,6 +7,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/services/payment_service.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class MapManagementPage extends StatefulWidget {
   const MapManagementPage({super.key});
@@ -119,10 +120,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
       // 패키지를 못 찾았을 때의 예외 처리
       debugPrint("❌ 지도 구매 패키지를 찾을 수 없음 (mapId: $mapId): $e");
 
-      // 사용자에게 알림을 주고 싶다면 SnackBar 추가
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('상품 정보를 불러올 수 없습니다. ($mapId)')));
+      AppToast.error(context, 'no_products'.tr(args: [mapId]));
     }
   }
 

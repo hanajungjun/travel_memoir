@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class PayManagementPage extends StatefulWidget {
   const PayManagementPage({super.key});
@@ -76,19 +77,12 @@ class _PayManagementPageState extends State<PayManagementPage>
       if (success) {
         await _loadSubscriptionStatus();
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('upgrade_success_msg'.tr())));
+          AppToast.show(context, 'upgrade_success_msg'.tr());
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('purchase_error_msg'.tr()),
-            backgroundColor: Colors.red,
-          ),
-        );
+        AppToast.error(context, 'purchase_error_msg'.tr());
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -402,14 +396,11 @@ class _PayManagementPageState extends State<PayManagementPage>
                 (_customerInfo?.entitlements.all[_vipEntitlementId]?.isActive ??
                     false);
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  isPremiumNow
-                      ? 'restore_success_msg'.tr()
-                      : 'restore_no_history_msg'.tr(),
-                ),
-              ),
+            AppToast.show(
+              context,
+              isPremiumNow
+                  ? 'restore_success_msg'.tr()
+                  : 'restore_no_history_msg'.tr(),
             );
           }
         },

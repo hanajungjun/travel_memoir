@@ -11,6 +11,7 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class CoinShopPage extends StatefulWidget {
   const CoinShopPage({super.key});
@@ -167,9 +168,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
         final newBalance = _fetchCoinBalances();
         if (mounted) {
           setState(() => _balanceFuture = newBalance);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('upgrade_success_msg'.tr())));
+          AppToast.show(context, 'upgrade_success_msg'.tr());
         }
       }
     } catch (e) {
@@ -203,9 +202,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     if (_adUsedToday >= _adDailyLimit) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('ad_limit_reached'.tr())));
+      AppToast.error(context, 'ad_limit_reached'.tr());
       return;
     }
     if (!_isAdLoaded || _rewardedAd == null) {
@@ -232,9 +229,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
         final newBalance = _fetchCoinBalances();
         if (mounted) {
           setState(() => _balanceFuture = newBalance);
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('ad_reward_success'.tr())));
+          AppToast.show(context, 'ad_reward_success'.tr());
         }
       },
     );

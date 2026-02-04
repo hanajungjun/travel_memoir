@@ -15,6 +15,7 @@ import 'package:travel_memoir/features/travel_info/pages/travel_type_select_page
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_info_list_skeleton.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class TravelInfoPage extends StatefulWidget {
   const TravelInfoPage({super.key});
@@ -114,30 +115,17 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                                   travel['id'],
                                 );
 
-                                // ✅ 2. 삭제 완료 토스트 메세지(SnackBar) 복구!
+                                // ✅ 2. 삭제 완료 토스트 메세지
                                 if (mounted) {
-                                  ScaffoldMessenger.of(
+                                  AppToast.show(
                                     context,
-                                  ).hideCurrentSnackBar();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'travel_delete_success'.tr(),
-                                      ),
-                                      backgroundColor: Colors.black87,
-                                      behavior: SnackBarBehavior.floating,
-                                      duration: const Duration(seconds: 2),
-                                    ),
+                                    'travel_delete_success'.tr(),
                                   );
                                   _refresh();
                                 }
                               } catch (e) {
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('delete_error'.tr()),
-                                    ),
-                                  );
+                                  AppToast.error(context, 'delete_error'.tr());
                                 }
                               }
                             },

@@ -10,6 +10,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/app/app_shell.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -92,20 +93,15 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('please_enter_id_pw'.tr())));
+      AppToast.error(context, 'please_enter_id_pw'.tr());
       return;
     }
-
     setState(() => _isLoading = true);
     try {
       await supabase.auth.signInWithPassword(email: email, password: password);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('login_failed'.tr())));
+        AppToast.error(context, 'login_failed'.tr());
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -181,9 +177,7 @@ class _LoginPageState extends State<LoginPage> {
               await supabase.auth.signInWithOtp(email: controller.text.trim());
               if (mounted) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('check_email_link'.tr())),
-                );
+                AppToast.show(context, 'check_email_link'.tr());
               }
             },
             child: Text('send_link'.tr()),

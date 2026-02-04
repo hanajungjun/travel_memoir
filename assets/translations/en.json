@@ -348,7 +348,7 @@
   "trip_with_place": "Trip to",
   "day_label": "DAY",
   "no_photos_this_day": "No photos for this day.",
-  "premium_infographic_title": "PREMIUM INFOGRAPHIC",
+  "premium_infographic_title": "INFOGRAPHIC",
   "generate_infographic": "Generate Infographic",
   "premium_unlock_label": "Unlock Premium",
   "premium_infographic_desc": "Travel reports are for premium users.",
@@ -367,5 +367,10 @@
   "daily_50_ai_generations": "Daily 50 AI More generations",
   "complete_removal_of_watermark": "Complete removal of watermark",
   "vvip_exclusive_badge": "VVIP exclusive badge",
-  "all_premium_features": "All premium features"
+  "all_premium_features": "All premium features",
+  "infographic_limit_reached": "You have used all your generation limits.",
+  "no_infographic_yet": "Try generating an infographic!",
+  "include_photos": "Include Photos",
+  "generate_with_count": "Generate ({} left)",
+  "generating_infographic": "Generating..."
 }
