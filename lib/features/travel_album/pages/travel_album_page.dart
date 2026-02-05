@@ -58,7 +58,7 @@ class TravelAlbumPage extends StatefulWidget {
   State<TravelAlbumPage> createState() => _TravelAlbumPageState();
 }
 
-class _TravelAlbumPageState extends State<TravelAlbumPage> {
+class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
   late Future<Map<int, List<_AlbumItem>>> _groupedFuture;
   Uint8List? _premiumInfographic;
   String? _premiumImageUrl;
@@ -258,16 +258,14 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     }
   }
 
-  // ✅ [수정 완료] AppDialogs.showAction 공통 함수 적용
   void _showPremiumRequiredDialog() {
     AppDialogs.showAction(
       context: context,
-      title: 'premium_only_title',
-      message: 'premium_infographic_desc',
-      actionLabel: 'go_to_shop',
-      actionColor: Colors.amber, // 프리미엄 강조 컬러 유지
+      title: 'premium_only_title'.tr(),
+      message: 'premium_infographic_desc'.tr(),
+      actionLabel: 'go_to_shop'.tr(),
+      actionColor: Colors.amber,
       onAction: () {
-        // 상점 이동 후 돌아오면 설정 초기화 로직 실행
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const CoinShopPage()),
@@ -367,6 +365,203 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
         .replaceAll('여행', '')
         .replaceAll(' Trip', '')
         .trim();
+  }
+
+  // ==========================================
+  // 🎯 [핵심 수정] 프리미엄 카드 컨테이너 로직
+  // ==========================================
+  Widget _buildPremiumCardContainer(Map<int, List<_AlbumItem>> groupedData) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 500),
+      child: _isPremiumLoading
+          ? _buildLoadingState() // 🎯 누락되었던 로딩 함수 호출
+          : (!_isPremiumUser && !_isVipUser)
+          ? _buildPremiumCard() // 🎯 일반 유저는 데이터 상관없이 업그레이드 카드 노출
+          : (_premiumImageUrl == null && _premiumInfographic == null)
+          ? Container(
+              key: const ValueKey('no_image'),
+              height: 100,
+              child: Center(child: Text('no_infographic_yet'.tr())),
+            )
+          : _buildPremiumCard(), // 프리미엄 유저 + 데이터 있음
+    );
+  }
+
+  // ==========================================
+  // 🎯 [신규] 누락되었던 로딩 위젯 함수
+  // ==========================================
+  Widget _buildLoadingState() {
+    return AspectRatio(
+      key: const ValueKey('loading'),
+      aspectRatio: 0.9,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Colors.amber),
+            const SizedBox(height: 16),
+            Text('generating_infographic'.tr(), style: AppTextStyles.bodyMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumCard() {
+    final bool hasImage =
+        _premiumInfographic != null || _premiumImageUrl != null;
+
+    return AspectRatio(
+      aspectRatio: 0.9,
+      child: GestureDetector(
+        onTap: () {
+          if (_isPremiumUser || _isVipUser) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => _PremiumViewerPage(
+                  title: _travelTitle(),
+                  imageBytes: _premiumInfographic,
+                  imageUrl: _premiumImageUrl,
+                  stickers: _stickerPlacements,
+                  isPremiumUser: _isPremiumUser || _isVipUser,
+                  showStickers: _showStickers,
+                ),
+              ),
+            );
+          } else {
+            _showPremiumRequiredDialog();
+          }
+        },
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[100], // 데이터 없을 때의 배경색
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: hasImage
+                      ? (_premiumInfographic != null
+                            ? Image.memory(
+                                _premiumInfographic!,
+                                fit: BoxFit.cover,
+                              )
+                            : Image.network(
+                                _premiumImageUrl!,
+                                fit: BoxFit.cover,
+                              ))
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            if (hasImage)
+              Positioned(
+                top: 20,
+                left: 20,
+                right: 20,
+                child: Text(
+                  _travelTitle(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        offset: const Offset(0, 2),
+                        blurRadius: 10.0,
+                        color: Colors.black.withOpacity(0.6),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (!_isPremiumUser && !_isVipUser)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.lock_rounded,
+                          color: Colors.white,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'premium_unlock_label'.tr(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            for (var sticker in _stickerPlacements)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutBack,
+                top: _showStickers
+                    ? sticker.top
+                    : (sticker.top != null ? sticker.top! + 15 : null),
+                bottom: _showStickers
+                    ? sticker.bottom
+                    : (sticker.bottom != null ? sticker.bottom! + 15 : null),
+                left: sticker.left,
+                right: sticker.right,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 500),
+                  opacity: _showStickers ? 1.0 : 0.0,
+                  child: Transform.rotate(
+                    angle: sticker.angle,
+                    child: _buildStickerFrame(sticker.url),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStickerFrame(String url) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(2, 6),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(2),
+        child: Image.network(url, width: 95, height: 95, fit: BoxFit.cover),
+      ),
+    );
   }
 
   @override
@@ -552,9 +747,8 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
                                       newValue,
                                     );
                                     if (_showStickers &&
-                                        _stickerPlacements.isEmpty) {
+                                        _stickerPlacements.isEmpty)
                                       _extractAndShuffleStickers(groupedData);
-                                    }
                                   });
                                 },
                               ),
@@ -609,188 +803,9 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
       ),
     );
   }
-
-  Widget _buildPremiumCardContainer(Map<int, List<_AlbumItem>> groupedData) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 500),
-      child: _isPremiumLoading
-          ? AspectRatio(
-              key: const ValueKey('loading'),
-              aspectRatio: 0.9,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(color: Colors.amber),
-                    const SizedBox(height: 16),
-                    Text(
-                      'generating_infographic'.tr(),
-                      style: AppTextStyles.bodyMuted,
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : (_premiumImageUrl == null && _premiumInfographic == null)
-          ? Container(
-              key: const ValueKey('no_image'),
-              height: 100,
-              child: Center(child: Text('no_infographic_yet'.tr())),
-            )
-          : _buildPremiumCard(),
-    );
-  }
-
-  Widget _buildPremiumCard() {
-    return AspectRatio(
-      aspectRatio: 0.9,
-      child: GestureDetector(
-        onTap: () {
-          if (_isPremiumUser || _isVipUser) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _PremiumViewerPage(
-                  title: _travelTitle(),
-                  imageBytes: _premiumInfographic,
-                  imageUrl: _premiumImageUrl,
-                  stickers: _stickerPlacements,
-                  isPremiumUser: _isPremiumUser || _isVipUser,
-                  showStickers: _showStickers,
-                ),
-              ),
-            );
-          } else {
-            _showPremiumRequiredDialog();
-          }
-        },
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: _premiumInfographic != null
-                      ? Image.memory(_premiumInfographic!, fit: BoxFit.cover)
-                      : Image.network(
-                          _premiumImageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Center(child: Icon(Icons.error)),
-                        ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: 20,
-              left: 20,
-              right: 20,
-              child: Text(
-                _travelTitle(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -0.5,
-                  shadows: [
-                    Shadow(
-                      offset: const Offset(0, 2),
-                      blurRadius: 10.0,
-                      color: Colors.black.withOpacity(0.6),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (!_isPremiumUser && !_isVipUser)
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.4),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.lock_rounded,
-                          color: Colors.white,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'premium_unlock_label'.tr(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            for (var sticker in _stickerPlacements)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.easeOutBack,
-                top: _showStickers
-                    ? sticker.top
-                    : (sticker.top != null ? sticker.top! + 15 : null),
-                bottom: _showStickers
-                    ? sticker.bottom
-                    : (sticker.bottom != null ? sticker.bottom! + 15 : null),
-                left: sticker.left,
-                right: sticker.right,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 500),
-                  opacity: _showStickers ? 1.0 : 0.0,
-                  child: Transform.rotate(
-                    angle: sticker.angle,
-                    child: _buildStickerFrame(sticker.url),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStickerFrame(String url) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(2, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(2),
-        child: Image.network(url, width: 95, height: 95, fit: BoxFit.cover),
-      ),
-    );
-  }
 }
+
+// (이하 _AlbumViewerPage 및 _PremiumViewerPage 로직은 준님의 원본과 동일하게 유지 - 생략 없이 포함)
 
 class _AlbumViewerPage extends StatefulWidget {
   final String title;
@@ -803,7 +818,6 @@ class _AlbumViewerPage extends StatefulWidget {
     required this.initialIndex,
     required this.isPremiumUser,
   });
-
   @override
   State<_AlbumViewerPage> createState() => _AlbumViewerPageState();
 }
@@ -812,7 +826,6 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
   late final PageController _controller;
   late int _index;
   bool _isSharing = false;
-
   @override
   void initState() {
     super.initState();
@@ -909,7 +922,6 @@ class _AlbumViewerPageState extends State<_AlbumViewerPage> {
         itemCount: widget.items.length,
         onPageChanged: (i) => setState(() => _index = i),
         itemBuilder: (_, i) => GestureDetector(
-          // 👈 빈 영역 클릭 감지를 위해 추가
           onTap: () => Navigator.pop(context),
           behavior: HitTestBehavior.opaque,
           child: InteractiveViewer(
@@ -928,7 +940,6 @@ class _PremiumViewerPage extends StatefulWidget {
   final List<StickerPlacement> stickers;
   final bool isPremiumUser;
   final bool showStickers;
-
   const _PremiumViewerPage({
     required this.title,
     this.imageBytes,
@@ -937,7 +948,6 @@ class _PremiumViewerPage extends StatefulWidget {
     required this.isPremiumUser,
     required this.showStickers,
   });
-
   @override
   State<_PremiumViewerPage> createState() => _PremiumViewerPageState();
 }
@@ -945,7 +955,6 @@ class _PremiumViewerPage extends StatefulWidget {
 class _PremiumViewerPageState extends State<_PremiumViewerPage> {
   bool _isSharing = false;
   final GlobalKey _boundaryKey = GlobalKey();
-
   Future<void> _shareImage(BuildContext ctx) async {
     setState(() => _isSharing = true);
     try {
@@ -963,7 +972,6 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
       final box = ctx.findRenderObject() as RenderBox?;
       await Share.shareXFiles(
         [XFile(file.path)],
-        // text: 'share_report_text'.tr(),
         sharePositionOrigin: box != null
             ? box.localToGlobal(Offset.zero) & box.size
             : null,
@@ -1009,11 +1017,9 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
             minScale: 0.5,
             maxScale: 3.0,
             child: Container(
-              // 이 컨테이너의 패딩이 캡처에 포함되지 않도록 RepaintBoundary를 내부로 이동
               color: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
               child: RepaintBoundary(
-                // 👈 캡처 범위를 딱 맞는 Stack 영역으로 이동
                 key: _boundaryKey,
                 child: Stack(
                   clipBehavior: Clip.none,
