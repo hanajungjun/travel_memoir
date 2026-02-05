@@ -283,74 +283,122 @@ class _StateSearchBottomSheetState extends State<_StateSearchBottomSheet> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF6F6F6), // ✅ 배경색 통일
       body: SafeArea(
         bottom: false,
         child: Column(
           children: [
+            // 1. 상단 헤더 영역 (닫기 버튼 위치 및 디자인 교체)
             Padding(
-              padding: const EdgeInsets.all(8),
-              child: Stack(
-                alignment: Alignment.center,
+              padding: const EdgeInsets.fromLTRB(
+                23,
+                64,
+                32,
+                7,
+              ), // ✅ 상단 여백 64 반영
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
-                        Icons.close,
-                        color: Colors.black87,
-                        size: 28,
-                      ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      size: 27,
+                      color: Color(0xFF909090),
                     ),
-                  ),
-                  Text(
-                    'select_state'.tr(),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
             ),
+
+            // 2. 🔍 검색 입력창 (그림자가 있는 카드 디자인 반영)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: TextField(
-                controller: _searchController,
-                onChanged: _runFilter,
-                decoration: InputDecoration(
-                  hintText: 'search_state_hint'.tr(),
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  fillColor: const Color(0xFFF1F3F5),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
-                    borderSide: BorderSide.none,
+              padding: const EdgeInsets.fromLTRB(
+                27,
+                0,
+                27,
+                30,
+              ), // ✅ 좌우 여백 27 반영
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _runFilter,
+                  autofocus: false, // ✅ 자동 포커스 해제 (필요시 true로 변경 가능)
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF333333),
+                    fontWeight: FontWeight.w400,
                   ),
-                  contentPadding: EdgeInsets.zero,
+                  decoration: InputDecoration(
+                    hintText: 'search_state_hint'.tr(),
+                    hintStyle: const TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFFBDBDBD),
+                      fontWeight: FontWeight.w400,
+                    ),
+                    prefixIconConstraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(left: 15, right: 8),
+                      child: SvgPicture.asset(
+                        'assets/icons/ico_search.svg', // ✅ SVG 아이콘 적용
+                        width: 16,
+                        height: 16,
+                      ),
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
                 ),
               ),
             ),
+
+            // 3. 🌍 리스트 영역 (도트 라인 및 여백 반영)
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 27,
+                ), // ✅ 좌우 여백 27 반영
                 itemCount: _filteredFeatures.length,
-                separatorBuilder: (context, index) =>
-                    Divider(color: Colors.grey[100]),
+                separatorBuilder: (context, index) => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 2),
+                  child: DottedDivider(), // ✅ 도트 라인 적용
+                ),
                 itemBuilder: (context, index) {
                   final String name =
                       _filteredFeatures[index]['properties']?['NAME'] ??
                       'Unknown';
                   return ListTile(
+                    contentPadding: const EdgeInsets.only(
+                      left: 5,
+                    ), // ✅ 요청하신 왼쪽 여백 5px
                     title: Text(
                       name,
                       style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 15, // ✅ 디자인 가이드에 맞춘 크기
+                        color: Color(0xFF333333),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                    trailing: const Icon(
+                      Icons.chevron_right, // ✅ 디자인 가이드 아이콘
+                      color: Color(0xFFD1D1D1),
+                    ),
                     onTap: () => Navigator.pop(context, name),
                   );
                 },
@@ -361,4 +409,35 @@ class _StateSearchBottomSheetState extends State<_StateSearchBottomSheet> {
       ),
     );
   }
+}
+
+/// ✅ 도트 라인(점선)을 그리기 위한 위젯
+class DottedDivider extends StatelessWidget {
+  const DottedDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(double.infinity, 1),
+      painter: DashPainter(),
+    );
+  }
+}
+
+class DashPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    double dashWidth = 2, dashSpace = 3, startX = 0;
+    final paint = Paint()
+      ..color =
+          const Color(0xFFD1D1D1) // 이미지와 유사한 연한 회색 점선
+      ..strokeWidth = 1;
+    while (startX < size.width) {
+      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
+      startX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

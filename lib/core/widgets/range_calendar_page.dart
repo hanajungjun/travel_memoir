@@ -66,7 +66,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(23, 10, 32, 7),
+              padding: const EdgeInsets.fromLTRB(23, 15, 32, 7),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -111,7 +111,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(27, 0, 27, 20),
+              padding: const EdgeInsets.fromLTRB(27, 0, 27, 45),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(25, 22, 25, 22),
@@ -176,7 +176,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(left: 12, top: 15),
+                          padding: const EdgeInsets.only(left: 12, top: 5),
                           child: Text(
                             month,
                             style: const TextStyle(
@@ -186,7 +186,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 25),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children:

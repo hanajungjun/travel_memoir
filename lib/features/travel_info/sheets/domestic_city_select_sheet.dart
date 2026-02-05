@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/korea/korea_all.dart';
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // ✅ 아이콘 사용을 위해 추가
 
 class DomesticCitySelectSheet extends StatefulWidget {
   const DomesticCitySelectSheet({super.key, required this.onSelected});
@@ -45,91 +46,155 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
                 isKo ? a.name.compareTo(b.name) : a.nameEn.compareTo(b.nameEn),
           );
 
-    return Container(
-      height: MediaQuery.of(context).size.height,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 8, top: 12),
-            child: Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.black45, size: 28),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F6F6),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // 1. 상단 헤더 영역 (닫기 버튼 위치 조정)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(23, 64, 32, 7),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      size: 27,
+                      color: Color(0xFF909090),
+                    ),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
-              child: TextField(
-                autofocus: true,
-                onChanged: (value) => setState(() => _query = value),
-                decoration: InputDecoration(
-                  hintText: 'search_city_hint'.tr(),
-                  hintStyle: const TextStyle(color: Colors.black26),
-                  prefixIcon: const Icon(Icons.search, color: Colors.black26),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 15),
+            ),
+
+            // 2. 🔍 검색 입력창 (첫 번째 소스 스타일 적용)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(27, 0, 27, 30),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  autofocus: false,
+                  onChanged: (value) => setState(() => _query = value),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF333333),
+                    fontWeight: FontWeight.w400,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'search_city_hint'.tr(),
+                    hintStyle: const TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFFBDBDBD),
+                      fontWeight: FontWeight.w400,
+                    ),
+                    prefixIconConstraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    prefixIcon: Padding(
+                      padding: const EdgeInsets.only(left: 15, right: 8),
+                      child: SvgPicture.asset(
+                        'assets/icons/ico_search.svg',
+                        width: 16,
+                        height: 16,
+                      ),
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 12),
-
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              itemCount: regions.length,
-              separatorBuilder: (_, __) =>
-                  Divider(height: 1, color: Colors.black.withOpacity(0.05)),
-              itemBuilder: (context, index) {
-                final region = regions[index];
-                return ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 8,
-                    horizontal: 8,
-                  ),
-                  title: Text(
-                    // 언어 설정에 따라 이름 표시 (한국어/대문자 영어)
-                    isKo ? region.name : region.nameEn,
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+            // 3. 🌍 리스트 영역 (좌우 여백 27px 및 도트 라인 적용)
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 27),
+                itemCount: regions.length,
+                separatorBuilder: (_, __) => const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 2),
+                  child: DottedDivider(), // ✅ 도트 라인 구분선 적용
+                ),
+                itemBuilder: (context, index) {
+                  final region = regions[index];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.only(left: 5),
+                    title: Text(
+                      // 언어 설정에 따라 이름 표시 (한국어/대문자 영어)
+                      isKo ? region.name : region.nameEn,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Color(0xFF333333),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  subtitle: Text(
-                    region.province,
-                    style: const TextStyle(color: Colors.black38, fontSize: 14),
-                  ),
-                  onTap: () {
-                    widget.onSelected(region);
-                    Navigator.pop(context);
-                  },
-                );
-              },
+                    subtitle: Text(
+                      region.province,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF686868),
+                        fontWeight: FontWeight.w300,
+                      ),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Color(0xFFD1D1D1),
+                    ),
+                    onTap: () {
+                      widget.onSelected(region);
+                      Navigator.pop(context);
+                    },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+/// ✅ 도트 라인(점선)을 그리기 위한 위젯
+class DottedDivider extends StatelessWidget {
+  const DottedDivider({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(double.infinity, 1),
+      painter: DashPainter(),
+    );
+  }
+}
+
+class DashPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    double dashWidth = 2, dashSpace = 3, startX = 0;
+    final paint = Paint()
+      ..color = const Color(0xFFD1D1D1)
+      ..strokeWidth = 1;
+    while (startX < size.width) {
+      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
+      startX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
