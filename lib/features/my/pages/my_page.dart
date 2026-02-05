@@ -16,6 +16,7 @@ import 'package:travel_memoir/features/my/pages/map_management/map_management_pa
 import 'package:travel_memoir/core/utils/travel_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -74,44 +75,21 @@ class _MyPageState extends State<MyPage> {
     if (hasAccess) {
       _showStickerPopup(context);
     } else {
-      showDialog(
+      // 🎯 공통 액션 다이얼로그 호출
+      AppDialogs.showAction(
         context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: Text('premium_only_title'.tr()),
-          content: Text('premium_benefit_desc'.tr()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('close'.tr()),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: () async {
-                Navigator.pop(context);
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const CoinShopPage()),
-                );
-                _refreshPage();
-              },
-              child: Text(
-                'go_to_shop'.tr(),
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
+        title: 'premium_only_title',
+        message: 'premium_benefit_desc',
+        actionLabel: 'go_to_shop',
+        actionColor: Colors.amber, // 프리미엄 강조색 유지
+        onAction: () async {
+          // 상점 이동 후 돌아오면 페이지 새로고침
+          await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CoinShopPage()),
+          );
+          _refreshPage();
+        },
       );
     }
   }

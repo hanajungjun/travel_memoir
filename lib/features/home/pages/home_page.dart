@@ -16,6 +16,7 @@ import 'package:travel_memoir/core/widgets/skeletons/recent_travel_section_skele
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class HomePage extends StatefulWidget {
   final VoidCallback onGoToTravel;
@@ -74,41 +75,14 @@ class _HomePageState extends State<HomePage> with RouteAware {
         .replaceAll(r'\n', '\n')
         .replaceAll('{amount}', reward['reward_amount'].toString());
 
-    showDialog(
+    AppDialogs.showIconAlert(
       context: context,
+      title: title,
+      message: desc,
+      icon: Icons.stars,
+      iconColor: Colors.orangeAccent,
       barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Center(
-          child: Text(
-            title,
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.stars, size: 60, color: Colors.orangeAccent),
-            const SizedBox(height: 20),
-            Text(desc, textAlign: TextAlign.center),
-          ],
-        ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _triggerRefresh();
-              },
-              child: Text(
-                "close".tr(),
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ],
-      ),
+      onClose: () => _triggerRefresh(),
     );
   }
 

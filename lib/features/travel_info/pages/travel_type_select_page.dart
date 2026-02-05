@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 import 'domestic_travel_date_page.dart';
 import 'overseas_travel_date_page.dart';
@@ -56,56 +57,22 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
     }
   }
 
-  /// ✅ 구매 유도 팝업 (상점 연결 로직 추가)
+  // ✅ 구매 유도 팝업 (상점 연결 로직 추가)
+  // ✅ [수정 완료] AppDialogs.showAction 적용
   void _showPurchaseDialog() {
-    showDialog(
+    AppDialogs.showAction(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'purchase_title'.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text(
-          'purchase_us_map_msg'.tr(),
-        ), // "미국 지도가 필요합니다. 관리 화면으로 갈까요?"
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'cancel'.tr(),
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context); // 팝업 닫기
-
-              // 🎯 목적지를 MapManagementPage로 변경!
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const MapManagementPage()),
-              ).then((_) {
-                // 관리 페이지에서 지도를 활성화하고 돌아올 수 있으니 다시 체크
-                _checkMapAccess();
-              });
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE74C3C),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: Text(
-              'go_to_management'.tr(), // "관리하러 가기" (다국어 키 추천)
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
+      title: 'purchase_title',
+      message: 'purchase_us_map_msg',
+      actionLabel: 'go_to_management',
+      // actionColor는 AppDialogs의 기본값(amber 또는 blue)을 사용합니다.
+      onAction: () {
+        // 🎯 관리 페이지 이동 및 복귀 후 권한 체크 로직
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const MapManagementPage()),
+        ).then((_) => _checkMapAccess());
+      },
     );
   }
 

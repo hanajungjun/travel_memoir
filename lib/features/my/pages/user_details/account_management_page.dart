@@ -5,6 +5,7 @@ import 'package:easy_localization/easy_localization.dart'; // 추가
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/auth/login_page.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class AccountManagementPage extends StatefulWidget {
   const AccountManagementPage({super.key});
@@ -23,27 +24,20 @@ class _AccountManagementPageState extends State<AccountManagementPage> {
     final user = supabase.auth.currentUser;
     if (user == null) return;
 
-    final confirm = await showDialog<bool>(
+    // ✅ [수정 완료] AppDialogs.showConfirm 적용
+    final confirm = await AppDialogs.showConfirm(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text('delete_account'.tr()),
-        content: Text('delete_account_confirm_message'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('cancel'.tr()),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('delete'.tr()),
-          ),
-        ],
-      ),
+      title: 'delete_account',
+      message: 'delete_account_confirm_message',
+      confirmLabel: 'delete',
+      confirmColor: Colors.red, // 👈 강조색 전달
     );
 
+    // ✅ [수정 후 추천]
+    // 사용자가 삭제를 확인(true)하지 않았다면 바로 함수를 종료시킵니다.
     if (confirm != true) return;
 
+    // 이후 로직(_deleting = true 등)이 실질적인 '_deleteAccountLogic' 역할을 수행합니다.
     setState(() => _deleting = true);
 
     try {

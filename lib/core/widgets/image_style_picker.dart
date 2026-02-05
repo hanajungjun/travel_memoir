@@ -8,6 +8,7 @@ import 'package:travel_memoir/services/image_style_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class ImageStylePicker extends StatefulWidget {
   final ValueChanged<ImageStyleModel> onChanged;
@@ -71,47 +72,18 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   bool get _hasProAccess => _isPremiumUser || _isVipUser;
 
   void _showPremiumRequiredDialog() {
-    showDialog(
+    AppDialogs.showAction(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'premium_only_style_title'.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text('premium_only_style_desc'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'close'.tr(),
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CoinShopPage()),
-              ).then((_) => _checkUserStatus());
-            },
-            child: Text(
-              'go_to_shop'.tr(),
-              style: const TextStyle(
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
+      title: 'premium_only_style_title',
+      message: 'premium_only_style_desc',
+      actionLabel: 'go_to_shop',
+      actionColor: Colors.amber,
+      onAction: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CoinShopPage()),
+        ).then((_) => _checkUserStatus());
+      },
     );
   }
 

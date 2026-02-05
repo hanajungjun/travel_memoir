@@ -10,6 +10,7 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class PayManagementPage extends StatefulWidget {
   const PayManagementPage({super.key});
@@ -90,33 +91,18 @@ class _PayManagementPageState extends State<PayManagementPage>
   }
 
   Future<void> _handleCancelSubscription() async {
-    final bool? confirm = await showDialog<bool>(
+    // 🎯 공통 확인 다이얼로그 호출 (빨간색 강조 버튼 적용)
+    final bool? confirm = await AppDialogs.showConfirm(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('cancel_subscription_confirm_title'.tr()),
-        content: Text('cancel_subscription_confirm_msg'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(
-              'cancel'.tr(),
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'confirm_cancel'.tr(),
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
+      title: 'cancel_subscription_confirm_title',
+      message: 'cancel_subscription_confirm_msg',
+      confirmLabel: 'confirm_cancel', // 👈 취소 확인용 라벨
+      confirmColor: Colors.red, // 👈 경고 의미의 빨간색 적용
     );
 
     if (confirm != true) return;
 
+    // 구독 관리 페이지 이동 로직 (변경 없음)
     final String cancelUrl = Platform.isIOS
         ? "https://apps.apple.com/account/subscriptions"
         : "https://play.google.com/store/account/subscriptions";
