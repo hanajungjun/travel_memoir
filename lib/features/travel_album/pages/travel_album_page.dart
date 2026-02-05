@@ -19,6 +19,7 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 // ✅ 스티커 위치 정보 모델
 class StickerPlacement {
@@ -257,29 +258,21 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> {
     }
   }
 
+  // ✅ [수정 완료] AppDialogs.showAction 공통 함수 적용
   void _showPremiumRequiredDialog() {
-    showDialog(
+    AppDialogs.showAction(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('premium_only_title'.tr()),
-        content: Text('premium_infographic_desc'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('close'.tr()),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const CoinShopPage()),
-              ).then((_) => _initSettings());
-            },
-            child: Text('go_to_shop'.tr()),
-          ),
-        ],
-      ),
+      title: 'premium_only_title',
+      message: 'premium_infographic_desc',
+      actionLabel: 'go_to_shop',
+      actionColor: Colors.amber, // 프리미엄 강조 컬러 유지
+      onAction: () {
+        // 상점 이동 후 돌아오면 설정 초기화 로직 실행
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const CoinShopPage()),
+        ).then((_) => _initSettings());
+      },
     );
   }
 

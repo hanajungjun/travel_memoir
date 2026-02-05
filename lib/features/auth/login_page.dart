@@ -11,6 +11,7 @@ import 'package:travel_memoir/app/app_shell.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -159,31 +160,21 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _loginWithEmail() async {
     final controller = TextEditingController();
-    await showDialog(
+
+    AppDialogs.showInput(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text('email_login_title'.tr()),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(hintText: 'email_hint'.tr()),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('cancel'.tr()),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await supabase.auth.signInWithOtp(email: controller.text.trim());
-              if (mounted) {
-                Navigator.pop(context);
-                AppToast.show(context, 'check_email_link'.tr());
-              }
-            },
-            child: Text('send_link'.tr()),
-          ),
-        ],
-      ),
+      title: 'email_login_title',
+      hintText: 'email_hint',
+      controller: controller,
+      confirmLabel: 'send_link',
+      onConfirm: (email) async {
+        await supabase.auth.signInWithOtp(email: email);
+
+        if (mounted) {
+          Navigator.pop(context); // 팝업 닫기
+          AppToast.show(context, 'check_email_link'.tr());
+        }
+      },
     );
   }
 

@@ -35,6 +35,7 @@ import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/storage_paths.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class TravelDayPage extends StatefulWidget {
   final String travelId;
@@ -446,44 +447,33 @@ class _TravelDayPageState extends State<TravelDayPage>
     }
   }
 
+  // ✅ [수정 완료] AppDialogs.showChoice 적용
   void _showCoinEmptyDialog() {
-    showDialog(
+    AppDialogs.showChoice(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('coin_empty_title'.tr()),
-        content: Text('coin_empty_desc'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AdMissionPage()),
-              );
-            },
-            child: Text(
-              'free_charging_station'.tr(),
-              style: const TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              bool? purchased = await showModalBottomSheet<bool>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => const CoinPaywallBottomSheet(),
-              );
-              if (purchased == true) await _refreshStampCounts();
-            },
-            child: Text('go_to_shop_btn'.tr()),
-          ),
-        ],
-      ),
+      title: 'coin_empty_title',
+      message: 'coin_empty_desc',
+      // 1. 무료 충전소 이동 (왼쪽 버튼)
+      firstLabel: 'free_charging_station',
+      onFirstAction: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const AdMissionPage()),
+        );
+      },
+      // 2. 코인 상점 바텀시트 열기 (오른쪽 버튼)
+      secondLabel: 'go_to_shop_btn',
+      onSecondAction: () async {
+        bool? purchased = await showModalBottomSheet<bool>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => const CoinPaywallBottomSheet(),
+        );
+
+        // 구매 성공 시 스탬프 개수 새로고침
+        if (purchased == true) await _refreshStampCounts();
+      },
     );
   }
 
@@ -806,78 +796,21 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   void _showImagePopup() {
-    showDialog(
+    AppDialogs.showImagePreview(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.9),
-      builder: (_) => StatefulBuilder(
-        builder: (context, setPopupState) => Stack(
-          children: [
-            GestureDetector(
-              onTap: () => Navigator.pop(context),
-              child: Dialog(
-                insetPadding: EdgeInsets.zero,
-                backgroundColor: Colors.transparent,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: double.infinity,
-                  child: InteractiveViewer(
-                    minScale: 1.0,
-                    maxScale: 4.0,
-                    child: _imageUrl != null
-                        ? Image.network(_imageUrl!, fit: BoxFit.contain)
-                        : (_generatedImage != null
-                              ? Image.memory(
-                                  _generatedImage!,
-                                  fit: BoxFit.contain,
-                                )
-                              : const SizedBox()),
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 10,
-              right: 20,
-              child: Material(
-                color: Colors.transparent,
-                child: GestureDetector(
-                  onTap: _isSharing
-                      ? null
-                      : () async {
-                          setPopupState(() {});
-                          await _shareDiaryImage(context);
-                          setPopupState(() {});
-                        },
-                  child: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: _isSharing
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : const Icon(
-                              Icons.ios_share,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      imageUrl: _imageUrl,
+      imageBytes: _generatedImage,
+      isSharing: _isSharing,
+      onShare: (setPopupState) async {
+        // 🎯 다이얼로그 내부 로딩 UI 업데이트
+        setPopupState(() {});
+
+        // 실제 공유 로직 실행
+        await _shareDiaryImage(context);
+
+        // 완료 후 다시 UI 업데이트
+        setPopupState(() {});
+      },
     );
   }
 

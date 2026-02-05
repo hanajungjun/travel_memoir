@@ -12,6 +12,7 @@ import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class CoinShopPage extends StatefulWidget {
   const CoinShopPage({super.key});
@@ -235,26 +236,12 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
+  // ✅ [수정 완료] AppDialogs 공통 함수 적용
   void _showNoAdDialog() {
-    showDialog(
+    AppDialogs.showAlert(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'ad_not_ready_title'.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Text('ad_not_ready_desc'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'confirm'.tr(),
-              style: const TextStyle(color: Colors.blue),
-            ),
-          ),
-        ],
-      ),
+      title: 'ad_not_ready_title',
+      message: 'ad_not_ready_desc',
     );
   }
 

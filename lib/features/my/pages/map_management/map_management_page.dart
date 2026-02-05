@@ -20,7 +20,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
   final String _userId = Supabase.instance.client.auth.currentUser!.id;
   late Future<List<Map<String, dynamic>>> _future;
   List<Map<String, dynamic>>? _localMapList;
-  List<Package> _mapPackages = []; // 스토어 실제 상품 정보
+  List<Package> _mapPackages = [];
 
   @override
   void initState() {
@@ -29,7 +29,6 @@ class _MapManagementPageState extends State<MapManagementPage> {
     _loadStoreProducts();
   }
 
-  // RevenueCat에서 실제 상품 로드
   Future<void> _loadStoreProducts() async {
     final offerings = await PaymentService.getOfferings();
     if (offerings?.current != null) {
@@ -46,42 +45,59 @@ class _MapManagementPageState extends State<MapManagementPage> {
   Future<List<Map<String, dynamic>>> _getMapData() async {
     final res = await Supabase.instance.client
         .from('users')
-        .select('active_maps')
+        .select('active_maps, owned_maps') // 👈 영구 장부(owned_maps) 함께 조회
         .eq('auth_uid', _userId)
         .maybeSingle();
 
     final List<dynamic> activeIds = res?['active_maps'] ?? ['ko', 'world'];
+    final List<dynamic> ownedIds = res?['owned_maps'] ?? ['ko', 'world'];
 
     final List<Map<String, dynamic>> baseMaps = [
-      {'id': 'world', 'name': 'world_map', 'icon': '🌎', 'isFixed': true},
-      {'id': 'us', 'name': 'usa_map', 'icon': '🇺🇸', 'isFixed': true},
-      {'id': 'ko', 'name': 'korea_map', 'icon': '🇰🇷', 'isFixed': false},
-      {'id': 'jp', 'name': 'japan_map', 'icon': '🇯🇵', 'isFixed': false},
-      {'id': 'it', 'name': 'italy_map', 'icon': '🇮🇹', 'isFixed': false},
+      {
+        'id': 'world',
+        'name': 'world_map',
+        'icon': '🌎',
+        'isFixed': true,
+        'isAvailable': true,
+      },
+      {
+        'id': 'us',
+        'name': 'usa_map',
+        'icon': '🇺🇸',
+        'isFixed': true,
+        'isAvailable': true,
+      },
+      {
+        'id': 'ko',
+        'name': 'korea_map',
+        'icon': '🇰🇷',
+        'isFixed': false,
+        'isAvailable': true,
+      },
+      {
+        'id': 'jp',
+        'name': 'japan_map',
+        'icon': '🇯🇵',
+        'isFixed': false,
+        'isAvailable': false,
+      }, // 👈 준비 중
+      {
+        'id': 'it',
+        'name': 'italy_map',
+        'icon': '🇮🇹',
+        'isFixed': false,
+        'isAvailable': false,
+      }, // 👈 준비 중
     ];
 
-    List<Map<String, dynamic>> resultList = [];
-    for (var map in baseMaps) {
+    return baseMaps.map((map) {
       final String id = map['id'];
-      bool isPurchased =
-          (id == 'world' || id == 'ko') || activeIds.contains(id);
-
-      // 활성화 상태: world는 기본, 나머지는 activeIds에 포함 여부
-      bool isActive =
-          activeIds.contains(id) || (id == 'world' && !activeIds.contains(id));
-
-      map['isPurchased'] = isPurchased;
-      map['isActive'] = isActive;
-      resultList.add(map);
-    }
-
-    // 정렬: 구매한 것 위로
-    resultList.sort((a, b) {
-      if (a['isPurchased'] == b['isPurchased']) return 0;
-      return a['isPurchased'] ? -1 : 1;
-    });
-
-    return resultList;
+      // 구매 여부는 영구 장부(owned_maps) 기준
+      map['isPurchased'] = ownedIds.contains(id);
+      // 활성화 여부는 active_maps 기준 (world는 항상 true)
+      map['isActive'] = activeIds.contains(id) || (id == 'world');
+      return map;
+    }).toList();
   }
 
   void _refresh() {
@@ -91,42 +107,35 @@ class _MapManagementPageState extends State<MapManagementPage> {
     });
   }
 
-  // 지도 결제 핸들러
+  // 구매 복구 로직
+  Future<void> _handleRestore() async {
+    AppToast.show(context, 'restore'.tr());
+    final success = await PaymentService.restorePurchases();
+    if (success) {
+      _refresh();
+      AppToast.show(context, 'restore_success_msg'.tr());
+    } else {
+      AppToast.error(context, 'restore_fail_msg'.tr());
+    }
+  }
+
   Future<void> _handleMapPurchase(String mapId) async {
     try {
-      // 🎯 국가 코드(db id)를 스토어 등록 ID 키워드와 매칭
-      String targetIdSnippet = mapId;
-      if (mapId == 'us') {
-        targetIdSnippet = 'usa';
-      } else if (mapId == 'jp') {
-        targetIdSnippet = 'japan'; // 스토어 ID가 ...japan_map 일 때
-      } else if (mapId == 'it') {
-        targetIdSnippet = 'italy'; // 스토어 ID가 ...italy_map 일 때
-      }
-
-      // 🔍 해당 키워드가 포함된 패키지 찾기
+      String targetIdSnippet = mapId == 'us' ? 'usa' : mapId;
       final package = _mapPackages.firstWhere(
         (p) =>
             p.storeProduct.identifier.toLowerCase().contains(targetIdSnippet),
       );
 
-      debugPrint("💳 지도 결제 시도: ${package.storeProduct.identifier}");
-
       final success = await PaymentService.purchasePackage(package);
-      if (success) {
-        _refresh(); // 구매 성공 시 DB에서 active_maps 다시 읽어와서 UI 갱신 (정렬 포함)
-      }
+      if (success) _refresh();
     } catch (e) {
-      // 패키지를 못 찾았을 때의 예외 처리
-      debugPrint("❌ 지도 구매 패키지를 찾을 수 없음 (mapId: $mapId): $e");
-
       AppToast.error(context, 'no_products'.tr(args: [mapId]));
     }
   }
 
   Future<void> _syncToDb() async {
     if (_localMapList == null) return;
-
     final activeIds = _localMapList!
         .where((m) => m['isActive'] == true)
         .map((m) => m['id'].toString())
@@ -161,6 +170,18 @@ class _MapManagementPageState extends State<MapManagementPage> {
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: _handleRestore,
+            child: Text(
+              'restore'.tr(),
+              style: const TextStyle(
+                color: Colors.blue,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _future,
@@ -178,11 +199,11 @@ class _MapManagementPageState extends State<MapManagementPage> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             itemCount: _localMapList!.length,
             itemBuilder: (context, index) {
-              final map = _localMapList![index];
               return _MapItemTile(
-                map: map,
+                map: _localMapList![index],
                 onToggle: () => _handleToggle(index),
-                onPurchase: () => _handleMapPurchase(map['id']), // 구매 기능 연결
+                onPurchase: () =>
+                    _handleMapPurchase(_localMapList![index]['id']),
               );
             },
           );
@@ -205,52 +226,76 @@ class _MapItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isAvailable = map['isAvailable'] ?? true;
     final bool isPurchased = map['isPurchased'] ?? false;
     final bool isActive = map['isActive'] ?? false;
     final bool isFixed = map['isFixed'] ?? false;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isPurchased ? Colors.white : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: isPurchased
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 10,
+      child: Opacity(
+        opacity: isAvailable ? 1.0 : 0.6, // 준비 중인 상품은 약간 투명하게
+        child: Container(
+          decoration: BoxDecoration(
+            color: isPurchased ? Colors.white : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: isPurchased
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
-          leading: Text(map['icon'], style: const TextStyle(fontSize: 32)),
-          title: Text(
-            map['name'].toString().tr(),
-            style: AppTextStyles.sectionTitle.copyWith(
-              fontSize: 18,
-              color: isPurchased ? Colors.black87 : Colors.grey,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 10,
             ),
+            leading: Text(map['icon'], style: const TextStyle(fontSize: 32)),
+            title: Text(
+              map['name'].toString().tr(),
+              style: AppTextStyles.sectionTitle.copyWith(
+                fontSize: 18,
+                color: isPurchased ? Colors.black87 : Colors.grey,
+              ),
+            ),
+            trailing: _buildTrailing(
+              isAvailable,
+              isPurchased,
+              isActive,
+              isFixed,
+            ),
+            onTap: (!isAvailable || isPurchased) ? null : onPurchase,
           ),
-          trailing: _buildTrailing(isPurchased, isActive, isFixed),
-          onTap: isPurchased ? null : onPurchase, // 미구매 지도는 클릭 시 구매
         ),
       ),
     );
   }
 
-  Widget _buildTrailing(bool isPurchased, bool isActive, bool isFixed) {
+  Widget _buildTrailing(
+    bool isAvailable,
+    bool isPurchased,
+    bool isActive,
+    bool isFixed,
+  ) {
+    if (!isAvailable) {
+      return Text(
+        'coming_soon'.tr(),
+        style: const TextStyle(
+          color: Colors.grey,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+    }
     if (!isPurchased) {
       return const Icon(Icons.shopping_cart_outlined, color: Colors.blue);
     }
-
-    if (isFixed && isActive) {
+    // 미국(us) 등 고정 지도는 구매 시 'Active' 라벨 표시
+    if (isFixed) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
@@ -267,7 +312,6 @@ class _MapItemTile extends StatelessWidget {
         ),
       );
     }
-
     return CupertinoSwitch(
       value: isActive,
       activeColor: AppColors.travelingBlue,
