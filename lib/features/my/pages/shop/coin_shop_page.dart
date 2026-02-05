@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
@@ -29,8 +28,11 @@ class _CoinShopPageState extends State<CoinShopPage> {
 
   late Future<Map<String, int>> _balanceFuture;
 
+  // 🎯 리워드 설정 (DB 연동)
   int _adUsedToday = 0;
-  int _adDailyLimit = 0;
+  int _adDailyLimit = 5;
+  int _vipDailyAmount = 50;
+  String _adRewardMsg = '';
   String _adDate = '';
 
   RewardedAd? _rewardedAd;
@@ -44,7 +46,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
     _balanceFuture = _fetchCoinBalances();
     _fetchOfferings();
     _loadAds();
-    _loadAdRewardStatus();
+    _loadAllConfigs(); // 🎯 설정 로드
   }
 
   @override
@@ -53,40 +55,39 @@ class _CoinShopPageState extends State<CoinShopPage> {
     super.dispose();
   }
 
-  void _openLegalPage(String type) {
-    final isKorean = context.locale.languageCode == 'ko';
-    final suffix = isKorean ? '' : '_en';
-    String baseUrl = 'https://hanajungjun.github.io/travel-memoir-docs/';
-    String fileName = (type == 'terms') ? 'terms' : 'index';
-    _launchUrl('$baseUrl$fileName$suffix.html');
-  }
+  // ==========================================
+  // ⚙️ 데이터 로드 로직
+  // ==========================================
 
-  Future<void> _launchUrl(String urlString) async {
-    final Uri url = Uri.parse(urlString);
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-      try {
-        if (await canLaunchUrl(url)) {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
+  Future<void> _loadAllConfigs() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    final userData = await _stampService.getStampData(user.id);
+    final adConfig = await _stampService.getRewardConfig('ad_watch_stamp');
+    final vipConfig = await _stampService.getRewardConfig('daily_login_vip');
+
+    if (userData == null) return;
+
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    int used = (userData['ad_reward_count'] ?? 0).toInt();
+    if (userData['ad_reward_date'] != today) used = 0;
+
+    if (mounted) {
+      setState(() {
+        _adUsedToday = used;
+        _adDate = today;
+        if (adConfig != null) {
+          _adDailyLimit = (adConfig['daily_limit'] ?? 5).toInt();
+          _adRewardMsg =
+              adConfig['description_${context.locale.languageCode}'] ??
+              adConfig['description_ko'] ??
+              '';
         }
-      } catch (e) {
-        debugPrint('❌ URL 실행 에러: $e');
-      }
-    }
-  }
-
-  String _packagePeriodLabel(BuildContext context, Package package) {
-    final isKorean = context.locale.languageCode == 'ko';
-    if (package.identifier.toLowerCase().contains('vip') ||
-        package.identifier.toLowerCase().contains('777')) {
-      return isKorean ? '/ 1년 PASS' : 'per Year';
-    }
-    switch (package.packageType) {
-      case PackageType.monthly:
-        return isKorean ? '/ 월' : 'per month';
-      case PackageType.annual:
-        return isKorean ? '/ 연' : 'per year';
-      default:
-        return '';
+        if (vipConfig != null) {
+          _vipDailyAmount = (vipConfig['reward_amount'] ?? 50).toInt();
+        }
+      });
     }
   }
 
@@ -104,23 +105,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
     };
   }
 
-  Future<void> _loadAdRewardStatus() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
-    final userData = await _stampService.getStampData(user.id);
-    final reward = await _stampService.getRewardConfig('ad_watch_stamp');
-    if (userData == null || reward == null) return;
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    int used = (userData['ad_reward_count'] ?? 0).toInt();
-    if (userData['ad_reward_date'] != today) used = 0;
-    if (mounted)
-      setState(() {
-        _adUsedToday = used;
-        _adDailyLimit = (reward['daily_limit'] ?? 0).toInt();
-        _adDate = today;
-      });
-  }
-
   Future<void> _fetchOfferings() async {
     try {
       Offerings? offerings = await PaymentService.getOfferings();
@@ -131,7 +115,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
           _isPremium =
               customerInfo.entitlements.all["TravelMemoir Pro"]?.isActive ??
               false;
-          _isPremium = false; // 테스트용
+          _isPremium = false; // 테스트용 유지
 
           _subscriptionPackages = allPackages.where((p) {
             final id = p.identifier.toLowerCase();
@@ -156,28 +140,13 @@ class _CoinShopPageState extends State<CoinShopPage> {
         });
       }
     } catch (e) {
-      setState(() => _isProductsLoading = false);
-    }
-  }
-
-  Future<void> _handlePurchase(Package package) async {
-    setState(() => _isProductsLoading = true);
-    try {
-      if (await PaymentService.purchasePackage(package)) {
-        await Future.delayed(const Duration(seconds: 1));
-        await _fetchOfferings();
-        final newBalance = _fetchCoinBalances();
-        if (mounted) {
-          setState(() => _balanceFuture = newBalance);
-          AppToast.show(context, 'upgrade_success_msg'.tr());
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ 결제 실패: $e');
-    } finally {
       if (mounted) setState(() => _isProductsLoading = false);
     }
   }
+
+  // ==========================================
+  // 🎬 광고 및 보상 로직
+  // ==========================================
 
   void _loadAds() {
     final adId = Platform.isAndroid
@@ -211,38 +180,45 @@ class _CoinShopPageState extends State<CoinShopPage> {
       _loadAds();
       return;
     }
-    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (ad) {
-        ad.dispose();
-        _loadAds();
-      },
-      onAdFailedToShowFullScreenContent: (ad, error) {
-        ad.dispose();
-        _loadAds();
-        _showNoAdDialog();
-      },
-    );
     _rewardedAd!.show(
       onUserEarnedReward: (_, __) async {
         final result = await _stampService.grantAdReward(user.id);
-        if (result == null) return;
-        await _loadAdRewardStatus();
-        final newBalance = _fetchCoinBalances();
-        if (mounted) {
-          setState(() => _balanceFuture = newBalance);
-          AppToast.show(context, 'ad_reward_success'.tr());
+        if (result != null) {
+          await _loadAllConfigs();
+          setState(() => _balanceFuture = _fetchCoinBalances());
+          final successMsg = _adRewardMsg.replaceAll(
+            '{amount}',
+            result['reward_amount'].toString(),
+          );
+          AppToast.show(context, successMsg);
         }
       },
     );
   }
 
-  // ✅ [수정 완료] AppDialogs 공통 함수 적용
   void _showNoAdDialog() {
     AppDialogs.showAlert(
       context: context,
-      title: 'ad_not_ready_title',
-      message: 'ad_not_ready_desc',
+      title: 'ad_not_ready_title'.tr(),
+      message: 'ad_not_ready_desc'.tr(),
     );
+  }
+
+  // ==========================================
+  // 💰 결제 핸들링
+  // ==========================================
+
+  Future<void> _handlePurchase(Package package) async {
+    setState(() => _isProductsLoading = true);
+    try {
+      if (await PaymentService.purchasePackage(package)) {
+        await _fetchOfferings();
+        setState(() => _balanceFuture = _fetchCoinBalances());
+        AppToast.show(context, 'upgrade_success_msg'.tr());
+      }
+    } finally {
+      if (mounted) setState(() => _isProductsLoading = false);
+    }
   }
 
   Future<void> _handleRestore() async {
@@ -250,14 +226,15 @@ class _CoinShopPageState extends State<CoinShopPage> {
     try {
       await PaymentService.restorePurchases();
       await _fetchOfferings();
-      final newBalance = _fetchCoinBalances();
-      if (mounted) setState(() => _balanceFuture = newBalance);
-    } catch (e) {
-      debugPrint('❌ 복원 실패: $e');
+      setState(() => _balanceFuture = _fetchCoinBalances());
     } finally {
       if (mounted) setState(() => _isProductsLoading = false);
     }
   }
+
+  // ==========================================
+  // 🎨 UI 빌더 (디자인 복원 완료!)
+  // ==========================================
 
   @override
   Widget build(BuildContext context) {
@@ -292,12 +269,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
       body: _isProductsLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                10,
-                10,
-                20,
-                10,
-              ), // ✅ 하단 패딩 40 -> 20 축소
+              padding: const EdgeInsets.fromLTRB(10, 10, 20, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -308,53 +280,16 @@ class _CoinShopPageState extends State<CoinShopPage> {
                     style: AppTextStyles.sectionTitle,
                   ),
                   const SizedBox(height: 8),
-
                   if (_isPremium)
                     _buildSubscribedCard()
                   else
-                    SizedBox(
-                      height: 185,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _subscriptionPackages.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(width: 10),
-                        itemBuilder: (context, index) {
-                          final p = _subscriptionPackages[index];
-                          final id = p.identifier.toLowerCase();
-                          bool isVip = id.contains('vip');
-                          return SizedBox(
-                            width: MediaQuery.of(context).size.width * 0.78,
-                            child: _buildSubscriptionCard(
-                              title: p.storeProduct.title,
-                              price: p.storeProduct.priceString,
-                              period: _packagePeriodLabel(context, p),
-                              benefits: isVip
-                                  ? [
-                                      'daily_50_ai_generations'.tr(),
-                                      'all_premium_features'.tr(),
-                                    ]
-                                  : [
-                                      'benefit_ai_picker'.tr(),
-                                      'benefit_monthly_coins'.tr(),
-                                      'benefit_ai_extra_image'.tr(),
-                                      'complete_removal_of_watermark'.tr(),
-                                      'benefit_stickers'.tr(),
-                                    ],
-                              onTap: () => _handlePurchase(p),
-                              isVip: isVip,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-                  const SizedBox(height: 18), // ✅ 25 -> 18 축소
+                    _buildSubscriptionSection(),
+                  const SizedBox(height: 18),
                   Text('charge_coins'.tr(), style: AppTextStyles.sectionTitle),
                   const SizedBox(height: 8),
                   _buildCoinGrid(),
 
-                  // ✅ 복원 버튼 영역 여백 최소화
+                  // ✅ 복원 버튼 영역 여백 최소화 (top: 4 복구)
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -370,46 +305,56 @@ class _CoinShopPageState extends State<CoinShopPage> {
                       ),
                     ),
                   ),
-
-                  _buildFooterNotice(), // ✅ 내부 여백 대폭 다이어트
+                  _buildFooterNotice(),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildSubscribedCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F7FF),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.stars_rounded, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Text(
-                'premium_member_active'.tr(),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'premium_thanks_msg'.tr(),
-            style: TextStyle(color: Colors.blueGrey[600], fontSize: 13),
-          ),
-        ],
+  Widget _buildSubscriptionSection() {
+    return SizedBox(
+      height: 185,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _subscriptionPackages.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final p = _subscriptionPackages[index];
+          final bool isVip =
+              p.identifier.toLowerCase().contains('vip') ||
+              p.identifier.contains('777');
+          return SizedBox(
+            width: MediaQuery.of(context).size.width * 0.78,
+            child: _buildSubscriptionCard(
+              title: p.storeProduct.title,
+              price: p.storeProduct.priceString,
+              period: _packagePeriodLabel(context, p),
+              benefits: isVip
+                  ? [
+                      'daily_reward_benefit'.tr().replaceAll(
+                        '{amount}',
+                        _vipDailyAmount.toString(),
+                      ),
+                      // 'all_premium_features'.tr(),
+                      'benefit_ai_picker'.tr(),
+                      'benefit_monthly_coins'.tr(),
+                      'benefit_ai_extra_image'.tr(),
+                      'complete_removal_of_watermark'.tr(),
+                      'benefit_stickers'.tr(),
+                    ]
+                  : [
+                      'benefit_ai_picker'.tr(),
+                      'benefit_monthly_coins'.tr(),
+                      'benefit_ai_extra_image'.tr(),
+                      'complete_removal_of_watermark'.tr(),
+                      'benefit_stickers'.tr(),
+                    ],
+              onTap: () => _handlePurchase(p),
+              isVip: isVip,
+            ),
+          );
+        },
       ),
     );
   }
@@ -486,26 +431,14 @@ class _CoinShopPageState extends State<CoinShopPage> {
               : [const Color(0xFF2E3192), const Color(0xFF1BFFFF)],
         ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: isVip
-            ? [
-                BoxShadow(
-                  color: Colors.amber.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
       ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          // ✅ [다이어트] 상하 패딩을 16 -> 12로 줄여 공간 확보
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            // ✅ [핵심] 위쪽으로 바짝 붙여서 바닥 공간을 확보합니다.
-            mainAxisAlignment: MainAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Row(
@@ -514,24 +447,24 @@ class _CoinShopPageState extends State<CoinShopPage> {
                     const Icon(
                       Icons.workspace_premium,
                       color: Colors.amber,
-                      size: 18, // 살짝 축소
+                      size: 18,
                     ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 2), // ✅ 간격 4 -> 2로 축소
+              const SizedBox(height: 2),
               Text(
                 '$price $period',
                 style: const TextStyle(
@@ -540,14 +473,10 @@ class _CoinShopPageState extends State<CoinShopPage> {
                   fontSize: 16,
                 ),
               ),
-              // ✅ [다이어트] 디바이더 높이를 16 -> 12로 축소
               const Divider(color: Colors.white24, height: 14),
-
-              // ✅ [범인 검거] .take(4)를 삭제하여 모든 혜택(5개 이상)이 나오게 수정
               ...benefits
                   .map(
                     (b) => Padding(
-                      // ✅ 줄 간격을 3 -> 2.5로 미세 조정
                       padding: const EdgeInsets.only(bottom: 2.5),
                       child: Row(
                         children: [
@@ -563,8 +492,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                height: 1.1, // 줄 간격 촘촘하게
+                                height: 1.1,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -585,7 +513,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
   Widget _buildCoinGrid() {
     return GridView.builder(
       shrinkWrap: true,
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.zero, // ✅ 범인 검거! 패딩 0으로 복구
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _coinPackages.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -627,13 +555,12 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
-  // ✅ [강조] 하단 영역 다이어트 (Ocean -> Pond 수준으로 압축)
   Widget _buildFooterNotice() {
     return Container(
       padding: const EdgeInsets.symmetric(
         vertical: 5,
         horizontal: 10,
-      ), // ✅ 20 -> 5 대폭 축소
+      ), // ✅ 다이어트 패딩 유지
       child: Column(
         children: [
           Text(
@@ -645,7 +572,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 8), // ✅ 15 -> 8 축소
+          const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -665,10 +592,85 @@ class _CoinShopPageState extends State<CoinShopPage> {
               ),
             ],
           ),
-          const SizedBox(height: 6), // ✅ 10 -> 6 축소
+          const SizedBox(height: 6),
           Text(
             '© 2026 Travel Memoir.',
             style: TextStyle(fontSize: 9, color: Colors.grey[400]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==========================================
+  // 🔗 헬퍼 함수 (생략 없음!)
+  // ==========================================
+
+  void _openLegalPage(String type) {
+    final isKorean = context.locale.languageCode == 'ko';
+    final suffix = isKorean ? '' : '_en';
+    String baseUrl = 'https://hanajungjun.github.io/travel-memoir-docs/';
+    String fileName = (type == 'terms') ? 'terms' : 'index';
+    _launchUrl('$baseUrl$fileName$suffix.html');
+  }
+
+  Future<void> _launchUrl(String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      try {
+        if (await canLaunchUrl(url))
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        debugPrint('❌ URL 실행 에러: $e');
+      }
+    }
+  }
+
+  String _packagePeriodLabel(BuildContext context, Package package) {
+    final isKorean = context.locale.languageCode == 'ko';
+    if (package.identifier.toLowerCase().contains('vip')) {
+      return isKorean ? '/ 연' : 'per Year';
+    }
+    switch (package.packageType) {
+      case PackageType.monthly:
+        return isKorean ? '/ 월' : 'per month';
+      case PackageType.annual:
+        return isKorean ? '/ 연' : 'per Year';
+      default:
+        return '';
+    }
+  }
+
+  Widget _buildSubscribedCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F7FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.stars_rounded, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'premium_member_active'.tr(),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'premium_thanks_msg'.tr(),
+            style: TextStyle(color: Colors.blueGrey[600], fontSize: 13),
           ),
         ],
       ),

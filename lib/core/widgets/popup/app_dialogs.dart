@@ -337,4 +337,56 @@ class AppDialogs {
       ),
     );
   }
+
+  // 🎯 [신규] DB 데이터 및 동적 문구 전용 (내부에 .tr()이 없음)
+  static void showDynamicIconAlert({
+    required BuildContext context,
+    required String title,
+    required String message,
+    IconData icon = Icons.stars,
+    Color iconColor = Colors.orangeAccent,
+    bool barrierDismissible = false,
+    required VoidCallback onClose,
+  }) {
+    showDialog(
+      context: context,
+      useRootNavigator: true, // 탭바 위로 띄우기
+      barrierDismissible: barrierDismissible,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Center(
+          child: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 60, color: iconColor),
+            const SizedBox(height: 20),
+            Text(message, textAlign: TextAlign.center),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                onClose();
+              },
+              child: Text(
+                "close".tr(), // 버튼 글자는 공통 번역 사용
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

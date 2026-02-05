@@ -15,7 +15,6 @@ import 'package:travel_memoir/core/widgets/skeletons/travel_map_skeleton.dart';
 import 'package:travel_memoir/core/widgets/skeletons/recent_travel_section_skeleton.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
-import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class HomePage extends StatefulWidget {
@@ -39,6 +38,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
     });
   }
 
+  // ==========================================
+  // 🎁 데일리 보상 체크 및 지급
+  // ==========================================
   Future<void> _checkDailyReward() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -51,36 +53,40 @@ class _HomePageState extends State<HomePage> with RouteAware {
 
     final reward = await _stampService.checkAndGrantDailyReward(user.id);
 
-    // ✅ [VIP 전용 로그 추가] 보상 확인 시점에 VIP 스탬프 수량 로그 출력
-    if (reward != null) {
-      debugPrint(
-        "🎁 [Stamp Reward Log] Daily: ${reward['daily_stamps']}, VIP: ${reward['vip_stamps']}, Paid: ${reward['paid_stamps']}",
-      );
-    }
-
     if (reward != null && mounted) {
+      // ✅ [로그] 보상 수량 확인 (Daily, VIP, Paid)
+      debugPrint("🎁 [Reward Log] Data: $reward");
       _showRewardPopup(reward);
     }
   }
 
+  // ==========================================
+  // 🎯 보상 알림 팝업 (reward_config 데이터 활용)
+  // ==========================================
   void _showRewardPopup(Map<String, dynamic> reward) {
     final locale = context.locale.languageCode;
+    final bool isVip = reward['is_vip'] ?? false; // StampService에서 넘겨준 VIP 여부
 
-    final title = reward['title_$locale'] ?? reward['title_ko'] ?? '🎁 Reward';
+    // 1. 제목: 로컬 언어 설정에 맞춰 가져옴 (없으면 한국어 -> 기본값)
+    final title = reward['title_$locale'] ?? reward['title_ko'] ?? 'Reward';
 
-    final descTemplate =
+    // 2. 설명: DB의 description_ko에 담긴 "일반 5개 + VIP 50개..." 문구 활용
+    String desc =
         reward['description_$locale'] ?? reward['description_ko'] ?? '';
 
-    final desc = descTemplate
-        .replaceAll(r'\n', '\n')
-        .replaceAll('{amount}', reward['reward_amount'].toString());
+    // 3. 텍스트 가공 (줄바꿈 처리 및 {amount} 변수 치환)
+    desc = desc.replaceAll(r'\n', '\n');
+    if (desc.contains('{amount}')) {
+      desc = desc.replaceAll('{amount}', reward['reward_amount'].toString());
+    }
 
-    AppDialogs.showIconAlert(
+    // 4. ✅ [중요] showDynamicIconAlert 호출 (DB 문구 그대로 출력용)
+    AppDialogs.showDynamicIconAlert(
       context: context,
       title: title,
       message: desc,
-      icon: Icons.stars,
-      iconColor: Colors.orangeAccent,
+      icon: isVip ? Icons.workspace_premium : Icons.stars, // 🎯 VIP는 전용 아이콘
+      iconColor: isVip ? Colors.amber : Colors.orangeAccent,
       barrierDismissible: false,
       onClose: () => _triggerRefresh(),
     );
@@ -112,10 +118,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // 1. 상단 헤더
           HomeTravelStatusHeader(onGoToTravel: widget.onGoToTravel),
-
-          // 2. 메인 컨텐츠
           Expanded(
             child: Padding(
               padding: EdgeInsets.fromLTRB(
@@ -124,11 +127,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
                 27,
                 MediaQuery.of(context).padding.bottom + 5,
               ),
-
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 최근 여행
                   FutureBuilder(
                     key: ValueKey('recent-$_refreshKey'),
                     future: TravelListService.getRecentTravels(),
@@ -144,29 +145,20 @@ class _HomePageState extends State<HomePage> with RouteAware {
                       );
                     },
                   ),
-
                   const SizedBox(height: 20),
-
-                  // ✅ 지도 섹션 (travelType을 실제 데이터에서 추출)
                   Expanded(
                     child: FutureBuilder<List<Map<String, dynamic>>>(
                       key: ValueKey('map-$_refreshKey'),
                       future: TravelListService.getTravels(),
                       builder: (context, snapshot) {
                         final travels = snapshot.data ?? [];
-
                         final String travelId = travels.isNotEmpty
                             ? travels.first['id']?.toString() ?? 'preview'
                             : 'preview';
-
                         final String travelType = travels.isNotEmpty
                             ? travels.first['travel_type']?.toString() ??
                                   'overseas'
                             : 'overseas';
-
-                        debugPrint(
-                          '🧭 [HomePage] travelId=$travelId travelType=$travelType',
-                        );
 
                         return AnimatedSwitcher(
                           duration: const Duration(milliseconds: 250),

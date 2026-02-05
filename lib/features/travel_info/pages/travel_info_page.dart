@@ -26,16 +26,11 @@ class TravelInfoPage extends StatefulWidget {
 
 class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
   late Future<List<Map<String, dynamic>>> _future;
-  late final Future<LottieComposition> _lottieComposition;
 
   @override
   void initState() {
     super.initState();
     _future = TravelListService.getTravels();
-    // Lottie 미리 로드 (성능 유지)
-    _lottieComposition = AssetLottie(
-      'assets/lottie/Earth globe rotating with Seamless loop animation.json',
-    ).load();
   }
 
   void _refresh() {

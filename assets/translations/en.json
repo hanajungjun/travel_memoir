@@ -366,7 +366,7 @@
   "diary_clear_success": "Diary Clear",
   "daily_50_ai_generations": "Daily 50 AI More generations",
   "complete_removal_of_watermark": "Complete removal of watermark",
-  "vvip_exclusive_badge": "VVIP exclusive badge",
+  "vvip_exclusive_badge": "VIP exclusive badge",
   "all_premium_features": "All premium features",
   "infographic_limit_reached": "You have used all your generation limits.",
   "no_infographic_yet": "Try generating an infographic!",
@@ -377,5 +377,6 @@
   "select_style_msg": "Please select a drawing style",
   "today_image_hint": "Capture your day\nwith a drawing",
   "remaining_usage_today": "Remaining today: {}/50",
-  "generate_error": "An error occurred during image generation" 
+  "generate_error": "An error occurred during image generation",
+  "daily_reward_benefit": "Daily {amount} AI Image More generations" 
 }

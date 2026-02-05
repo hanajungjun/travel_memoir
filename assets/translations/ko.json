@@ -238,7 +238,7 @@
   "benefit_stickers": "프리미엄 여권 스티커 사용",
   "benefit_ai_picker": "모든 AI 스타일 선택 가능",
   "benefit_monthly_coins": "매달 티켓(유료코인) 50개 즉시 지급",
-  "benefit_ai_extra_image": "여행 완료 시 프리미엄 AI 이미지 추가 제공",
+  "benefit_ai_extra_image": "여행 완료시 프리미엄 AI 이미지 추가 제공",
   "benefit_gold_badge": "프리미엄 전용 골드 뱃지 부여",
   "coin_count": "코인 {}개",
   "shop_item_desc": "AI 이미지 생성 및 요약에 사용",
@@ -364,7 +364,7 @@
   "diary_clear_success": "삭제 완료",
   "daily_50_ai_generations": "매일 50회 AI 추가 생성",
   "complete_removal_of_watermark": "워터마크 완전 제거",
-  "vvip_exclusive_badge": "VVIP 전용 뱃지",
+  "vvip_exclusive_badge": "VIP 전용 뱃지",
   "all_premium_features": "모든 프리미엄 기능",
   "infographic_limit_reached": "생성 횟수를 모두 사용했습니다.",
   "no_infographic_yet": "인포그래픽을 생성해 보세요!",
@@ -375,5 +375,6 @@
   "select_style_msg": "오늘을 그리는 방식을 선택해주세요",
   "today_image_hint": "오늘의 하루를\n그림으로 남겨보세요",
   "remaining_usage_today": "오늘 남은 생성 횟수: {}/50",
-  "generate_error": "이미지 생성 중 오류가 발생했습니다"
+  "generate_error": "이미지 생성 중 오류가 발생했습니다",
+  "daily_reward_benefit": "매일 {amount}회 AI 추가 생성"
 }

@@ -32,39 +32,54 @@ class StampService {
   }
 
   // ===============================
-  // 데일리 로그인 보상 알림 (하루 1회 제한)
+  // 데일리 로그인 보상 알림 (개선 버전)
   // ===============================
   Future<Map<String, dynamic>?> checkAndGrantDailyReward(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-      // 1. 이미 오늘 팝업을 보여줬는지 로컬(폰) 기록 확인
-      final String? lastShown = prefs.getString('last_reward_popup_seen');
-      if (lastShown == todayStr) return null;
-
-      // 2. 유저 정보와 보상 설정(reward_config) 가져오기
+      // 1. 유저 정보 가져오기
       final userData = await getStampData(userId);
-      final reward = await getRewardConfig('daily_login'); // 테이블에서 가져옴!
+      if (userData == null) return null;
 
-      if (userData == null || reward == null) return null;
+      final bool isVip = userData['is_vip'] ?? false; // 🎯 VIP 여부 확인
 
-      final String? lastResetDateStr = userData['last_coin_reset_date']
+      // 2. 🎯 VIP 여부에 따라 다른 리워드 설정 가져오기
+      // VIP면 'daily_login_vip', 일반 유저면 'daily_login'을 가져옵니다.
+      final String rewardType = isVip ? 'daily_login_vip' : 'daily_login';
+      final reward = await getRewardConfig(rewardType);
+
+      if (reward == null) {
+        debugPrint('⚠️ [StampService] $rewardType 설정이 없습니다.');
+        return null;
+      }
+
+      // 서버의 마지막 리셋 날짜
+      final String? serverResetDate = userData['last_coin_reset_date']
           ?.toString();
+      if (serverResetDate == null) return null;
 
-      // 3. 서버가 오늘 날짜로 리셋을 완료했다면 팝업 데이터 구성
-      if (lastResetDateStr != null && todayStr == lastResetDateStr) {
-        // ✅ 오늘 팝업 보여줌 기록 저장
-        await prefs.setString('last_reward_popup_seen', todayStr);
+      // 3. 팝업 노출 여부 확인
+      final String? lastSeenDate = prefs.getString(
+        'last_reward_popup_seen_date',
+      );
+
+      if (lastSeenDate != serverResetDate) {
+        // [기록 저장] 서버 리셋 날짜를 저장
+        await prefs.setString('last_reward_popup_seen_date', serverResetDate);
 
         // reward_config의 데이터를 팝업으로 넘겨줌
         final result = Map<String, dynamic>.from(reward);
+
+        // 🎯 HomePage에서 VIP 전용 UI를 띄울 수 있도록 정보를 추가합니다.
+        result['is_vip'] = isVip;
         result['daily_stamps'] = userData['daily_stamps'];
         result['vip_stamps'] = userData['vip_stamps'];
         result['paid_stamps'] = userData['paid_stamps'];
 
         return result;
       }
+
       return null;
     } catch (e) {
       debugPrint('❌ daily reward error: $e');
