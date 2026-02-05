@@ -7,6 +7,8 @@ import 'package:travel_memoir/features/travel_info/pages/travel_info_page.dart';
 import 'package:travel_memoir/features/my/pages/my_page.dart';
 import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
 
+import 'package:flutter_svg/flutter_svg.dart'; // SVG 아이콘을 사용하기 위해 추가
+
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -26,6 +28,9 @@ class _AppShellState extends State<AppShell> {
     required String iconAsset,
     required String label,
   }) {
+    // SVG 파일 여부 확인
+    final isSvg = iconAsset.toLowerCase().endsWith('.svg');
+
     return BottomNavigationBarItem(
       icon: Padding(
         //padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
@@ -33,7 +38,9 @@ class _AppShellState extends State<AppShell> {
           top: 8,
           bottom: 2,
         ), // ✅ bottom 대신 top 패딩을 주면 아래로 내려옵니다.
-        child: Image.asset(iconAsset, width: 18, height: 18),
+        child: isSvg
+            ? SvgPicture.asset(iconAsset, width: 18, height: 18)
+            : Image.asset(iconAsset, width: 18, height: 18),
       ),
       activeIcon: Padding(
         // padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
@@ -41,10 +48,12 @@ class _AppShellState extends State<AppShell> {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            Image.asset(iconAsset, width: 18, height: 18),
+            isSvg
+                ? SvgPicture.asset(iconAsset, width: 18, height: 18)
+                : Image.asset(iconAsset, width: 18, height: 18),
             Positioned(
-              top: -5,
-              right: -5,
+              top: -4,
+              right: -4,
               child: Container(
                 width: 8, // 🎯 알림 점 크기도 살짝 축소
                 height: 8,
@@ -125,23 +134,23 @@ class _AppShellState extends State<AppShell> {
             ),
             items: [
               _buildMenuItem(
-                iconAsset: 'assets/icons/nav_home.png',
+                iconAsset: 'assets/icons/nav_home.svg',
                 label: 'nav_home'.tr(),
               ),
               _buildMenuItem(
-                iconAsset: 'assets/icons/nav_travel.png',
+                iconAsset: 'assets/icons/nav_travel.svg',
                 label: 'nav_travel'.tr(),
               ),
               _buildMenuItem(
-                iconAsset: 'assets/icons/nav_record.png',
+                iconAsset: 'assets/icons/nav_record.svg',
                 label: 'nav_record'.tr(),
               ),
               _buildMenuItem(
-                iconAsset: 'assets/icons/nav_my.png',
+                iconAsset: 'assets/icons/nav_my.svg',
                 label: 'nav_my'.tr(),
               ),
               _buildMenuItem(
-                iconAsset: 'assets/icons/nav_shop.png',
+                iconAsset: 'assets/icons/nav_shop.svg',
                 label: 'nav_shop'.tr(), // ⭐ 코인/상점
               ),
             ],
