@@ -320,7 +320,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                     width: 46,
                     height: 46,
                     fit: BoxFit.cover,
-                    memCacheWidth: 120, // ✅ [해결 4] 메모리 다이어트 (약 2.5배수)
+                    memCacheWidth: 92, // ✅ [해결 4] 메모리 다이어트 (약 2.5배수)
                     placeholder: (context, url) => _emptyThumb(),
                     errorWidget: (context, url, error) => _emptyThumb(),
                     fadeInDuration: const Duration(milliseconds: 300),

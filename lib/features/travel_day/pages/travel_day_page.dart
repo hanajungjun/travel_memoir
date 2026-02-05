@@ -482,15 +482,18 @@ class _TravelDayPageState extends State<TravelDayPage>
         _imageUrl == null &&
         _contentController.text.trim().isEmpty)
       return;
+
     setState(() {
       _loading = true;
       _loadingMessage = "saving_diary".tr();
     });
+
     try {
       final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
       );
+
       final diaryData = await TravelDayService.upsertDiary(
         travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
@@ -499,10 +502,13 @@ class _TravelDayPageState extends State<TravelDayPage>
         aiSummary: _summaryText,
         aiStyle: _selectedStyle?.id ?? _existingAiStyleId ?? 'default',
       );
+
       final String diaryId = diaryData['id'].toString().replaceAll(
         RegExp(r'[\s\n\r\t]+'),
         '',
       );
+
+      // 1️⃣ 로컬 사진 (Moments) 압축 및 업로드 (기존 로직 유지)
       if (_localPhotos.isNotEmpty) {
         final storage = Supabase.instance.client.storage.from('travel_images');
         for (int i = 0; i < _localPhotos.length; i++) {
@@ -521,12 +527,27 @@ class _TravelDayPageState extends State<TravelDayPage>
           await _appendPhotoUrl(diaryId, storage.getPublicUrl(fullPath));
         }
       }
-      if (_generatedImage != null)
+
+      // 2️⃣ [업그레이드] AI 생성 이미지 압축 및 JPG 변환 업로드
+      if (_generatedImage != null) {
+        // 🎯 메모리 데이터(Uint8List)를 JPEG 800px로 압축
+        final Uint8List compressedAi =
+            await FlutterImageCompress.compressWithList(
+              _generatedImage!,
+              minWidth: 800, // 화질과 용량의 황금비율
+              minHeight: 800,
+              quality: 80, // 눈에 띄는 저하 없는 압축률
+              format: CompressFormat.jpeg, // 🎯 PNG보다 훨씬 가벼운 JPEG 사용
+            );
+
         await ImageUploadService.uploadAiImage(
+          // 🎯 확장자를 .jpg로 변경하여 서버 관리 효율성 증대
           path:
-              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png',
-          imageBytes: _generatedImage!,
+              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.jpg',
+          imageBytes: compressedAi,
         );
+      }
+
       if (mounted) {
         setState(() => _loading = false);
         final writtenDays = await TravelDayService.getWrittenDayCount(
@@ -534,6 +555,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         );
         final totalDays =
             widget.endDate.difference(widget.startDate).inDays + 1;
+
         if (writtenDays >= totalDays) {
           Navigator.push(
             context,
@@ -554,6 +576,9 @@ class _TravelDayPageState extends State<TravelDayPage>
           Navigator.pop(context, true);
         }
       }
+    } catch (e) {
+      debugPrint('❌ 저장 실패: $e');
+      AppToast.error(context, 'save_failed'.tr());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
