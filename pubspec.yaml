@@ -117,33 +117,12 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icons/app_icon.png"
-  
+
 flutter_native_splash:
-
-  # 1. 앞에 뜨는 로고 이미지 (기존에 쓰던 것)
- #image: assets/images/splash.png
-
-  # 2. 뒤에 깔릴 배경 이미지 (새로 추가!)
-  # color: "#FFFFFF"  <-- 배경 이미지를 쓸 때는 색상 설정은 주석 처리하거나 지우세요.
-  background_image: assets/images/splash_bg.png
-
-  # (선택사항) 배경 이미지 채우기 방식 설정
-  # true로 하면 비율을 무시하고 화면에 꽉 채웁니다. (기본값은 비율 유지)
-  # android_gravity: fill
-  # ios_content_mode: scaleAspectFill
-
-  fullscreen: true
-
-  # 안드로이드: 이미지가 잘리더라도 비율을 유지하며 꽉 채움
-  #android_gravity: center_crop 
-  
-  # iOS: 비율을 유지하며 화면을 가득 채움 (가장 자연스러움)
-  #ios_content_mode: scaleAspectFill
-
-  ios: true
+  color: "#FFFFFF" # 앱의 메인 배경색
+  image: assets/images/splash.png # 아주 가벼운 로고 하나
   android_12:
     image: assets/images/splash.png
     color: "#FFFFFF"
-    icon_background_color: "#FFFFFF"  
 
 

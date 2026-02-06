@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -10,9 +11,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
-import 'package:travel_memoir/app/route_observer.dart'; // 👈 기존에 있던 옵저버 파일 임포트
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
-// 우리가 만든 서비스들
+import 'package:travel_memoir/app/route_observer.dart';
 import 'services/network_service.dart';
 import 'firebase_options.dart';
 import 'services/prompt_cache.dart';
@@ -25,30 +26,26 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> main() async {
-  // 1. Flutter 엔진 및 기본 설정 초기화
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
   await EasyLocalization.ensureInitialized();
   EasyLocalization.logger.enableLevels = [];
 
-  // 2. 저장된 설정값 로드
   final prefs = await SharedPreferences.getInstance();
   final bool onboardingDone = prefs.getBool('onboarding_done') ?? false;
   final bool notificationEnabled =
       prefs.getBool('notification_enabled') ?? true;
 
-  // 3. 광고(AdMob) 초기화
   await MobileAds.instance.initialize();
-
-  // 4. Firebase 초기화 및 알림 설정
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   String? token;
   try {
     if (Platform.isIOS) {
       String? apnsToken = await FirebaseMessaging.instance.getAPNSToken();
-      if (apnsToken != null) {
+      if (apnsToken != null)
         token = await FirebaseMessaging.instance.getToken();
-      }
     } else {
       token = await FirebaseMessaging.instance.getToken();
     }
@@ -65,58 +62,67 @@ Future<void> main() async {
     sound: notificationEnabled,
   );
 
-  // 5. 백엔드 및 기타 서비스 초기화
   await Supabase.initialize(
     url: AppEnv.supabaseUrl,
     anonKey: AppEnv.supabaseAnonKey,
   );
 
-  // 🚀 [추가 로직] 스탬프 자동 리셋 안전장치???
-  //await _checkAndResetStamps();
+  // 🎯 [수정] app_config 테이블의 loading_image_url 컬럼 읽기
+  // 🎯 [핵심] app_config 테이블에서 loading_image_url(상대 경로) 불러오기
+  String? adminLoadingImageUrl;
+  try {
+    final res = await Supabase.instance.client
+        .from('app_config')
+        .select('loading_images') // 🎯 컬럼명을 배열 컬럼으로 변경
+        .eq('id', 1)
+        .maybeSingle();
+
+    if (res != null && res['loading_images'] != null) {
+      // 1. DB에서 이미지 경로 리스트(배열)를 가져옴
+      final List<dynamic> pathList = res['loading_images'];
+
+      if (pathList.isNotEmpty) {
+        // 2. Random 객체 생성 후 리스트 중 하나를 무작위 선택
+        final random = Random();
+        final String selectedPath = pathList[random.nextInt(pathList.length)];
+
+        // 3. 선택된 상대 경로를 Public URL로 변환
+        adminLoadingImageUrl = Supabase.instance.client.storage
+            .from('travel_images')
+            .getPublicUrl(selectedPath);
+
+        debugPrint("🎲 랜덤 로딩 이미지 선정: $selectedPath");
+      }
+    }
+  } catch (e) {
+    debugPrint("⚠️ 설정 로드 실패: $e");
+  }
 
   await PromptCache.refresh();
   await initializeDateFormatting('ko_KR', null);
 
-  // 6. 카카오 SDK 초기화
   KakaoSdk.init(
     nativeAppKey: AppEnv.kakaoNativeAppKey,
     javaScriptAppKey: AppEnv.kakaoJavaScriptKey,
   );
 
-  // 7. 💰 RevenueCat 결제 초기화
   await _initRevenueCat();
-
-  // 8. 🌐 네트워크 감시자 시작
   await NetworkService().initialize();
 
-  // 9. 앱 실행
   runApp(
     EasyLocalization(
       supportedLocales: const [Locale('ko'), Locale('en')],
       path: 'assets/translations',
       fallbackLocale: const Locale('ko'),
       useOnlyLangCode: true,
-      child: _TravelMemoirAppWrapper(showOnboarding: !onboardingDone),
+      child: _TravelMemoirAppWrapper(
+        showOnboarding: !onboardingDone,
+        adminLoadingImageUrl: adminLoadingImageUrl,
+      ),
     ),
   );
 }
 
-// 🛡️ 스탬프 리셋 안전장치 함수
-// Future<void> _checkAndResetStamps() async {
-//   try {
-//     final client = Supabase.instance.client;
-//     // 세션(로그인 상태)이 있을 때만 RPC 호출
-//     if (client.auth.currentSession != null) {
-//       await client.rpc('reset_daily_stamps');
-//       debugPrint("✅ [VIP/일반] 일일 스탬프 리셋 체크 완료");
-//     }
-//   } catch (e) {
-//     // 네트워크 오류 등으로 실패해도 앱 실행은 방해하지 않도록 예외 처리
-//     debugPrint("⚠️ 스탬프 리셋 호출 실패 (미로그인 또는 네트워크): $e");
-//   }
-// }
-
-// RevenueCat 초기화 상세
 Future<void> _initRevenueCat() async {
   await Purchases.setLogLevel(LogLevel.debug);
   PurchasesConfiguration configuration;
@@ -130,13 +136,37 @@ Future<void> _initRevenueCat() async {
   await Purchases.configure(configuration);
 }
 
-class _TravelMemoirAppWrapper extends StatelessWidget {
+class _TravelMemoirAppWrapper extends StatefulWidget {
   final bool showOnboarding;
+  final String? adminLoadingImageUrl;
 
-  const _TravelMemoirAppWrapper({required this.showOnboarding});
+  const _TravelMemoirAppWrapper({
+    required this.showOnboarding,
+    this.adminLoadingImageUrl,
+  });
+
+  @override
+  State<_TravelMemoirAppWrapper> createState() =>
+      _TravelMemoirAppWrapperState();
+}
+
+class _TravelMemoirAppWrapperState extends State<_TravelMemoirAppWrapper> {
+  bool _isLoadingComplete = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _isLoadingComplete = true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_isLoadingComplete) {
+      return _DynamicLoadingScreen(imageUrl: widget.adminLoadingImageUrl);
+    }
+
     return ValueListenableBuilder<bool>(
       valueListenable: NetworkService().isConnectedNotifier,
       builder: (context, isConnected, child) {
@@ -147,7 +177,55 @@ class _TravelMemoirAppWrapper extends StatelessWidget {
       },
       child: TravelMemoirApp(
         key: const ValueKey('MainApp'),
-        showOnboarding: showOnboarding,
+        showOnboarding: widget.showOnboarding,
+      ),
+    );
+  }
+}
+
+class _DynamicLoadingScreen extends StatefulWidget {
+  final String? imageUrl;
+  const _DynamicLoadingScreen({this.imageUrl});
+
+  @override
+  State<_DynamicLoadingScreen> createState() => _DynamicLoadingScreenState();
+}
+
+class _DynamicLoadingScreenState extends State<_DynamicLoadingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    FlutterNativeSplash.remove();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: ui.TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          children: [
+            if (widget.imageUrl != null)
+              Image.network(
+                widget.imageUrl!,
+                width: double.infinity,
+                height: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    const Center(child: CircularProgressIndicator()),
+              )
+            else
+              const Center(child: CircularProgressIndicator()),
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: 50),
+                child: CircularProgressIndicator(color: Colors.blueAccent),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -155,7 +233,6 @@ class _TravelMemoirAppWrapper extends StatelessWidget {
 
 class _OfflineFullScreen extends StatelessWidget {
   const _OfflineFullScreen();
-
   @override
   Widget build(BuildContext context) {
     return Directionality(
