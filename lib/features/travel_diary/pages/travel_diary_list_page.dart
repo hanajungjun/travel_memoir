@@ -99,10 +99,14 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
             })
             .eq('id', _diaries[i]['id']);
       }
+      // ✅ [방어 코드 추가] 모든 비동기 작업이 끝난 후 체크
+      if (!mounted) return;
 
       AppToast.show(context, 'save_reorder_success'.tr());
       await _loadAllDiaries();
     } catch (e) {
+      // 에러 발생 시에도 화면이 살아있을 때만 토스트 노출
+      if (!mounted) return;
       AppToast.error(context, 'save_reorder_error'.tr(args: [e.toString()]));
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -185,7 +189,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                             extentRatio: 0.22,
                             children: [
                               CustomSlidableAction(
-                                onPressed: (context) async {
+                                onPressed: (_) async {
                                   final messenger = ScaffoldMessenger.of(
                                     context,
                                   );
@@ -197,6 +201,8 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                       diary['photo_urls'] ?? [],
                                     ),
                                   );
+                                  // 🎯 [핵심 수정] 삭제 작업이 끝난 후 화면이 아직 살아있는지 확인합니다.
+                                  if (!mounted) return;
 
                                   AppToast.show(
                                     context,

@@ -2,13 +2,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:travel_memoir/services/logger_service.dart'; // ✅ 로거 임포트
 
 class StampService {
   final _client = Supabase.instance.client;
+  final _logger = LoggerService(); // ✅ 로거 인스턴스
 
-  // ===============================
-  // 유저 스탬프 데이터 조회
-  // ===============================
   Future<Map<String, dynamic>?> getStampData(String userId) async {
     return await _client
         .from('users')
@@ -19,9 +18,6 @@ class StampService {
         .maybeSingle();
   }
 
-  // ===============================
-  // ⭐ [유지] reward_config에서 문구와 금액 관리
-  // ===============================
   Future<Map<String, dynamic>?> getRewardConfig(String type) async {
     return await _client
         .from('reward_config')
@@ -31,164 +27,149 @@ class StampService {
         .maybeSingle();
   }
 
-  // ===============================
-  // 데일리 로그인 보상 알림 (개선 버전)
-  // ===============================
   Future<Map<String, dynamic>?> checkAndGrantDailyReward(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-
-      // 1. 유저 정보 가져오기
       final userData = await getStampData(userId);
       if (userData == null) return null;
 
-      final bool isVip = userData['is_vip'] ?? false; // 🎯 VIP 여부 확인
-
-      // 2. 🎯 VIP 여부에 따라 다른 리워드 설정 가져오기
-      // VIP면 'daily_login_vip', 일반 유저면 'daily_login'을 가져옵니다.
+      final bool isVip = userData['is_vip'] ?? false;
       final String rewardType = isVip ? 'daily_login_vip' : 'daily_login';
       final reward = await getRewardConfig(rewardType);
 
-      if (reward == null) {
-        debugPrint('⚠️ [StampService] $rewardType 설정이 없습니다.');
-        return null;
-      }
+      if (reward == null) return null;
 
-      // 서버의 마지막 리셋 날짜
       final String? serverResetDate = userData['last_coin_reset_date']
           ?.toString();
       if (serverResetDate == null) return null;
 
-      // 3. 팝업 노출 여부 확인
       final String? lastSeenDate = prefs.getString(
         'last_reward_popup_seen_date',
       );
 
       if (lastSeenDate != serverResetDate) {
-        // [기록 저장] 서버 리셋 날짜를 저장
         await prefs.setString('last_reward_popup_seen_date', serverResetDate);
-
-        // reward_config의 데이터를 팝업으로 넘겨줌
         final result = Map<String, dynamic>.from(reward);
-
-        // 🎯 HomePage에서 VIP 전용 UI를 띄울 수 있도록 정보를 추가합니다.
         result['is_vip'] = isVip;
         result['daily_stamps'] = userData['daily_stamps'];
         result['vip_stamps'] = userData['vip_stamps'];
         result['paid_stamps'] = userData['paid_stamps'];
-
         return result;
       }
-
       return null;
     } catch (e) {
-      debugPrint('❌ daily reward error: $e');
+      _logger.error("❌ 데일리 리워드 에러: $e", tag: "STAMP_SERVICE");
       return null;
     }
   }
 
-  // ===============================
-  // 스탬프 소모 로직 (VIP 우선 소모)
-  // ===============================
+  // ✅ [수정 완료] 유저의 선택을 존중하여 해당 타입만 정확히 차감
   Future<bool> useStamp(String userId, String userSelectedType) async {
     try {
+      _logger.log(
+        "💰 스탬프 소모 시도 (요청 타입: $userSelectedType)",
+        tag: "STAMP_PROCESS",
+      );
+
       final userData = await getStampData(userId);
-      if (userData == null) return false;
+      if (userData == null) {
+        _logger.error("❌ 스탬프 차감 실패: 유저 데이터 없음", tag: "STAMP_PROCESS");
+        return false;
+      }
 
-      final bool isVip = userData['is_vip'] ?? false;
-      int vipStamps = (userData['vip_stamps'] ?? 0).toInt();
-
-      String targetCol = (isVip && vipStamps > 0)
-          ? 'vip_stamps'
-          : userSelectedType;
+      // 🎯 [핵심 변경] 서비스에서 멋대로 VIP를 체크하지 않고,
+      // 전달받은 타입(daily, paid, vip) 뒤에 _stamps만 붙여서 컬럼을 결정합니다.
+      String targetCol = "${userSelectedType}_stamps";
       int currentCount = (userData[targetCol] ?? 0).toInt();
 
-      if (currentCount <= 0) return false;
+      _logger.log(
+        "🔍 최종 차감 대상 컬럼: $targetCol (현재 수량: $currentCount)",
+        tag: "STAMP_PROCESS",
+      );
 
-      await _client
+      // 차감 전 수량 체크
+      if (currentCount <= 0) {
+        _logger.warn("⚠️ 차감 중단: $targetCol 수량이 부족함", tag: "STAMP_PROCESS");
+        return false;
+      }
+
+      // 실제 DB 업데이트 실행
+      final response = await _client
           .from('users')
           .update({targetCol: currentCount - 1})
-          .eq('auth_uid', userId);
-      return true;
+          .eq('auth_uid', userId)
+          .select();
+
+      if (response.isNotEmpty) {
+        _logger.log(
+          "✅ 스탬프 DB 차감 성공 ($targetCol: $currentCount -> ${currentCount - 1})",
+          tag: "STAMP_PROCESS",
+        );
+        return true;
+      } else {
+        _logger.error("❌ 스탬프 DB 차감 실패: 업데이트된 행이 없음", tag: "STAMP_PROCESS");
+        return false;
+      }
     } catch (e) {
+      _logger.error("🔥 useStamp 치명적 에러: $e", tag: "STAMP_PROCESS");
       return false;
     }
   }
 
-  // ===============================
-  // 광고 보상 실제 지급
-  // ===============================
   Future<Map<String, dynamic>?> grantAdReward(String userId) async {
     try {
       final userData = await getStampData(userId);
       if (userData == null) return null;
-
       final reward = await getRewardConfig('ad_watch_stamp');
       if (reward == null) return null;
 
       final int rewardAmount = (reward['reward_amount'] ?? 0).toInt();
       final int dailyLimit = (reward['daily_limit'] ?? 0).toInt();
-
       final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final String? lastDate = userData['ad_reward_date']?.toString();
       int count = (userData['ad_reward_count'] ?? 0).toInt();
 
-      if (lastDate != todayStr) count = 0;
+      if (userData['ad_reward_date']?.toString() != todayStr) count = 0;
       if (count >= dailyLimit) return null;
-
-      final int currentDaily = (userData['daily_stamps'] ?? 0).toInt();
 
       await _client
           .from('users')
           .update({
-            'daily_stamps': currentDaily + rewardAmount,
+            'daily_stamps':
+                (userData['daily_stamps'] ?? 0).toInt() + rewardAmount,
             'ad_reward_count': count + 1,
             'ad_reward_date': todayStr,
           })
           .eq('auth_uid', userId);
-
       return reward;
     } catch (e) {
-      debugPrint('❌ ad reward error: $e');
+      _logger.error("❌ 광고 보상 지급 에러: $e", tag: "STAMP_SERVICE");
       return null;
     }
   }
 
-  // ===============================
-  // 수동 스탬프 추가 (무료 지급용)
-  // ===============================
   Future<void> addFreeStamp(String userId, int amount) async {
     final userData = await getStampData(userId);
     if (userData == null) return;
-
-    int currentDaily = (userData['daily_stamps'] ?? 0).toInt();
     await _client
         .from('users')
-        .update({'daily_stamps': currentDaily + amount})
+        .update({
+          'daily_stamps': (userData['daily_stamps'] ?? 0).toInt() + amount,
+        })
         .eq('auth_uid', userId);
   }
 
-  // ===============================
-  // 광고 보상 상태 조회
-  // ===============================
   Future<Map<String, int>?> getAdRewardStatus(String userId) async {
     try {
       final userData = await getStampData(userId);
       if (userData == null) return null;
-
       final reward = await getRewardConfig('ad_watch_stamp');
       if (reward == null) return null;
-
-      final int dailyLimit = (reward['daily_limit'] ?? 0).toInt();
-      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final String? lastDate = userData['ad_reward_date']?.toString();
-
       int usedCount = (userData['ad_reward_count'] ?? 0).toInt();
-      if (lastDate != todayStr) usedCount = 0;
-
-      return {'used': usedCount, 'limit': dailyLimit};
+      if (userData['ad_reward_date']?.toString() !=
+          DateFormat('yyyy-MM-dd').format(DateTime.now()))
+        usedCount = 0;
+      return {'used': usedCount, 'limit': (reward['daily_limit'] ?? 0).toInt()};
     } catch (e) {
-      debugPrint('❌ getAdRewardStatus error: $e');
       return null;
     }
   }

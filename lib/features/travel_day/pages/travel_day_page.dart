@@ -16,6 +16,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
+import 'package:travel_memoir/services/logger_service.dart'; // ✅ 로거 임포트
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
@@ -64,7 +65,7 @@ class _TravelDayPageState extends State<TravelDayPage>
   final StampService _stampService = StampService();
   final TextEditingController _contentController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
-
+  final _logger = LoggerService(); // ✅ 로거 인스턴스
   ImageStyleModel? _selectedStyle;
   String? _existingAiStyleId;
   final List<File> _localPhotos = [];
@@ -362,7 +363,10 @@ class _TravelDayPageState extends State<TravelDayPage>
 
     _isAiDone = false;
     _isAdDone = false;
-
+    _logger.log(
+      "🚀 생성 버튼 클릭: 타입=$stampType, VIP=$_isVip",
+      tag: "TRAVEL_DAY_UI",
+    );
     // ✅ 병렬 처리 1: AI 생성 시작 (비동기 호출 후 await 하지 않음)
     _startAiGeneration(stampType)
         .then((_) {
@@ -375,16 +379,20 @@ class _TravelDayPageState extends State<TravelDayPage>
 
     // ✅ 병렬 처리 2: 광고 로직
     if (stampType == "vip" || stampType == "paid") {
+      _logger.log("⏩ VIP/PAID 유저: 광고 스킵", tag: "AD_PROCESS");
       _isAdDone = true;
       _checkSync();
     } else {
+      _logger.log("📺 광고 로드 확인 중...", tag: "AD_PROCESS");
       if (_rewardedAd != null && _isAdLoaded) {
         _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
           onAdDismissedFullScreenContent: (ad) {
+            _logger.log("🎬 광고 닫힘", tag: "AD_PROCESS");
             ad.dispose();
             _loadAds();
           },
           onAdFailedToShowFullScreenContent: (ad, err) {
+            _logger.error("❌ 광고 표시 실패: $err", tag: "AD_PROCESS");
             ad.dispose();
             _loadAds();
             _isAdDone = true;
@@ -393,11 +401,13 @@ class _TravelDayPageState extends State<TravelDayPage>
         );
         _rewardedAd!.show(
           onUserEarnedReward: (_, reward) {
+            _logger.log("🎁 광고 보상 획득 완료", tag: "AD_PROCESS");
             _isAdDone = true;
             _checkSync();
           },
         );
       } else {
+        _logger.warn("⚠️ 광고 미로드 상태로 진행", tag: "AD_PROCESS");
         _isAdDone = true;
         _checkSync();
       }
@@ -417,34 +427,133 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _startAiGeneration(String stampType) async {
-    if (mounted)
+    if (mounted) {
       setState(() {
-        _loading = true;
+        _loading = true; // 로딩 시작
         _loadingMessage = "ai_drawing_memories".tr();
         _imageUrl = null;
         _generatedImage = null;
         _summaryText = null;
       });
+    }
+
+    bool isStampDeducted = false;
+
     try {
-      final gemini = GeminiService();
-      final summary = await gemini.generateSummary(
-        finalPrompt:
-            '${PromptCache.textPrompt.contentKo}\n[Information]\nLocation: ${widget.placeName}\nDiary Content: ${_contentController.text}',
-        photos: _localPhotos,
+      _logger.log(
+        "🎯 [STEP 1] 스탬프 선차감 시도 (타입: $stampType)",
+        tag: "STAMP_PROCESS",
       );
-      _summaryText = summary;
-      final image = await gemini.generateImage(
-        finalPrompt:
-            '${PromptCache.imagePrompt.contentKo}\nStyle: ${_selectedStyle!.prompt}\n[Context from Diary Summary]: $summary\n',
-      );
-      if (image == null) throw Exception("Image generation failed");
-      await _stampService.useStamp(_userId, stampType);
+      isStampDeducted = await _stampService.useStamp(_userId, stampType);
+
+      if (!isStampDeducted) {
+        _logger.warn("⚠️ 스탬프 부족으로 중단", tag: "STAMP_PROCESS");
+        if (mounted) setState(() => _loading = false);
+        _showCoinEmptyDialog();
+        return;
+      }
+
       await _refreshStampCounts();
       await _loadDailyUsage();
-      setState(() => _generatedImage = image);
+
+      final gemini = GeminiService();
+
+      if (stampType == 'daily') {
+        _logger.log("📺 daily 코인: 광고 + AI 병렬 실행", tag: "GEMINI_PROCESS");
+        await Future.wait([
+          _playAdParallel(), // 광고 실행 (아래 수정된 버전 사용)
+          Future(() async {
+            final summary = await gemini.generateSummary(
+              finalPrompt:
+                  '${PromptCache.textPrompt.contentKo}\n[Info] Location: ${widget.placeName}\nDiary: ${_contentController.text}',
+              photos: _localPhotos,
+            );
+            _summaryText = summary;
+
+            final image = await gemini.generateImage(
+              finalPrompt:
+                  '${PromptCache.imagePrompt.contentKo}\nStyle: ${_selectedStyle!.prompt}\n[Context]: $summary',
+            );
+            if (image == null) throw Exception("Image generation failed");
+            _generatedImage = image;
+          }),
+        ]);
+      } else {
+        _logger.log("⚡ ${stampType} 코인: 즉시 생성", tag: "GEMINI_PROCESS");
+        final summary = await gemini.generateSummary(
+          finalPrompt:
+              '${PromptCache.textPrompt.contentKo}\n[Info] Location: ${widget.placeName}\nDiary: ${_contentController.text}',
+          photos: _localPhotos,
+        );
+        _summaryText = summary;
+
+        final image = await gemini.generateImage(
+          finalPrompt:
+              '${PromptCache.imagePrompt.contentKo}\nStyle: ${_selectedStyle!.prompt}\n[Context]: $summary',
+        );
+        if (image == null) throw Exception("Image generation failed");
+        _generatedImage = image;
+      }
+
+      // ✅ [핵심 수정] 성공 시 로딩을 반드시 꺼줘야 합니다.
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
+      _logger.log("✅ [STEP 3] 모든 프로세스 완료", tag: "GEMINI_PROCESS");
     } catch (e) {
-      rethrow;
+      _logger.error("🔥 프로세스 에러 발생: $e", tag: "TRAVEL_DAY_UI");
+      if (isStampDeducted) {
+        _logger.warn("🔄 생성 실패로 인한 스탬프 복구 실행", tag: "STAMP_PROCESS");
+        await _stampService.addFreeStamp(_userId, 1);
+        await _refreshStampCounts();
+      }
+      if (mounted) {
+        setState(() => _loading = false); // 에러 시에도 로딩 해제
+        AppToast.show(context, 'ai_generation_failed'.tr());
+      }
     }
+  }
+
+  // ✅ [수정] 광고가 죽어도 AI 생성은 계속되도록 타임아웃 추가
+  Future<void> _playAdParallel() async {
+    final completer = Completer<void>();
+
+    // 광고가 응답이 없을 경우를 대비해 30초 후 강제 완료
+    Timer(const Duration(seconds: 30), () {
+      if (!completer.isCompleted) {
+        _logger.warn("⏰ 광고 응답 타임아웃 - 프로세스 강제 진행", tag: "AD_PROCESS");
+        completer.complete();
+      }
+    });
+
+    if (_rewardedAd != null && _isAdLoaded) {
+      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          ad.dispose();
+          _loadAds();
+          if (!completer.isCompleted) completer.complete();
+        },
+        onAdFailedToShowFullScreenContent: (ad, err) {
+          _logger.error("❌ 광고 표시 실패: $err", tag: "AD_PROCESS");
+          ad.dispose();
+          _loadAds();
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+
+      _rewardedAd!.show(
+        onUserEarnedReward: (_, reward) {
+          _logger.log("🎁 광고 보상 획득 완료", tag: "AD_PROCESS");
+        },
+      );
+    } else {
+      _logger.warn("⚠️ 광고 미로드 상태", tag: "AD_PROCESS");
+      if (!completer.isCompleted) completer.complete();
+    }
+
+    return completer.future;
   }
 
   // ✅ [수정 완료] AppDialogs.showChoice 적용
@@ -504,6 +613,54 @@ class _TravelDayPageState extends State<TravelDayPage>
         '',
       );
 
+      // ✅ [추가] 물리적 파일 삭제 로직 시작
+      try {
+        // 1. DB에 저장되어 있던 기존 사진 리스트를 가져와서 비교합니다.
+        final oldData = await Supabase.instance.client
+            .from('travel_days')
+            .select('photo_urls')
+            .eq('id', diaryId)
+            .maybeSingle();
+
+        if (oldData != null && oldData['photo_urls'] != null) {
+          final List<String> oldUrls = List<String>.from(oldData['photo_urls']);
+
+          // 2. 기존엔 있었으나 현재 화면(_remotePhotoUrls)에는 없는 URL을 찾습니다.
+          final List<String> toDelete = oldUrls
+              .where((url) => !_remotePhotoUrls.contains(url))
+              .toList();
+
+          if (toDelete.isNotEmpty) {
+            final storage = Supabase.instance.client.storage.from(
+              'travel_images',
+            );
+
+            // 3. URL에서 스토리지 삭제에 필요한 상대 경로를 추출합니다.
+            final List<String> pathsToDelete = toDelete.map((url) {
+              final uri = Uri.parse(url);
+              final segments = uri.pathSegments;
+              // 'travel_images' 버킷 이름 이후의 경로만 합칩니다.
+              final int bucketIndex = segments.indexOf('travel_images');
+              return segments.skip(bucketIndex + 1).join('/');
+            }).toList();
+
+            // 4. 스토리지에서 실제 파일 삭제
+            await storage.remove(pathsToDelete);
+            _logger.log(
+              "🗑️ 스토리지 물리 파일 삭제 완료: $pathsToDelete",
+              tag: "STORAGE_CLEANUP",
+            );
+          }
+        }
+      } catch (e) {
+        _logger.error(
+          "⚠️ 스토리지 정리 중 오류 발생 (무시하고 저장 진행): $e",
+          tag: "STORAGE_CLEANUP",
+        );
+      }
+      // ✅ [추가] 물리적 파일 삭제 로직 끝
+
+      List<String> newlyUploadedUrls = [];
       // 사용자 업로드 사진 압축
       if (_localPhotos.isNotEmpty) {
         final storage = Supabase.instance.client.storage.from('travel_images');
@@ -520,21 +677,24 @@ class _TravelDayPageState extends State<TravelDayPage>
           final String fullPath =
               'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/moment_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
           await storage.upload(fullPath, File(result!.path));
-          await _appendPhotoUrl(diaryId, storage.getPublicUrl(fullPath));
+
+          // ✅ [수정] 업로드된 URL을 리스트에 추가합니다.
+          newlyUploadedUrls.add(storage.getPublicUrl(fullPath));
         }
       }
+      // ✅ [가장 중요] for문 바깥에서 호출해야 합니다!
+      // 그래야 새로 추가한 사진이 없어도(삭제만 했어도) DB에 반영됩니다.
+      await _updatePhotoUrls(diaryId, newlyUploadedUrls);
 
-      // ✅ AI 생성 이미지 압축 처리
+      // ✅ AI 생성 이미지 압축 처리 (기존 로직 유지)
       if (_generatedImage != null) {
         final tempDir = await getTemporaryDirectory();
         final tempPath =
             '${tempDir.path}/temp_ai_${DateTime.now().millisecondsSinceEpoch}.png';
 
-        // 1. 메모리 이미지를 임시 파일로 저장
         final tempFile = File(tempPath);
         await tempFile.writeAsBytes(_generatedImage!);
 
-        // 2. 압축
         final compressedPath =
             '${tempDir.path}/compressed_ai_${DateTime.now().millisecondsSinceEpoch}.jpg';
         final compressedFile = await FlutterImageCompress.compressAndGetFile(
@@ -544,26 +704,8 @@ class _TravelDayPageState extends State<TravelDayPage>
           minWidth: 1024,
           minHeight: 1024,
           format: CompressFormat.jpeg,
-
-          /*
-          // 옵션 1: 더 공격적인 압축 (용량 최소화)
-            quality: 50,
-            minWidth: 800,
-            minHeight: 800,
-
-            // 옵션 2: 밸런스형 (품질과 용량 절충)
-            quality: 70,
-            minWidth: 1024,
-            minHeight: 1024,
-
-            // 옵션 3: 고화질 유지 (약간만 압축)
-            quality: 85,
-            minWidth: 1200,
-            minHeight: 1200,
-          */
         );
 
-        // 3. 압축된 파일 업로드
         if (compressedFile != null) {
           final compressedBytes = await File(compressedFile.path).readAsBytes();
           await ImageUploadService.uploadAiImage(
@@ -572,13 +714,12 @@ class _TravelDayPageState extends State<TravelDayPage>
             imageBytes: compressedBytes,
           );
 
-          // 4. 임시 파일 삭제
           await tempFile.delete();
           await File(compressedFile.path).delete();
         }
       }
 
-      // ✅ 나머지 로직 (여행 완료 체크)
+      // ✅ 나머지 로직 (여행 완료 체크) (기존 로직 유지)
       if (mounted) {
         setState(() => _loading = false);
         final writtenDays = await TravelDayService.getWrittenDayCount(
@@ -608,6 +749,28 @@ class _TravelDayPageState extends State<TravelDayPage>
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _updatePhotoUrls(String diaryId, List<String> newUrls) async {
+    try {
+      // 1. 화면에 남아있는 기존 사진(리모트) + 새로 업로드된 사진 합치기
+      final List<String> finalUrls = [..._remotePhotoUrls, ...newUrls];
+
+      _logger.log(
+        "📸 사진 리스트 동기화 시도 (총 ${finalUrls.length}장)",
+        tag: "SAVE_PROCESS",
+      );
+
+      // 2. travel_days 테이블의 photo_urls 컬럼을 통째로 업데이트 (덮어쓰기)
+      await Supabase.instance.client
+          .from('travel_days')
+          .update({'photo_urls': finalUrls})
+          .eq('id', diaryId);
+
+      _logger.log("✅ 사진 리스트 DB 반영 완료", tag: "SAVE_PROCESS");
+    } catch (e) {
+      _logger.error("🔥 _updatePhotoUrls 에러: $e", tag: "SAVE_PROCESS");
     }
   }
 

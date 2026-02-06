@@ -7,6 +7,7 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/features/travel_album/pages/travel_album_page.dart';
+import 'package:travel_memoir/storage_urls.dart';
 
 class RecordTabPage extends StatefulWidget {
   const RecordTabPage({super.key});
@@ -16,7 +17,6 @@ class RecordTabPage extends StatefulWidget {
 }
 
 class _RecordTabPageState extends State<RecordTabPage> {
-  // ✅ 0.85 비율 유지 (다음 카드가 약 15% 보임)
   final PageController _controller = PageController(viewportFraction: 0.85);
   final _supabase = Supabase.instance.client;
 
@@ -29,8 +29,9 @@ class _RecordTabPageState extends State<RecordTabPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFF373B3E),
       body: SafeArea(
+        top: false,
         bottom: false,
         child: StreamBuilder<List<Map<String, dynamic>>>(
           stream: _supabase
@@ -51,7 +52,9 @@ class _RecordTabPageState extends State<RecordTabPage> {
               return Center(
                 child: Text(
                   'no_completed_travels'.tr(),
-                  style: AppTextStyles.bodyMuted,
+                  style: AppTextStyles.bodyMuted.copyWith(
+                    color: Colors.white70,
+                  ),
                 ),
               );
             }
@@ -60,14 +63,14 @@ class _RecordTabPageState extends State<RecordTabPage> {
               controller: _controller,
               scrollDirection: Axis.vertical,
               padEnds: false,
-              // ✅ 중요: 카드들이 서로 겹치지 않게 clipBehavior를 설정
               clipBehavior: Clip.none,
+              physics: const ClampingScrollPhysics(),
               itemCount: travels.length + 1,
               itemBuilder: (context, index) {
                 if (index == 0) {
                   return SummaryHeroCard(
                     totalCount: travels.length,
-                    lastTravel: travels.first,
+                    travels: travels,
                   );
                 }
                 return TravelRecordCard(
@@ -85,81 +88,168 @@ class _RecordTabPageState extends State<RecordTabPage> {
 
 class SummaryHeroCard extends StatelessWidget {
   final int totalCount;
-  final Map<String, dynamic> lastTravel;
+  final List<Map<String, dynamic>> travels;
+
   const SummaryHeroCard({
     super.key,
     required this.totalCount,
-    required this.lastTravel,
+    required this.travels,
   });
 
   @override
   Widget build(BuildContext context) {
+    final lastTravel = travels.first;
     final end =
         DateTime.tryParse(lastTravel['end_date'] ?? '') ?? DateTime.now();
-    return Padding(
-      // ✅ 하단 마진을 30으로 늘려 다음 카드가 올라와도 텍스트가 겹치지 않게 함
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 30),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1A1A1A), Color(0xFF454B54)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black26,
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 60, 0, 30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'memory_hero_title'.tr(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'memory_hero_label'.tr(),
+                    style: const TextStyle(
+                      color: Color(0xFFFFC107),
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'memory_hero_subtitle'.tr(),
+                    style: const TextStyle(color: Colors.white60, fontSize: 18),
+                  ),
+                  const SizedBox(height: 50),
+
+                  _infoTile(
+                    'total_travels_format1'.tr(),
+                    'total_travels_format2'.tr(args: [totalCount.toString()]),
+                  ),
+                  const SizedBox(height: 35),
+                  _infoTile(
+                    'last_travel_format1'.tr(),
+                    'last_travel_format2'.tr(
+                      args: [DateUtilsHelper.formatYMD(end)],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+            SizedBox(
+              height: 220,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                itemCount: travels.length,
+                itemBuilder: (context, index) {
+                  final travel = travels[index];
+                  final String type = travel['travel_type'] ?? 'domestic';
+                  final String countryCode = (travel['country_code'] ?? '')
+                      .toString()
+                      .toUpperCase();
+                  final String rawPath = (travel['map_image_url'] ?? '')
+                      .toString();
+
+                  String finalUrl = (type == 'usa' || countryCode == 'US')
+                      ? StorageUrls.usaMapFromPath(rawPath)
+                      : (type == 'domestic')
+                      ? StorageUrls.domesticMapFromPath(rawPath)
+                      : StorageUrls.globalMapFromPath('$countryCode.png');
+
+                  return GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TravelAlbumPage(travel: travel),
+                      ),
+                    ),
+                    child: Container(
+                      width: 200,
+                      margin: const EdgeInsets.only(right: 20),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.zero,
+                        child: Container(
+                          color: Colors.white.withOpacity(0.05),
+                          child: CachedNetworkImage(
+                            imageUrl: finalUrl,
+                            fit: BoxFit.contain,
+                            placeholder: (_, __) => const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            errorWidget: (_, __, ___) => const Icon(
+                              Icons.map,
+                              color: Colors.white10,
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 40),
+            const Center(
+              child: Icon(
+                Icons.keyboard_arrow_down,
+                color: Colors.white24,
+                size: 32,
+              ),
             ),
           ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(32.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '기억을 다시 꺼내볼까요?',
-                style: AppTextStyles.pageTitle.copyWith(
-                  color: Colors.white,
-                  fontSize: 26,
-                ),
-              ),
-              const SizedBox(height: 40),
-              _infoTile('지금까지의 여행', '총 $totalCount번'),
-              const SizedBox(height: 20),
-              _infoTile('마지막 여행', DateUtilsHelper.formatYMD(end)),
-              Text(
-                DateUtilsHelper.memoryTimeAgo(end),
-                style: TextStyle(color: Colors.white54, fontSize: 13),
-              ),
-              const Spacer(),
-              const Center(
-                child: Icon(
-                  Icons.keyboard_arrow_up,
-                  color: Colors.white38,
-                  size: 28,
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
   }
 
-  Widget _infoTile(String l, String v) => Column(
+  Widget _infoTile(String label, String value) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Text(l, style: TextStyle(color: Colors.white60, fontSize: 13)),
-      Text(
-        v,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 19,
-          fontWeight: FontWeight.bold,
+      Row(
+        children: [
+          Container(
+            width: 4,
+            height: 4,
+            decoration: const BoxDecoration(
+              color: Colors.white38,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white38, fontSize: 14),
+          ),
+        ],
+      ),
+      const SizedBox(height: 6),
+      Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     ],
@@ -175,20 +265,30 @@ class TravelRecordCard extends StatelessWidget {
     final isKo = context.locale.languageCode == 'ko';
     final type = travel['travel_type'] ?? 'domestic';
 
-    // ✅ [복구] 지역명 로직 100% 원본 유지
+    String badgeText = 'overseas'.tr();
+    Color badgeColor = const Color(0xFF42A5F5);
+
+    if (type == 'domestic') {
+      badgeText = 'domestic'.tr();
+      badgeColor = const Color(0xFF66BB6A);
+    } else if (type == 'usa') {
+      badgeText = 'usa'.tr();
+      badgeColor = const Color(0xFFEF5350);
+    }
+
     String destination;
     if (type == 'usa') {
       destination =
           travel['region_name'] ??
           travel['region_key'] ??
-          (isKo ? '미국' : 'USA');
+          (isKo ? 'usa'.tr() : 'USA');
     } else if (type == 'domestic') {
       destination = isKo
-          ? (travel['region_name'] ?? '알 수 없음')
+          ? (travel['region_name'] ?? 'unknown_destination'.tr())
           : (travel['region_key']?.split('_').last ?? 'Korea');
     } else {
       destination = isKo
-          ? (travel['country_name_ko'] ?? '알 수 없음')
+          ? (travel['country_name_ko'] ?? 'unknown_destination'.tr())
           : (travel['country_name_en'] ?? 'Unknown');
     }
 
@@ -206,54 +306,96 @@ class TravelRecordCard extends StatelessWidget {
           '$finalImageUrl?t=${travel['completed_at']}&width=500&quality=70';
 
     return Padding(
-      // ✅ [해결] 하단 패딩을 40 이상 넉넉히 줘야 다음 카드가 텍스트 요약을 안 가립니다.
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
       child: GestureDetector(
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => TravelAlbumPage(travel: travel)),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: finalImageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: finalImageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) =>
-                            Container(color: AppColors.lightSurface),
-                      )
-                    : Container(color: AppColors.divider),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.zero,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 15,
+                offset: const Offset(0, 10),
               ),
-              Positioned(
-                top: 32,
-                left: 24,
-                right: 24,
-                child: Text(
-                  destination,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black87,
-                        blurRadius: 10,
-                        offset: Offset(0, 2),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.zero,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: finalImageUrl.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: finalImageUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) =>
+                              Container(color: const Color(0xFF454B54)),
+                        )
+                      : Container(color: const Color(0xFF454B54)),
+                ),
+
+                // ✅ 수정된 타이틀 영역 (Summary 위로 이동)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: summary.isNotEmpty
+                      ? 120
+                      : 60, // summary 존재 여부에 따라 위치 조정
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          badgeText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          destination.toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.2,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black54,
+                                blurRadius: 10,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
 
-              // ✅ 하단 요약 (그라데이션 포함)
-              if (summary.isNotEmpty)
-                BottomLabel(text: summary, gradient: true),
-              if (finalImageUrl.isNotEmpty && summary.isEmpty)
-                const BottomLabel(text: 'AI가 여행을 정리하고 있어요...'),
-            ],
+                if (summary.isNotEmpty)
+                  BottomLabel(text: summary, gradient: true),
+                if (finalImageUrl.isNotEmpty && summary.isEmpty)
+                  BottomLabel(text: 'ai_organizing'.tr()),
+              ],
+            ),
           ),
         ),
       ),
@@ -272,22 +414,26 @@ class BottomLabel extends StatelessWidget {
       right: 0,
       bottom: 0,
       child: Container(
-        // ✅ 패딩을 조절해서 텍스트가 카드 안쪽으로 더 들어오게 함
-        padding: const EdgeInsets.fromLTRB(20, 35, 20, 55),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 80), // 마지막 40을 20으로 변경
         decoration: gradient
-            ? const BoxDecoration(
+            ? BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.transparent, Colors.black87],
+                  colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                 ),
               )
-            : const BoxDecoration(color: Colors.black45),
+            : BoxDecoration(color: Colors.black.withOpacity(0.4)),
         child: Text(
           text,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.body.copyWith(color: Colors.white, fontSize: 14),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            height: 1.5,
+          ),
+          textAlign: TextAlign.center,
         ),
       ),
     );

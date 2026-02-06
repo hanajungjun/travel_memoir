@@ -161,6 +161,8 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                                         imageUrl: Uri.encodeFull(
                                           style.thumbnailUrl!,
                                         ),
+                                        width: 72, // 이미지 크기
+                                        height: 72, // 이미지 크기
                                         fit: BoxFit.cover,
                                       ),
                                     )
@@ -168,6 +170,8 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                                       imageUrl: Uri.encodeFull(
                                         style.thumbnailUrl!,
                                       ),
+                                      width: 72, // 이미지 크기
+                                      height: 72, // 이미지 크기
                                       fit: BoxFit.cover,
                                     ))
                             : const Icon(Icons.image, color: Colors.grey),

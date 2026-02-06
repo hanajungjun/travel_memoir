@@ -11,12 +11,12 @@ class TravelInfoListSkeleton extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
-        children: List.generate(6, (index) {
+        children: List.generate(7, (index) {
           return Column(
             children: [
               const _TravelInfoItemSkeleton(),
               // 마지막 아이템 뒤에는 구분선을 넣지 않습니다.
-              if (index < 5) Divider(height: 24, color: AppColors.divider),
+              if (index < 6) Divider(height: 24, color: AppColors.divider),
             ],
           );
         }),
