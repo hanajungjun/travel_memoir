@@ -10,6 +10,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import 'package:travel_memoir/app/route_observer.dart'; // 👈 기존에 있던 옵저버 파일 임포트
 
 // 우리가 만든 서비스들
 import 'services/network_service.dart';
@@ -70,8 +71,8 @@ Future<void> main() async {
     anonKey: AppEnv.supabaseAnonKey,
   );
 
-  // 🚀 [추가 로직] 스탬프 자동 리셋 안전장치
-  await _checkAndResetStamps();
+  // 🚀 [추가 로직] 스탬프 자동 리셋 안전장치???
+  //await _checkAndResetStamps();
 
   await PromptCache.refresh();
   await initializeDateFormatting('ko_KR', null);
@@ -101,19 +102,19 @@ Future<void> main() async {
 }
 
 // 🛡️ 스탬프 리셋 안전장치 함수
-Future<void> _checkAndResetStamps() async {
-  try {
-    final client = Supabase.instance.client;
-    // 세션(로그인 상태)이 있을 때만 RPC 호출
-    if (client.auth.currentSession != null) {
-      await client.rpc('reset_daily_stamps');
-      debugPrint("✅ [VIP/일반] 일일 스탬프 리셋 체크 완료");
-    }
-  } catch (e) {
-    // 네트워크 오류 등으로 실패해도 앱 실행은 방해하지 않도록 예외 처리
-    debugPrint("⚠️ 스탬프 리셋 호출 실패 (미로그인 또는 네트워크): $e");
-  }
-}
+// Future<void> _checkAndResetStamps() async {
+//   try {
+//     final client = Supabase.instance.client;
+//     // 세션(로그인 상태)이 있을 때만 RPC 호출
+//     if (client.auth.currentSession != null) {
+//       await client.rpc('reset_daily_stamps');
+//       debugPrint("✅ [VIP/일반] 일일 스탬프 리셋 체크 완료");
+//     }
+//   } catch (e) {
+//     // 네트워크 오류 등으로 실패해도 앱 실행은 방해하지 않도록 예외 처리
+//     debugPrint("⚠️ 스탬프 리셋 호출 실패 (미로그인 또는 네트워크): $e");
+//   }
+// }
 
 // RevenueCat 초기화 상세
 Future<void> _initRevenueCat() async {
@@ -128,10 +129,6 @@ Future<void> _initRevenueCat() async {
   }
   await Purchases.configure(configuration);
 }
-
-// ---------------------------------------------------------------------
-// 위젯 클래스들
-// ---------------------------------------------------------------------
 
 class _TravelMemoirAppWrapper extends StatelessWidget {
   final bool showOnboarding;

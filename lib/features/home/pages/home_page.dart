@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_app_badge_control/flutter_app_badge_control.dart';
 import 'package:travel_memoir/app/route_observer.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
 
@@ -41,6 +41,27 @@ class _HomePageState extends State<HomePage> with RouteAware {
   // ==========================================
   // 🎁 데일리 보상 체크 및 지급
   // ==========================================
+  // Future<void> _checkDailyReward() async {
+  //   final user = Supabase.instance.client.auth.currentUser;
+  //   if (user == null) return;
+
+  //   try {
+  //     await FlutterAppBadgeControl.removeBadge();
+  //   } catch (e) {
+  //     debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
+  //   }
+
+  //   final reward = await _stampService.checkAndGrantDailyReward(user.id);
+
+  //   if (reward != null && mounted) {
+  //     // ✅ [로그] 보상 수량 확인 (Daily, VIP, Paid)
+  //     debugPrint("🎁 [Reward Log] Data: $reward");
+  //     _showRewardPopup(reward);
+  //   }
+  // }
+  // ==========================================
+  // 🎁 데일리 보상 체크 및 지급
+  // ==========================================
   Future<void> _checkDailyReward() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -51,12 +72,27 @@ class _HomePageState extends State<HomePage> with RouteAware {
       debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
     }
 
+    // 1️⃣ [로컬 체크] 이 기기에서 오늘 팝업을 이미 봤는지 확인
+    final prefs = await SharedPreferences.getInstance();
+    final String today = DateTime.now().toString().split(' ')[0]; // yyyy-MM-dd
+    final String storageKey = 'last_reward_popup_${user.id}'; // 유저별 고유 키
+
+    if (prefs.getString(storageKey) == today) {
+      debugPrint("✅ [Reward] 오늘 이미 팝업을 본 유저(ID: ${user.id})입니다.");
+      return; // 팝업을 이미 봤다면 여기서 종료 (서버 요청도 안 함)
+    }
+
+    // 2️⃣ 서버에서 보상 데이터 가져오기
     final reward = await _stampService.checkAndGrantDailyReward(user.id);
 
     if (reward != null && mounted) {
-      // ✅ [로그] 보상 수량 확인 (Daily, VIP, Paid)
       debugPrint("🎁 [Reward Log] Data: $reward");
+
+      // 3️⃣ 팝업 표시
       _showRewardPopup(reward);
+
+      // 4️⃣ [로컬 저장] 팝업을 보여줬음을 기기에 기록
+      await prefs.setString(storageKey, today);
     }
   }
 

@@ -315,7 +315,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
               imageUrl: client.storage
                   .from('travel_images')
                   .getPublicUrl(
-                    'users/$userId/travels/$travelId/diaries/$diaryId/ai_generated.png',
+                    'users/$userId/travels/$travelId/diaries/$diaryId/ai_generated.jpg',
                   ),
               isAi: true,
               diaryText: diary['text'],

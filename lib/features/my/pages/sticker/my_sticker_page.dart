@@ -184,7 +184,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
     String expiryDate = _formatPassportDate(rawUntil);
 
     String displayNationality =
-        profile?['nationality']?.toString().toUpperCase() ?? "KOREA";
+        profile?['nationality']?.toString().toUpperCase() ?? "MARS";
 
     return Stack(
       children: [

@@ -4,6 +4,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:lottie/lottie.dart';
 
+import 'package:travel_memoir/services/payment_service.dart';
+import 'package:travel_memoir/app/route_observer.dart';
+
 import 'package:travel_memoir/features/my/pages/profile_edit_page.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/my_travel_summary_page.dart';
 import 'package:travel_memoir/features/my/pages/settings/my_settings_page.dart';
@@ -25,16 +28,54 @@ class MyPage extends StatefulWidget {
   State<MyPage> createState() => _MyPageState();
 }
 
-class _MyPageState extends State<MyPage> {
+class _MyPageState extends State<MyPage> with RouteAware {
   late Future<Map<String, dynamic>> _profileDataFuture;
 
   @override
   void initState() {
     super.initState();
     _profileDataFuture = _getProfileData();
+
+    // 🎯 [핵심] 방송국 신호 감청 시작!
+    // PaymentService에서 신호를 쏘면 즉시 _onPaymentRefresh가 실행됩니다.
+    PaymentService.refreshNotifier.addListener(_onPaymentRefresh);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // RouteObserver 구독 (안전장치 유지)
+    final route = ModalRoute.of(context);
+    if (route is ModalRoute<void>) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    // 🎯 수신기 제거 (메모리 누수 방지)
+    PaymentService.refreshNotifier.removeListener(_onPaymentRefresh);
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // ✨ 결제 성공 신호를 받았을 때 실행될 콜백
+  void _onPaymentRefresh() {
+    debugPrint("📡 [MyPage] 방송 수신: 결제 성공이 확인되어 데이터를 새로고침합니다.");
+    _refreshPage();
+  }
+
+  @override
+  void didPopNext() {
+    debugPrint("🔄 [MyPage] 복귀 감지: 데이터 새로고침 실행");
+    // 페이지로 돌아왔을 때 한 번 더 확실하게 갱신
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _refreshPage();
+    });
   }
 
   void _refreshPage() {
+    if (!mounted) return;
     setState(() {
       _profileDataFuture = _getProfileData();
     });
@@ -43,8 +84,9 @@ class _MyPageState extends State<MyPage> {
   Future<Map<String, dynamic>> _getProfileData() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null)
+      if (user == null) {
         return {'profile': null, 'completedTravels': [], 'travelCount': 0};
+      }
 
       final userId = user.id;
       final userFuture = Supabase.instance.client
@@ -70,20 +112,17 @@ class _MyPageState extends State<MyPage> {
     }
   }
 
-  // ✅ [수정] 프리미엄 혹은 VIP 유저라면 통과
   void _handlePassportTap(bool hasAccess) {
     if (hasAccess) {
       _showStickerPopup(context);
     } else {
-      // 🎯 공통 액션 다이얼로그 호출
       AppDialogs.showAction(
         context: context,
         title: 'premium_only_title',
         message: 'premium_benefit_desc',
         actionLabel: 'go_to_shop',
-        actionColor: Colors.amber, // 프리미엄 강조색 유지
+        actionColor: Colors.amber,
         onAction: () async {
-          // 상점 이동 후 돌아오면 페이지 새로고침
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const CoinShopPage()),
@@ -117,10 +156,34 @@ class _MyPageState extends State<MyPage> {
         child: FutureBuilder<Map<String, dynamic>>(
           future: _profileDataFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting)
+            if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
-            if (!snapshot.hasData || snapshot.data!['profile'] == null)
+            }
+
+            if (snapshot.hasError) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 40,
+                    ),
+                    const SizedBox(height: 10),
+                    Text("데이터를 불러오지 못했습니다.\n${snapshot.error}"),
+                    TextButton(
+                      onPressed: _refreshPage,
+                      child: const Text("다시 시도"),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (!snapshot.hasData || snapshot.data!['profile'] == null) {
               return Center(child: Text("error_loading_data".tr()));
+            }
 
             final profile = snapshot.data!['profile'];
             final travelCount = snapshot.data!['travelCount'] as int;
@@ -128,7 +191,6 @@ class _MyPageState extends State<MyPage> {
             final imageUrl = profile['profile_image_url'];
             final badge = getBadge(travelCount);
 
-            // ✅ VIP 및 프리미엄 권한 확인
             final bool isPremium = profile['is_premium'] ?? false;
             final bool isVip = profile['is_vip'] ?? false;
             final bool hasAccess = isPremium || isVip;
@@ -168,11 +230,9 @@ class _MyPageState extends State<MyPage> {
                                   ),
                                   const SizedBox(width: 8),
                                   _buildBadge(badge),
-
-                                  // ✅ VIP 혹은 프리미엄 마크 표시 (VIP 우선순위)
                                   if (isVip) ...[
                                     const SizedBox(width: 6),
-                                    _buildVipMark(), // VIP 전용 마크
+                                    _buildVipMark(),
                                   ] else if (isPremium) ...[
                                     const SizedBox(width: 6),
                                     _buildPremiumMark(),
@@ -200,8 +260,7 @@ class _MyPageState extends State<MyPage> {
                       ],
                     ),
                   ),
-
-                  // 📘 여권 버튼 (VIP/프리미엄 통합 권한 적용)
+                  const SizedBox(height: 16),
                   GestureDetector(
                     onTap: () => _handlePassportTap(hasAccess),
                     child: Container(
@@ -236,7 +295,6 @@ class _MyPageState extends State<MyPage> {
                               letterSpacing: 1.2,
                             ),
                           ),
-                          // ✅ 권한이 없을 때만 잠금 아이콘 표시
                           if (!hasAccess) ...[
                             const SizedBox(width: 8),
                             const Icon(
@@ -249,7 +307,6 @@ class _MyPageState extends State<MyPage> {
                       ),
                     ),
                   ),
-
                   if (email != null && email.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -257,9 +314,7 @@ class _MyPageState extends State<MyPage> {
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                   ],
-
                   const SizedBox(height: 20),
-
                   GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
@@ -333,7 +388,6 @@ class _MyPageState extends State<MyPage> {
                           _refreshPage();
                         },
                       ),
-                      // ✅ 6번째 빈칸: 지구본 Lottie 유지
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -359,18 +413,17 @@ class _MyPageState extends State<MyPage> {
     );
   }
 
-  // ✅ [추가] VIP 전용 마크 디자인
   Widget _buildVipMark() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF000000), Color(0xFF434343)], // 블랙 & 다크그레이 간지
+          colors: [Color(0xFF000000), Color(0xFF434343)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFFFD700), width: 1), // 금색 테두리
+        border: Border.all(color: const Color(0xFFFFD700), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.3),

@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:math' as Math;
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
+import 'package:confetti/confetti.dart'; // ✅ 폭죽 효과
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
@@ -25,19 +27,25 @@ class _PayManagementPageState extends State<PayManagementPage>
   Offerings? _offerings;
   bool _isLoading = true;
 
-  // RevenueCat 대시보드에 설정된 Entitlement ID와 일치해야 합니다.
-  static const String _proEntitlementId = "TravelMemoir Pro";
-  static const String _vipEntitlementId = "TravelMemoir VIP";
+  // ✅ 폭죽 컨트롤러
+  late ConfettiController _confettiController;
+
+  static const String _proEntitlementId = "PREMIUM ACCESS";
+  static const String _vipEntitlementId = "VIP_ACCESS";
 
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
     WidgetsBinding.instance.addObserver(this);
     _loadSubscriptionStatus();
   }
 
   @override
   void dispose() {
+    _confettiController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -51,10 +59,7 @@ class _PayManagementPageState extends State<PayManagementPage>
 
   Future<void> _loadSubscriptionStatus() async {
     try {
-      // 1. 서버 동기화 먼저 수행
       await PaymentService.syncSubscriptionStatus();
-
-      // 2. 최신 오퍼링(상품목록) 및 고객 정보 가져오기
       final offerings = await PaymentService.getOfferings();
       final customerInfo = await Purchases.getCustomerInfo();
 
@@ -75,34 +80,46 @@ class _PayManagementPageState extends State<PayManagementPage>
     setState(() => _isLoading = true);
     try {
       bool success = await PaymentService.purchasePackage(package);
+
       if (success) {
+        await PaymentService.syncSubscriptionStatus();
         await _loadSubscriptionStatus();
+
         if (mounted) {
-          AppToast.show(context, 'upgrade_success_msg'.tr());
+          // 🎊 진동 없이 화려한 폭죽만 발사!
+          _confettiController.play();
+
+          // AppDialogs.showDynamicIconAlert(
+          //   context: context,
+          //   title: 'congratulations'.tr(),
+          //   message: 'upgrade_success_msg'.tr(),
+          //   icon: Icons.celebration,
+          //   iconColor: AppColors.primary,
+          //   onClose: () =>
+          //       Navigator.of(context).popUntil((route) => route.isFirst),
+          // );
         }
+        AppToast.show(context, 'upgrade_success_msg'.tr());
       }
     } catch (e) {
-      if (mounted) {
-        AppToast.error(context, 'purchase_error_msg'.tr());
-      }
+      debugPrint("❌ 결제 중 에러 발생: $e");
+      if (mounted) AppToast.error(context, 'purchase_error_msg'.tr());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handleCancelSubscription() async {
-    // 🎯 공통 확인 다이얼로그 호출 (빨간색 강조 버튼 적용)
     final bool? confirm = await AppDialogs.showConfirm(
       context: context,
       title: 'cancel_subscription_confirm_title',
       message: 'cancel_subscription_confirm_msg',
-      confirmLabel: 'confirm_cancel', // 👈 취소 확인용 라벨
-      confirmColor: Colors.red, // 👈 경고 의미의 빨간색 적용
+      confirmLabel: 'confirm_cancel',
+      confirmColor: Colors.red,
     );
 
     if (confirm != true) return;
 
-    // 구독 관리 페이지 이동 로직 (변경 없음)
     final String cancelUrl = Platform.isIOS
         ? "https://apps.apple.com/account/subscriptions"
         : "https://play.google.com/store/account/subscriptions";
@@ -115,7 +132,6 @@ class _PayManagementPageState extends State<PayManagementPage>
 
   @override
   Widget build(BuildContext context) {
-    // 🔍 RevenueCat에서 직접 권한 상태 확인
     final bool isPro =
         _customerInfo?.entitlements.all[_proEntitlementId]?.isActive ?? false;
     final bool isVip =
@@ -154,50 +170,90 @@ class _PayManagementPageState extends State<PayManagementPage>
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'subscription_info'.tr(),
-                    style: AppTextStyles.pageTitle,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ✨ RC 상태값이 직접 반영되는 카드
-                  _buildStatusCard(isPremium, isVip),
-
-                  const SizedBox(height: 35),
-
-                  if (!isPremium) ...[
-                    Text(
-                      'choose_plan'.tr(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+      body: Stack(
+        children: [
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'subscription_info'.tr(),
+                        style: AppTextStyles.pageTitle,
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    ...subscriptionPackages
-                        .map((p) => _buildPackageCard(p))
-                        .toList(),
-                  ] else ...[
-                    _buildCancelSection(),
-                  ],
+                      const SizedBox(height: 20),
+                      _buildStatusCard(isPremium, isVip),
+                      const SizedBox(height: 35),
+                      if (!isPremium) ...[
+                        Text(
+                          'choose_plan'.tr(),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ...subscriptionPackages
+                            .map((p) => _buildPackageCard(p))
+                            .toList(),
+                      ] else ...[
+                        _buildCancelSection(),
+                      ],
+                      const SizedBox(height: 20),
+                      _buildRestoreButton(),
+                    ],
+                  ),
+                ),
 
-                  const SizedBox(height: 20),
-                  _buildRestoreButton(),
-                ],
-              ),
+          // ✨ 브랜드 컬러 폭죽 위젯 (진동 없음)
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: [
+                AppColors.primary,
+                const Color(0xFFFFD700),
+                Colors.white,
+                Colors.blueAccent,
+              ],
+              createParticlePath: _drawStar,
             ),
+          ),
+        ],
+      ),
     );
   }
 
+  Path _drawStar(Size size) {
+    double degToRad(double deg) => deg * (Math.pi / 180.0);
+    const numberOfPoints = 5;
+    final halfWidth = size.width / 2;
+    final externalRadius = halfWidth;
+    final internalRadius = halfWidth / 2.5;
+    final degreesPerStep = degToRad(360 / numberOfPoints);
+    final halfDegreesPerStep = degreesPerStep / 2;
+    final path = Path();
+    final fullAngle = degToRad(360);
+    path.moveTo(size.width, halfWidth);
+    for (double step = 0; step < fullAngle; step += degreesPerStep) {
+      path.lineTo(
+        halfWidth + externalRadius * Math.cos(step),
+        halfWidth + externalRadius * Math.sin(step),
+      );
+      path.lineTo(
+        halfWidth + internalRadius * Math.cos(step + halfDegreesPerStep),
+        halfWidth + internalRadius * Math.sin(step + halfDegreesPerStep),
+      );
+    }
+    path.close();
+    return path;
+  }
+
   Widget _buildStatusCard(bool isPremium, bool isVip) {
-    // 활성화된 권한의 만료일 추출 (VIP 우선)
     final activeEntitlement = isVip
         ? _customerInfo?.entitlements.all[_vipEntitlementId]
         : _customerInfo?.entitlements.all[_proEntitlementId];
@@ -381,6 +437,10 @@ class _PayManagementPageState extends State<PayManagementPage>
                     false) ||
                 (_customerInfo?.entitlements.all[_vipEntitlementId]?.isActive ??
                     false);
+
+            if (isPremiumNow) {
+              _confettiController.play();
+            }
 
             AppToast.show(
               context,

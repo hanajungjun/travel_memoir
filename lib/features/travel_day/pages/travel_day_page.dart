@@ -244,7 +244,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     }
     if ((diary['ai_summary'] ?? '').toString().trim().isNotEmpty) {
       final String aiPath =
-          'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.png';
+          'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.jpg';
       final String rawUrl = Supabase.instance.client.storage
           .from('travel_images')
           .getPublicUrl(aiPath);
@@ -374,7 +374,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         });
 
     // ✅ 병렬 처리 2: 광고 로직
-    if (_isPremiumUser || _isVip) {
+    if (stampType == "vip" || stampType == "paid") {
       _isAdDone = true;
       _checkSync();
     } else {
@@ -482,18 +482,15 @@ class _TravelDayPageState extends State<TravelDayPage>
         _imageUrl == null &&
         _contentController.text.trim().isEmpty)
       return;
-
     setState(() {
       _loading = true;
       _loadingMessage = "saving_diary".tr();
     });
-
     try {
       final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
       );
-
       final diaryData = await TravelDayService.upsertDiary(
         travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
@@ -502,13 +499,12 @@ class _TravelDayPageState extends State<TravelDayPage>
         aiSummary: _summaryText,
         aiStyle: _selectedStyle?.id ?? _existingAiStyleId ?? 'default',
       );
-
       final String diaryId = diaryData['id'].toString().replaceAll(
         RegExp(r'[\s\n\r\t]+'),
         '',
       );
 
-      // 1️⃣ 로컬 사진 (Moments) 압축 및 업로드 (기존 로직 유지)
+      // 사용자 업로드 사진 압축
       if (_localPhotos.isNotEmpty) {
         final storage = Supabase.instance.client.storage.from('travel_images');
         for (int i = 0; i < _localPhotos.length; i++) {
@@ -528,26 +524,61 @@ class _TravelDayPageState extends State<TravelDayPage>
         }
       }
 
-      // 2️⃣ [업그레이드] AI 생성 이미지 압축 및 JPG 변환 업로드
+      // ✅ AI 생성 이미지 압축 처리
       if (_generatedImage != null) {
-        // 🎯 메모리 데이터(Uint8List)를 JPEG 800px로 압축
-        final Uint8List compressedAi =
-            await FlutterImageCompress.compressWithList(
-              _generatedImage!,
-              minWidth: 800, // 화질과 용량의 황금비율
-              minHeight: 800,
-              quality: 80, // 눈에 띄는 저하 없는 압축률
-              format: CompressFormat.jpeg, // 🎯 PNG보다 훨씬 가벼운 JPEG 사용
-            );
+        final tempDir = await getTemporaryDirectory();
+        final tempPath =
+            '${tempDir.path}/temp_ai_${DateTime.now().millisecondsSinceEpoch}.png';
 
-        await ImageUploadService.uploadAiImage(
-          // 🎯 확장자를 .jpg로 변경하여 서버 관리 효율성 증대
-          path:
-              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.jpg',
-          imageBytes: compressedAi,
+        // 1. 메모리 이미지를 임시 파일로 저장
+        final tempFile = File(tempPath);
+        await tempFile.writeAsBytes(_generatedImage!);
+
+        // 2. 압축
+        final compressedPath =
+            '${tempDir.path}/compressed_ai_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final compressedFile = await FlutterImageCompress.compressAndGetFile(
+          tempPath,
+          compressedPath,
+          quality: 70,
+          minWidth: 1024,
+          minHeight: 1024,
+          format: CompressFormat.jpeg,
+
+          /*
+          // 옵션 1: 더 공격적인 압축 (용량 최소화)
+            quality: 50,
+            minWidth: 800,
+            minHeight: 800,
+
+            // 옵션 2: 밸런스형 (품질과 용량 절충)
+            quality: 70,
+            minWidth: 1024,
+            minHeight: 1024,
+
+            // 옵션 3: 고화질 유지 (약간만 압축)
+            quality: 85,
+            minWidth: 1200,
+            minHeight: 1200,
+          */
         );
+
+        // 3. 압축된 파일 업로드
+        if (compressedFile != null) {
+          final compressedBytes = await File(compressedFile.path).readAsBytes();
+          await ImageUploadService.uploadAiImage(
+            path:
+                'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.jpg',
+            imageBytes: compressedBytes,
+          );
+
+          // 4. 임시 파일 삭제
+          await tempFile.delete();
+          await File(compressedFile.path).delete();
+        }
       }
 
+      // ✅ 나머지 로직 (여행 완료 체크)
       if (mounted) {
         setState(() => _loading = false);
         final writtenDays = await TravelDayService.getWrittenDayCount(
@@ -555,7 +586,6 @@ class _TravelDayPageState extends State<TravelDayPage>
         );
         final totalDays =
             widget.endDate.difference(widget.startDate).inDays + 1;
-
         if (writtenDays >= totalDays) {
           Navigator.push(
             context,
@@ -576,9 +606,6 @@ class _TravelDayPageState extends State<TravelDayPage>
           Navigator.pop(context, true);
         }
       }
-    } catch (e) {
-      debugPrint('❌ 저장 실패: $e');
-      AppToast.error(context, 'save_failed'.tr());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -774,18 +801,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                       _buildAppBarCoinToggle(),
                     ],
                   ),
-                  if (_isPremiumUser)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 5, top: 4),
-                      child: Text(
-                        '오늘 남은 생성 횟수: ${100 - _usageCountToday}/100',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.amber[800],
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+
                   const SizedBox(height: 5),
                   _buildDiaryInput(),
                   const SizedBox(height: 17),

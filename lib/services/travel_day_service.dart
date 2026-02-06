@@ -229,7 +229,7 @@ class TravelDayService {
 
       // AI 이미지 경로도 추가 (기존 로직 유지)
       finalDeleteList.add(
-        'users/$uid/travels/$tid/diaries/$diaryId/ai_generated.png',
+        'users/$uid/travels/$tid/diaries/$diaryId/ai_generated.jpg',
       );
 
       // 기타 커버/지도 이미지 (필요시)
@@ -275,7 +275,7 @@ class TravelDayService {
     required String diaryId,
   }) {
     final path =
-        'users/$userId/travels/$travelId/diaries/$diaryId/ai_generated.png';
+        'users/$userId/travels/$travelId/diaries/$diaryId/ai_generated.jpg';
     final url = Supabase.instance.client.storage
         .from('travel_images')
         .getPublicUrl(path);

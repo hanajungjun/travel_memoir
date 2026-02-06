@@ -8,8 +8,6 @@ import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/screens/onboarding_screen.dart';
 import 'package:easy_localization/easy_localization.dart';
 
-import 'package:travel_memoir/app/text_theme_utils.dart';
-
 class TravelMemoirApp extends StatefulWidget {
   final bool showOnboarding;
 

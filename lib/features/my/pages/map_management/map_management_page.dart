@@ -45,7 +45,7 @@ class _MapManagementPageState extends State<MapManagementPage> {
   Future<List<Map<String, dynamic>>> _getMapData() async {
     final res = await Supabase.instance.client
         .from('users')
-        .select('active_maps, owned_maps') // 👈 영구 장부(owned_maps) 함께 조회
+        .select('active_maps, owned_maps')
         .eq('auth_uid', _userId)
         .maybeSingle();
 
@@ -61,17 +61,17 @@ class _MapManagementPageState extends State<MapManagementPage> {
         'isAvailable': true,
       },
       {
-        'id': 'us',
-        'name': 'usa_map',
-        'icon': '🇺🇸',
-        'isFixed': true,
-        'isAvailable': true,
-      },
-      {
-        'id': 'ko',
+        'id': 'ko', // ✅ 2번째 순서: 한국
         'name': 'korea_map',
         'icon': '🇰🇷',
         'isFixed': false,
+        'isAvailable': true,
+      },
+      {
+        'id': 'us', // ✅ 3번째 순서: 미국
+        'name': 'usa_map',
+        'icon': '🇺🇸',
+        'isFixed': true,
         'isAvailable': true,
       },
       {
@@ -80,21 +80,19 @@ class _MapManagementPageState extends State<MapManagementPage> {
         'icon': '🇯🇵',
         'isFixed': false,
         'isAvailable': false,
-      }, // 👈 준비 중
+      },
       {
         'id': 'it',
         'name': 'italy_map',
         'icon': '🇮🇹',
         'isFixed': false,
         'isAvailable': false,
-      }, // 👈 준비 중
+      },
     ];
 
     return baseMaps.map((map) {
       final String id = map['id'];
-      // 구매 여부는 영구 장부(owned_maps) 기준
       map['isPurchased'] = ownedIds.contains(id);
-      // 활성화 여부는 active_maps 기준 (world는 항상 true)
       map['isActive'] = activeIds.contains(id) || (id == 'world');
       return map;
     }).toList();
@@ -107,7 +105,6 @@ class _MapManagementPageState extends State<MapManagementPage> {
     });
   }
 
-  // 구매 복구 로직
   Future<void> _handleRestore() async {
     AppToast.show(context, 'restore'.tr());
     final success = await PaymentService.restorePurchases();
@@ -121,6 +118,8 @@ class _MapManagementPageState extends State<MapManagementPage> {
 
   Future<void> _handleMapPurchase(String mapId) async {
     try {
+      if (_mapPackages.isEmpty) return;
+
       String targetIdSnippet = mapId == 'us' ? 'usa' : mapId;
       final package = _mapPackages.firstWhere(
         (p) =>
@@ -128,7 +127,9 @@ class _MapManagementPageState extends State<MapManagementPage> {
       );
 
       final success = await PaymentService.purchasePackage(package);
-      if (success) _refresh();
+      if (success) {
+        _refresh(); // 구매 성공 시 리스트 즉시 갱신
+      }
     } catch (e) {
       AppToast.error(context, 'no_products'.tr(args: [mapId]));
     }
@@ -234,7 +235,7 @@ class _MapItemTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Opacity(
-        opacity: isAvailable ? 1.0 : 0.6, // 준비 중인 상품은 약간 투명하게
+        opacity: isAvailable ? 1.0 : 0.6,
         child: Container(
           decoration: BoxDecoration(
             color: isPurchased ? Colors.white : Colors.grey.shade100,
@@ -294,7 +295,6 @@ class _MapItemTile extends StatelessWidget {
     if (!isPurchased) {
       return const Icon(Icons.shopping_cart_outlined, color: Colors.blue);
     }
-    // 미국(us) 등 고정 지도는 구매 시 'Active' 라벨 표시
     if (isFixed) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),

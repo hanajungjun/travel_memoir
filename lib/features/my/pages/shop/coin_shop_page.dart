@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'dart:math' as Math;
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:confetti/confetti.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
@@ -28,7 +30,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
 
   late Future<Map<String, int>> _balanceFuture;
 
-  // 🎯 리워드 설정 (DB 연동)
+  // 🎯 리워드 설정
   int _adUsedToday = 0;
   int _adDailyLimit = 5;
   int _vipDailyAmount = 50;
@@ -38,20 +40,27 @@ class _CoinShopPageState extends State<CoinShopPage> {
   RewardedAd? _rewardedAd;
   bool _isAdLoaded = false;
 
+  // 🎊 폭죽 컨트롤러
+  late ConfettiController _confettiController;
+
   final StampService _stampService = StampService();
 
   @override
   void initState() {
     super.initState();
+    _confettiController = ConfettiController(
+      duration: const Duration(seconds: 3),
+    );
     _balanceFuture = _fetchCoinBalances();
     _fetchOfferings();
     _loadAds();
-    _loadAllConfigs(); // 🎯 설정 로드
+    _loadAllConfigs();
   }
 
   @override
   void dispose() {
     _rewardedAd?.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -115,7 +124,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
           _isPremium =
               customerInfo.entitlements.all["TravelMemoir Pro"]?.isActive ??
               false;
-          _isPremium = false; // 테스트용 유지
 
           _subscriptionPackages = allPackages.where((p) {
             final id = p.identifier.toLowerCase();
@@ -145,7 +153,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
   }
 
   // ==========================================
-  // 🎬 광고 및 보상 로직
+  // 🎬 광고 로직
   // ==========================================
 
   void _loadAds() {
@@ -185,7 +193,9 @@ class _CoinShopPageState extends State<CoinShopPage> {
         final result = await _stampService.grantAdReward(user.id);
         if (result != null) {
           await _loadAllConfigs();
-          setState(() => _balanceFuture = _fetchCoinBalances());
+          setState(() {
+            _balanceFuture = _fetchCoinBalances();
+          });
           final successMsg = _adRewardMsg.replaceAll(
             '{amount}',
             result['reward_amount'].toString(),
@@ -205,18 +215,51 @@ class _CoinShopPageState extends State<CoinShopPage> {
   }
 
   // ==========================================
-  // 💰 결제 핸들링
+  // 💰 결제 핸들링 (에러 수정 완료 ✅)
   // ==========================================
-
   Future<void> _handlePurchase(Package package) async {
-    setState(() => _isProductsLoading = true);
+    // 1. 로딩 시작
+    setState(() {
+      _isProductsLoading = true;
+    });
+
     try {
-      if (await PaymentService.purchasePackage(package)) {
+      // 2. 결제 요청 (setState 밖에서 처리)
+      bool success = await PaymentService.purchasePackage(package);
+
+      if (success) {
+        // 3. 서버 데이터 동기화 및 최신 정보 수집
+        await PaymentService.syncSubscriptionStatus();
         await _fetchOfferings();
-        setState(() => _balanceFuture = _fetchCoinBalances());
-        AppToast.show(context, 'upgrade_success_msg'.tr());
+        final newFuture = _fetchCoinBalances();
+
+        if (mounted) {
+          // 4. 상태 업데이트 (동기적으로 수행)
+          setState(() {
+            _balanceFuture = newFuture;
+            _isProductsLoading = false; // 로딩 종료를 같이 처리
+          });
+
+          // 🎊 폭죽 발사
+          _confettiController.play();
+
+          // AppDialogs.showDynamicIconAlert(
+          //   context: context,
+          //   title: 'congratulations'.tr(),
+          //   message: 'upgrade_success_msg'.tr(),
+          //   icon: Icons.celebration,
+          //   iconColor: AppColors.primary,
+          //   onClose: () {
+          //     Navigator.of(context).popUntil((route) => route.isFirst);
+          //   },
+          // );
+          AppToast.show(context, 'upgrade_success_msg'.tr());
+        }
+      } else {
+        if (mounted) setState(() => _isProductsLoading = false);
       }
-    } finally {
+    } catch (e) {
+      debugPrint("❌ 결제 실패: $e");
       if (mounted) setState(() => _isProductsLoading = false);
     }
   }
@@ -226,14 +269,17 @@ class _CoinShopPageState extends State<CoinShopPage> {
     try {
       await PaymentService.restorePurchases();
       await _fetchOfferings();
-      setState(() => _balanceFuture = _fetchCoinBalances());
+      final newFuture = _fetchCoinBalances();
+      setState(() {
+        _balanceFuture = newFuture;
+      });
     } finally {
       if (mounted) setState(() => _isProductsLoading = false);
     }
   }
 
   // ==========================================
-  // 🎨 UI 빌더 (디자인 복원 완료!)
+  // 🎨 UI 빌더
   // ==========================================
 
   @override
@@ -266,50 +312,102 @@ class _CoinShopPageState extends State<CoinShopPage> {
           ),
         ],
       ),
-      body: _isProductsLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(10, 10, 20, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildBalanceCard(),
-                  const SizedBox(height: 12),
-                  Text(
-                    'membership_plan'.tr(),
-                    style: AppTextStyles.sectionTitle,
-                  ),
-                  const SizedBox(height: 8),
-                  if (_isPremium)
-                    _buildSubscribedCard()
-                  else
-                    _buildSubscriptionSection(),
-                  const SizedBox(height: 18),
-                  Text('charge_coins'.tr(), style: AppTextStyles.sectionTitle),
-                  const SizedBox(height: 8),
-                  _buildCoinGrid(),
-
-                  // ✅ 복원 버튼 영역 여백 최소화 (top: 4 복구)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: TextButton(
-                        onPressed: _handleRestore,
-                        child: Text(
-                          'restore'.tr(),
-                          style: const TextStyle(
-                            color: Colors.grey,
-                            fontSize: 13,
+      body: Stack(
+        children: [
+          _isProductsLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 20, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildBalanceCard(),
+                      const SizedBox(height: 12),
+                      Text(
+                        'membership_plan'.tr(),
+                        style: AppTextStyles.sectionTitle,
+                      ),
+                      const SizedBox(height: 8),
+                      if (_isPremium)
+                        _buildSubscribedCard()
+                      else
+                        _buildSubscriptionSection(),
+                      const SizedBox(height: 18),
+                      Text(
+                        'charge_coins'.tr(),
+                        style: AppTextStyles.sectionTitle,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildCoinGrid(),
+                      Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: TextButton(
+                            onPressed: _handleRestore,
+                            child: Text(
+                              'restore'.tr(),
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      _buildFooterNotice(),
+                    ],
                   ),
-                  _buildFooterNotice(),
-                ],
-              ),
+                ),
+
+          // ✨ 브랜드 컬러 폭죽 위젯
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              shouldLoop: false,
+              colors: [
+                AppColors.primary,
+                AppColors.primary.withOpacity(0.7),
+                const Color(0xFFFFD700),
+                Colors.white,
+                Colors.blueAccent,
+              ],
+              createParticlePath: _drawStar,
+              maxBlastForce: 20,
+              minBlastForce: 8,
+              emissionFrequency: 0.05,
+              numberOfParticles: 20,
             ),
+          ),
+        ],
+      ),
     );
+  }
+
+  Path _drawStar(Size size) {
+    double degToRad(double deg) => deg * (Math.pi / 180.0);
+    const numberOfPoints = 5;
+    final halfWidth = size.width / 2;
+    final externalRadius = halfWidth;
+    final internalRadius = halfWidth / 2.5;
+    final degreesPerStep = degToRad(360 / numberOfPoints);
+    final halfDegreesPerStep = degreesPerStep / 2;
+    final path = Path();
+    final fullAngle = degToRad(360);
+    path.moveTo(size.width, halfWidth);
+    for (double step = 0; step < fullAngle; step += degreesPerStep) {
+      path.lineTo(
+        halfWidth + externalRadius * Math.cos(step),
+        halfWidth + externalRadius * Math.sin(step),
+      );
+      path.lineTo(
+        halfWidth + internalRadius * Math.cos(step + halfDegreesPerStep),
+        halfWidth + internalRadius * Math.sin(step + halfDegreesPerStep),
+      );
+    }
+    path.close();
+    return path;
   }
 
   Widget _buildSubscriptionSection() {
@@ -336,7 +434,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
                         '{amount}',
                         _vipDailyAmount.toString(),
                       ),
-                      // 'all_premium_features'.tr(),
                       'benefit_ai_picker'.tr(),
                       'benefit_monthly_coins'.tr(),
                       'benefit_ai_extra_image'.tr(),
@@ -513,7 +610,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
   Widget _buildCoinGrid() {
     return GridView.builder(
       shrinkWrap: true,
-      padding: EdgeInsets.zero, // ✅ 범인 검거! 패딩 0으로 복구
+      padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _coinPackages.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -557,10 +654,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
 
   Widget _buildFooterNotice() {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        vertical: 5,
-        horizontal: 10,
-      ), // ✅ 다이어트 패딩 유지
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
       child: Column(
         children: [
           Text(
@@ -602,10 +696,6 @@ class _CoinShopPageState extends State<CoinShopPage> {
     );
   }
 
-  // ==========================================
-  // 🔗 헬퍼 함수 (생략 없음!)
-  // ==========================================
-
   void _openLegalPage(String type) {
     final isKorean = context.locale.languageCode == 'ko';
     final suffix = isKorean ? '' : '_en';
@@ -628,9 +718,8 @@ class _CoinShopPageState extends State<CoinShopPage> {
 
   String _packagePeriodLabel(BuildContext context, Package package) {
     final isKorean = context.locale.languageCode == 'ko';
-    if (package.identifier.toLowerCase().contains('vip')) {
+    if (package.identifier.toLowerCase().contains('vip'))
       return isKorean ? '/ 연' : 'per Year';
-    }
     switch (package.packageType) {
       case PackageType.monthly:
         return isKorean ? '/ 월' : 'per month';

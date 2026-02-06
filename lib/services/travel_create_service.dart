@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -66,7 +67,7 @@ class TravelCreateService {
   }
 
   // ============================
-  // 🌍 해외 여행 생성
+  // 🌍 해외 여행 생성 (여권 도장 포함 ✅)
   // ============================
   static Future<Map<String, dynamic>> createOverseasTravel({
     required String userId,
@@ -95,6 +96,14 @@ class TravelCreateService {
         })
         .select()
         .single();
+
+    // ✅ 오직 해외 여행 생성 시에만 여권 도장 데이터 생성
+    await _upsertPassportStamp(
+      userId: userId,
+      countryCode: countryCode,
+      nameKo: country.nameKo,
+      nameEn: country.nameEn,
+    );
 
     await _createEmptyDays(
       travelId: travel['id'],
@@ -140,6 +149,8 @@ class TravelCreateService {
         .select()
         .single();
 
+    // ⛔️ 미국 여행은 여권 도장 로직을 호출하지 않음
+
     await _createEmptyDays(
       travelId: travel['id'],
       startDate: startDate,
@@ -147,6 +158,33 @@ class TravelCreateService {
     );
 
     return travel;
+  }
+
+  // ============================
+  // 🛂 [내부 메서드] 여권 도장 정보 업데이트
+  // ============================
+  static Future<void> _upsertPassportStamp({
+    required String userId,
+    required String countryCode,
+    required String nameKo,
+    required String nameEn,
+  }) async {
+    try {
+      final bool isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
+      final String countryName = isKo ? nameKo : nameEn;
+
+      await _supabase.rpc(
+        'upsert_visited_country',
+        params: {
+          'p_user_id': userId,
+          'p_country_code': countryCode,
+          'p_country_name': countryName,
+        },
+      );
+      debugPrint('✅ [Passport Stamp] $countryName 도장 생성 완료');
+    } catch (e) {
+      debugPrint('❌ [Passport Stamp] 생성 실패: $e');
+    }
   }
 
   // ============================

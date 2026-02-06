@@ -1,13 +1,39 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:travel_memoir/env.dart';
 
 class PaymentService {
   static final _supabase = Supabase.instance.client;
 
-  // ✅ RevenueCat Entitlement IDs (대시보드와 반드시 일치시켜주세요)
-  static const String _proEntitlementId = "TravelMemoir Pro";
-  static const String _vipEntitlementId = "TravelMemoir VIP"; // 💎 VIP 전용 ID 추가
+  // 🎯 [방송국] UI 새로고침 전파를 위한 전역 신호기
+  static final ValueNotifier<bool> refreshNotifier = ValueNotifier<bool>(false);
+
+  // ✅ RevenueCat Entitlement ID 설정
+  static const String _proEntitlementId = "PREMIUM ACCESS";
+  static const String _vipEntitlementId = "VIP_ACCESS";
+
+  // =========================
+  // 🟢 플랫폼별 초기화 (init)
+  // =========================
+  static Future<void> init(String userId) async {
+    try {
+      // 🔑 플랫폼(iOS/Android)에 맞는 API 키 선택
+      String apiKey = Platform.isIOS
+          ? AppEnv.revenueCatAppleKey
+          : AppEnv.revenueCatGoogleKey;
+
+      // ⚠️ 특정 StoreKit 버전을 강제하지 않고 최신 설정을 따르도록 구성
+      final configuration = PurchasesConfiguration(apiKey)..appUserID = userId;
+
+      await Purchases.configure(configuration);
+      debugPrint("✅ RevenueCat 초기화 완료 (Platform: ${Platform.operatingSystem})");
+    } catch (e) {
+      debugPrint("❌ RevenueCat 초기화 실패: $e");
+    }
+  }
 
   // =========================
   // 0️⃣ coins_50 / coins_100 / coins_200 파싱
@@ -26,7 +52,7 @@ class PaymentService {
     try {
       return await Purchases.getOfferings();
     } catch (e) {
-      print("❌ 전체 오퍼링 가져오기 실패: $e");
+      debugPrint("❌ 전체 오퍼링 가져오기 실패: $e");
       return null;
     }
   }
@@ -39,13 +65,13 @@ class PaymentService {
       Offerings offerings = await Purchases.getOfferings();
       return offerings.current;
     } catch (e) {
-      print("❌ 현재 오퍼링 가져오기 실패: $e");
+      debugPrint("❌ 현재 오퍼링 가져오기 실패: $e");
       return null;
     }
   }
 
   // =========================
-  // 3️⃣ 결제 진행
+  // 3️⃣ 결제 진행 (에러 핸들링 강화)
   // =========================
   static Future<bool> purchasePackage(Package package) async {
     try {
@@ -56,9 +82,23 @@ class PaymentService {
         package.storeProduct.identifier,
       );
     } on PlatformException catch (e) {
+      // ⚠️ 영수증 누락 오류(Missing in receipt) 발생 시 강제로 복원 시도
+      if (e.message?.contains("missing in the receipt") ?? false) {
+        debugPrint("🔄 영수증 누락 감지: 구매 내역 강제 동기화(Restore) 시도 중...");
+        try {
+          CustomerInfo syncedInfo = await Purchases.restorePurchases();
+          return await _handleCustomerInfo(
+            syncedInfo,
+            package.storeProduct.identifier,
+          );
+        } catch (restoreError) {
+          debugPrint("❌ 자동 복원 실패: $restoreError");
+        }
+      }
+
       if (PurchasesErrorHelper.getErrorCode(e) !=
           PurchasesErrorCode.purchaseCancelledError) {
-        print("❌ 결제 오류: ${e.message}");
+        debugPrint("❌ 결제 오류: ${e.message}");
       }
       return false;
     }
@@ -73,13 +113,13 @@ class PaymentService {
       // 복원 시에는 productIdentifier를 알 수 없으므로 null 전달
       return await _handleCustomerInfo(customerInfo, null);
     } catch (e) {
-      print("❌ 복원 실패: $e");
+      debugPrint("❌ 복원 실패: $e");
       return false;
     }
   }
 
   // =========================
-  // 5️⃣ CustomerInfo 처리 게이트 (VIP 로직 추가)
+  // 5️⃣ CustomerInfo 처리 게이트
   // =========================
   static Future<bool> _handleCustomerInfo(
     CustomerInfo info,
@@ -93,6 +133,10 @@ class PaymentService {
     final vipEntitlement = info.entitlements.all[_vipEntitlementId];
     final bool isVipActive = vipEntitlement?.isActive ?? false;
 
+    debugPrint("🔍 [결제체크] Pro 활성화 상태: $isProActive");
+    debugPrint("🔍 [결제체크] VIP 활성화 상태: $isVipActive");
+
+    // Supabase DB와 동기화 (먼저 수행)
     await _syncStatusToSupabase(
       isProActive: isProActive,
       proExpirationDate: proEntitlement?.expirationDate,
@@ -103,6 +147,9 @@ class PaymentService {
       productIdentifier: productIdentifier,
     );
 
+    // ✨ [핵심] DB 동기화가 완전히 끝난 시점에 전파를 쏩니다!
+    refreshNotifier.value = !refreshNotifier.value;
+
     return true;
   }
 
@@ -111,9 +158,9 @@ class PaymentService {
     try {
       CustomerInfo customerInfo = await Purchases.getCustomerInfo();
       await _handleCustomerInfo(customerInfo, null);
-      print("🔄 최신 구독 및 VIP 정보 DB 동기화 완료");
+      debugPrint("🔄 최신 구독 및 VIP 정보 DB 동기화 완료");
     } catch (e) {
-      print("❌ 동기화 실패: $e");
+      debugPrint("❌ 동기화 실패: $e");
     }
   }
 
@@ -142,18 +189,15 @@ class PaymentService {
         // 💎 VIP 정보 업데이트
         'is_vip': isVipActive,
         'vip_until': vipExpirationDate,
-        'vip_since': vipLatestPurchaseDate, // 최근 구매일을 가입일로 활용
+        'vip_since': vipLatestPurchaseDate,
       };
 
       await _supabase.from('users').update(updateData).eq('auth_uid', user.id);
 
       // (2) ✅ 멤버십 보너스 지급 (RPC)
       if (isVipActive) {
-        // VIP 유저는 별도의 VIP 코인/스탬프 지급 로직이 있다면 여기서 실행
-        //  await _supabase.rpc('grant_vip_membership_bonus');
         await _supabase.rpc('grant_membership_coins');
       } else if (isProActive) {
-        // 일반 프리미엄 유저 코인 지급
         await _supabase.rpc('grant_membership_coins');
       }
 
@@ -166,11 +210,11 @@ class PaymentService {
             'increment_coins',
             params: {'amount': addedCoins},
           );
-          print("💰 코인 $addedCoins개 충전 성공");
+          debugPrint("💰 코인 $addedCoins개 충전 성공");
         }
       }
 
-      // (4) 지도 상품 구매 처리
+      // (4) ✅ 지도 상품 구매 처리 (미국/일본/이탈리아)
       if (productIdentifier != null &&
           productIdentifier.toLowerCase().contains('map')) {
         String mapId = '';
@@ -186,9 +230,9 @@ class PaymentService {
         }
       }
 
-      print("✅ [VIP/Pro] Supabase 데이터 동기화 완료");
+      debugPrint("✅ [VIP/Pro/Map] Supabase 데이터 동기화 완료");
     } catch (e) {
-      print("❌ DB 업데이트 오류: $e");
+      debugPrint("❌ DB 업데이트 오류: $e");
     }
   }
 }

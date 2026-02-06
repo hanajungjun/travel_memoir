@@ -89,7 +89,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }
 
   Future<void> _updateMapGestures() async {
-    if (_map == null) return;
+    if (_map == null || !mounted) return;
     try {
       await _map!.gestures.updateSettings(
         widget.isReadOnly
@@ -121,7 +121,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }
 
   Future<void> refreshData() async {
-    if (_map == null) return;
+    if (_map == null || !mounted) return;
     await _drawAll();
   }
 
@@ -182,7 +182,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
     await _loadUserMapAccess();
     await _drawAll();
 
-    // 🎯 애니메이션 없이 위치만 잡아주도록 수정됨
     if (widget.showLastTravelFocus) {
       await _focusOnLastTravel();
     }
@@ -192,7 +191,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
   Future<void> _loadUserMapAccess() async {
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return;
+    if (user == null || !mounted) return;
     try {
       final res = await Supabase.instance.client
           .from('users')
@@ -213,8 +212,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
     if (map == null || !mounted) return;
 
     final style = map.style;
-    if (style == null) return;
-
+    // 🚀 스타일 매니저 접근 전 안전성 체크
     try {
       final travels = await Supabase.instance.client
           .from('travels')
@@ -242,6 +240,8 @@ class GlobalMapPageState extends State<GlobalMapPage>
       }
 
       final worldJson = await rootBundle.loadString(_worldGeo);
+
+      if (!mounted || _map == null) return; // 🚀 비동기 작업 후 다시 체크
 
       await _rm(style, _worldFill, _worldSource);
 
@@ -333,8 +333,13 @@ class GlobalMapPageState extends State<GlobalMapPage>
       await style.setStyleLayerProperty(_worldFill, 'fill-opacity', 0.7);
 
       for (var config in _supportedDetailedMaps) {
+        // 🚀 루프 내부에서 매번 채널 상태 확인
+        if (!mounted || _map == null) break;
+
         if (_hasAccess(config.countryCode)) {
           await Future.delayed(const Duration(milliseconds: 50));
+          if (!mounted || _map == null) break;
+
           await _drawSubMap(
             style,
             config,
@@ -357,12 +362,18 @@ class GlobalMapPageState extends State<GlobalMapPage>
     String doneHex,
   ) async {
     try {
+      if (!mounted || _map == null) return; // 🚀 진입 전 체크
+
       final json = await rootBundle.loadString(config.geoJsonPath);
       await _rm(style, config.layerId, config.sourceId);
+
+      if (!mounted || _map == null) return;
 
       if (!(await style.styleSourceExists(config.sourceId))) {
         await style.addSource(GeoJsonSource(id: config.sourceId, data: json));
       }
+
+      if (!mounted || _map == null) return;
 
       if (!(await style.styleLayerExists(config.layerId))) {
         await style.addLayer(
@@ -405,69 +416,76 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }
 
   Future<void> _onMapTap(MapContentGestureContext ctx) async {
-    if (_map == null) return;
-    final screen = await _map!.pixelForCoordinate(ctx.point);
-    for (var config in _supportedDetailedMaps) {
-      if (_hasAccess(config.countryCode)) {
-        final features = await _map!.queryRenderedFeatures(
-          RenderedQueryGeometry.fromScreenCoordinate(screen),
-          RenderedQueryOptions(layerIds: [config.layerId]),
-        );
-        if (features.isNotEmpty) {
-          final props =
-              features.first?.queriedFeature.feature['properties'] as Map?;
-          final regionName = (props?['NAME'] ?? props?['name'])?.toString();
-          if (regionName != null) {
-            _showPopup(
-              countryCode: config.countryCode,
-              regionName: regionName.toUpperCase(),
-            );
-            return;
+    if (_map == null || !mounted) return;
+    try {
+      final screen = await _map!.pixelForCoordinate(ctx.point);
+      for (var config in _supportedDetailedMaps) {
+        if (_hasAccess(config.countryCode)) {
+          final features = await _map!.queryRenderedFeatures(
+            RenderedQueryGeometry.fromScreenCoordinate(screen),
+            RenderedQueryOptions(layerIds: [config.layerId]),
+          );
+          if (features.isNotEmpty) {
+            final props =
+                features.first?.queriedFeature.feature['properties'] as Map?;
+            final regionName = (props?['NAME'] ?? props?['name'])?.toString();
+            if (regionName != null) {
+              _showPopup(
+                countryCode: config.countryCode,
+                regionName: regionName.toUpperCase(),
+              );
+              return;
+            }
           }
         }
       }
-    }
-    final world = await _map!.queryRenderedFeatures(
-      RenderedQueryGeometry.fromScreenCoordinate(screen),
-      RenderedQueryOptions(layerIds: [_worldFill]),
-    );
-    if (world.isEmpty) return;
-    final props = world.first?.queriedFeature.feature['properties'] as Map?;
-    final code = (props?['ISO_A2'] ?? props?['iso_a2'] ?? props?['ISO_A2_EH'])
-        ?.toString()
-        .toUpperCase();
-    if (code != null) {
-      final isKo = context.locale.languageCode == 'ko';
-      final name =
-          (isKo
-                  ? (props?['NAME_KO'] ?? props?['NAME'])
-                  : (props?['NAME'] ?? props?['NAME_KO']))
-              ?.toString();
-      _showPopup(countryCode: code, regionName: name ?? code);
-    }
+      final world = await _map!.queryRenderedFeatures(
+        RenderedQueryGeometry.fromScreenCoordinate(screen),
+        RenderedQueryOptions(layerIds: [_worldFill]),
+      );
+      if (world.isEmpty) return;
+      final props = world.first?.queriedFeature.feature['properties'] as Map?;
+      final code = (props?['ISO_A2'] ?? props?['iso_a2'] ?? props?['ISO_A2_EH'])
+          ?.toString()
+          .toUpperCase();
+      if (code != null) {
+        final isKo = context.locale.languageCode == 'ko';
+        final name =
+            (isKo
+                    ? (props?['NAME_KO'] ?? props?['NAME'])
+                    : (props?['NAME'] ?? props?['NAME_KO']))
+                ?.toString();
+        _showPopup(countryCode: code, regionName: name ?? code);
+      }
+    } catch (_) {}
   }
 
   void _showPopup({
     required String countryCode,
     required String regionName,
   }) async {
+    if (!mounted) return;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
     bool isDetailed = _hasAccess(countryCode);
     var query = Supabase.instance.client
         .from('travels')
         .select('map_image_url, ai_cover_summary')
         .eq('user_id', user.id)
         .eq('country_code', countryCode);
+
     if (isDetailed) query = query.eq('region_name', regionName);
+
     final res = await query
         .eq('is_completed', true)
         .order('completed_at', ascending: false)
         .limit(1)
         .maybeSingle();
-    if (res == null) return;
-    final rawPath = res['map_image_url']?.toString() ?? '';
 
+    if (res == null || !mounted) return;
+
+    final rawPath = res['map_image_url']?.toString() ?? '';
     String finalUrl = (countryCode == 'US' && _hasAccess('US'))
         ? StorageUrls.usaMapFromPath(rawPath)
         : StorageUrls.globalMapFromPath('${countryCode.toUpperCase()}.png');
@@ -491,7 +509,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
   Future<void> _localizeLabels() async {
     final map = _map;
-    if (map == null) return;
+    if (map == null || !mounted) return;
     final lang = context.locale.languageCode;
     final layers = [
       'country-label',
@@ -499,8 +517,10 @@ class GlobalMapPageState extends State<GlobalMapPage>
       'state-label',
       'poi-label',
     ];
+
     for (final id in layers) {
       try {
+        if (!mounted || _map == null) break;
         if (await map.style.styleLayerExists(id)) {
           await map.style.setStyleLayerProperty(
             id,
@@ -513,8 +533,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }
 
   Future<void> _focusOnLastTravel() async {
+    if (!mounted || _map == null) return;
     final user = Supabase.instance.client.auth.currentUser;
-    if (user == null || _map == null) return;
+    if (user == null) return;
 
     try {
       final lastTravel = await Supabase.instance.client
@@ -537,11 +558,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
         if (lat != null && lng != null) {
           double focusZoom = 3.5;
-          if (lat < -60) {
-            focusZoom = 0.5; // 멀리서 봐야 주변 바다가 보여서 덜 빨갛게 보입니다.
-          }
-          // 🚀 flyTo 대신 setCamera를 사용하여 채널 에러 원천 차단
-          _map!.setCamera(
+          if (lat < -60) focusZoom = 0.5;
+
+          await _map!.setCamera(
             CameraOptions(
               center: Point(coordinates: Position(lng, lat)),
               zoom: focusZoom,
@@ -555,6 +574,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }
 
   Future<void> _rm(StyleManager s, String layer, String source) async {
+    if (!mounted || _map == null) return; // 🚀 채널 삭제 전 확인
     try {
       if (await s.styleLayerExists(layer)) await s.removeStyleLayer(layer);
     } catch (_) {}
