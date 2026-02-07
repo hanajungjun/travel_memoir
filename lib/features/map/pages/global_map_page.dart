@@ -29,10 +29,13 @@ class DetailedMapConfig {
 class GlobalMapPage extends StatefulWidget {
   final bool isReadOnly;
   final bool showLastTravelFocus;
+  final bool animateFocus; // 🎯 카메라 이동 애니메이션 여부 추가
+
   const GlobalMapPage({
     super.key,
     this.isReadOnly = false,
     this.showLastTravelFocus = false,
+    this.animateFocus = false, // 기본값은 '슥~' 하고 이동하는 애니메이션 적용
   });
 
   @override
@@ -164,28 +167,23 @@ class GlobalMapPageState extends State<GlobalMapPage>
   Future<void> _onStyleLoaded(StyleLoadedEventData _) async {
     if (_init || _map == null) return;
     _init = true;
-
     await WidgetsBinding.instance.endOfFrame;
     await Future.delayed(const Duration(milliseconds: 500));
-
     if (!mounted || _map == null) return;
-
     await _updateMapGestures();
-
     try {
       await _map!.style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
     } catch (_) {}
-
     await _localizeLabels();
     await _loadUserMapAccess();
     await _drawAll();
 
+    // 🎯 포커스 설정이 되어있을 때만 이동 로직 수행
     if (widget.showLastTravelFocus) {
       await _focusOnLastTravel();
     }
-
     _safeSetState(() => _ready = true);
   }
 
@@ -210,16 +208,17 @@ class GlobalMapPageState extends State<GlobalMapPage>
   Future<void> _drawAll() async {
     final map = _map;
     if (map == null || !mounted) return;
-
     final style = map.style;
     if (style == null) return;
 
-    // 🎨 [핵심 수정] AppColors 변수로 색상 통일
-    final subMapBaseHex = _hex(AppColors.mapSubMapBase);
-    final doneHex = _hex(AppColors.mapOverseaVisitedFill);
+    final doneHex = _hex(AppColors.mapFill);
     final activeHex = _hex(AppColors.mapActiveFill);
+    final subMapBaseHex = _hex(AppColors.mapSubMapBase);
+    final usRedHex = _hex(AppColors.travelingRed);
 
     try {
+      await _localizeLabels();
+
       final travels = await Supabase.instance.client
           .from('travels')
           .select('country_code, region_name, is_completed, travel_type')
@@ -233,10 +232,8 @@ class GlobalMapPageState extends State<GlobalMapPage>
       for (var t in (travels as List)) {
         final code = t['country_code']?.toString().toUpperCase() ?? '';
         if (code.isEmpty) continue;
-
         visitedCountries.add(code);
         if (t['is_completed'] == true) completedCountries.add(code);
-
         final rn = t['region_name']?.toString();
         if (rn != null) {
           visitedRegions.putIfAbsent(code, () => {}).add(rn.toUpperCase());
@@ -246,7 +243,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
       }
 
       final worldJson = await rootBundle.loadString(_worldGeo);
-
       await _rm(style, _worldFill, _worldSource);
 
       if (!(await style.styleSourceExists(_worldSource))) {
@@ -255,6 +251,37 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
       if (!(await style.styleLayerExists(_worldFill))) {
         await style.addLayer(FillLayer(id: _worldFill, sourceId: _worldSource));
+
+        // 🎯 징그러운 도로 선은 가리고, 입체적인 굴곡(Hillshade)은 위로 올립니다.
+        final layers = await style.getStyleLayers();
+        String? topmostRoadId;
+        String? hillshadeId;
+        for (var l in layers) {
+          if (l == null) continue;
+          if (l.id.contains('road') || l.id.contains('admin'))
+            topmostRoadId = l.id;
+          if (l.id.contains('hillshade') || l.id.contains('terrain'))
+            hillshadeId = l.id;
+        }
+
+        if (topmostRoadId != null) {
+          await style.moveStyleLayer(
+            _worldFill,
+            LayerPosition(above: topmostRoadId),
+          );
+        }
+        if (hillshadeId != null) {
+          await style.moveStyleLayer(
+            hillshadeId,
+            LayerPosition(above: _worldFill),
+          );
+        }
+        if (await style.styleLayerExists('country-label')) {
+          await style.moveStyleLayer(
+            'country-label',
+            LayerPosition(above: hillshadeId ?? _worldFill),
+          );
+        }
       }
 
       final worldFilterExpr = [
@@ -278,7 +305,27 @@ class GlobalMapPageState extends State<GlobalMapPage>
       await style.setStyleLayerProperty(_worldFill, 'filter', worldFilterExpr);
 
       final List<dynamic> worldColorExpr = ['case'];
+      final bool hasUsAccess = _hasAccess('US');
+
+      if (hasUsAccess) {
+        worldColorExpr.add([
+          'any',
+          [
+            '==',
+            ['get', 'ISO_A2'],
+            'US',
+          ],
+          [
+            '==',
+            ['get', 'iso_a2'],
+            'US',
+          ],
+        ]);
+        worldColorExpr.add(usRedHex);
+      }
+
       for (var config in _supportedDetailedMaps) {
+        if (config.countryCode == 'US' && hasUsAccess) continue;
         worldColorExpr.add([
           'all',
           [
@@ -327,7 +374,31 @@ class GlobalMapPageState extends State<GlobalMapPage>
         'fill-color',
         worldColorExpr,
       );
-      await style.setStyleLayerProperty(_worldFill, 'fill-opacity', 0.7);
+
+      final List<dynamic> worldOpacityExpr = ['case'];
+      if (hasUsAccess) {
+        worldOpacityExpr.add([
+          'any',
+          [
+            '==',
+            ['get', 'ISO_A2'],
+            'US',
+          ],
+          [
+            '==',
+            ['get', 'iso_a2'],
+            'US',
+          ],
+        ]);
+        worldOpacityExpr.add(0.25);
+      }
+      worldOpacityExpr.add(0.8);
+
+      await style.setStyleLayerProperty(
+        _worldFill,
+        'fill-opacity',
+        worldOpacityExpr,
+      );
 
       for (var config in _supportedDetailedMaps) {
         if (_hasAccess(config.countryCode)) {
@@ -337,13 +408,13 @@ class GlobalMapPageState extends State<GlobalMapPage>
             config,
             visitedRegions[config.countryCode] ?? {},
             completedRegions[config.countryCode] ?? {},
-            doneHex,
-            activeHex, // 상세 지도용 '여행 중' 색상 추가 전달
+            config.countryCode == 'US' ? usRedHex : doneHex,
+            config.countryCode == 'US' ? usRedHex : activeHex,
           );
         }
       }
     } catch (e) {
-      debugPrint("⚠️ _drawAll 안전 예외 처리: $e");
+      debugPrint("⚠️ _drawAll 에러: $e");
     }
   }
 
@@ -358,23 +429,35 @@ class GlobalMapPageState extends State<GlobalMapPage>
     try {
       final json = await rootBundle.loadString(config.geoJsonPath);
       await _rm(style, config.layerId, config.sourceId);
-
       if (!(await style.styleSourceExists(config.sourceId))) {
         await style.addSource(GeoJsonSource(id: config.sourceId, data: json));
       }
-
       if (!(await style.styleLayerExists(config.layerId))) {
         await style.addLayer(
           FillLayer(id: config.layerId, sourceId: config.sourceId),
         );
       }
 
-      if (await style.styleLayerExists(config.labelLayerId)) {
+      final layers = await style.getStyleLayers();
+      String? topmostRoadId;
+      String? hillshadeId;
+      for (var l in layers) {
+        if (l != null && (l.id.contains('road') || l.id.contains('admin')))
+          topmostRoadId = l.id;
+        if (l != null &&
+            (l.id.contains('hillshade') || l.id.contains('terrain')))
+          hillshadeId = l.id;
+      }
+      if (topmostRoadId != null)
         await style.moveStyleLayer(
           config.layerId,
-          LayerPosition(below: config.labelLayerId),
+          LayerPosition(above: topmostRoadId),
         );
-      }
+      if (hillshadeId != null)
+        await style.moveStyleLayer(
+          hillshadeId,
+          LayerPosition(above: config.layerId),
+        );
 
       await style.setStyleLayerProperty(config.layerId, 'filter', [
         'in',
@@ -395,9 +478,26 @@ class GlobalMapPageState extends State<GlobalMapPage>
           ['literal', completed.toList()],
         ],
         doneHex,
-        activeHex, // 하드코딩된 색상 제거
+        activeHex,
       ]);
-      await style.setStyleLayerProperty(config.layerId, 'fill-opacity', 0.45);
+
+      if (config.countryCode == 'US') {
+        await style.setStyleLayerProperty(config.layerId, 'fill-opacity', [
+          'case',
+          [
+            'in',
+            [
+              'upcase',
+              ['get', 'NAME'],
+            ],
+            ['literal', completed.toList()],
+          ],
+          0.8,
+          0.3,
+        ]);
+      } else {
+        await style.setStyleLayerProperty(config.layerId, 'fill-opacity', 0.8);
+      }
     } catch (e) {
       debugPrint('❌ Error drawing ${config.countryCode}: $e');
     }
@@ -452,34 +552,24 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
-
     bool isDetailed = _hasAccess(countryCode);
-
-    // 🎯 [핵심 수정] 리스트로 받아 406 에러 방지 + created_at 최신순 정렬
     var query = Supabase.instance.client
         .from('travels')
         .select('map_image_url, ai_cover_summary')
         .eq('user_id', user.id)
         .eq('country_code', countryCode)
         .eq('is_completed', true);
-
     if (isDetailed) query = query.eq('region_name', regionName);
-
     final List<dynamic> results = await query
         .order('created_at', ascending: false)
         .limit(1);
-
     if (results.isEmpty) return;
-
     final res = results.first;
     final rawPath = res['map_image_url']?.toString() ?? '';
-
     String finalUrl = (countryCode == 'US' && _hasAccess('US'))
         ? StorageUrls.usaMapFromPath(rawPath)
         : StorageUrls.globalMapFromPath('${countryCode.toUpperCase()}.png');
-
     if (!mounted) return;
-
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -501,29 +591,25 @@ class GlobalMapPageState extends State<GlobalMapPage>
     final map = _map;
     if (map == null) return;
     final lang = context.locale.languageCode;
-    final layers = [
-      'country-label',
-      'settlement-label',
-      'state-label',
-      'poi-label',
-    ];
-    for (final id in layers) {
-      try {
-        if (await map.style.styleLayerExists(id)) {
-          await map.style.setStyleLayerProperty(
-            id,
-            'text-field',
-            lang == 'ko' ? ['get', 'name_ko'] : ['get', 'name_en'],
-          );
+    final style = map.style;
+    try {
+      final layers = await style.getStyleLayers();
+      for (var l in layers) {
+        if (l != null && (l.id.contains('label') || l.id.contains('place'))) {
+          await style.setStyleLayerProperty(l.id, 'text-field', [
+            'get',
+            'name_$lang',
+          ]);
+          // 🎯 지명이 배경에 묻히도록 투명도를 조절합니다.
+          await style.setStyleLayerProperty(l.id, 'text-opacity', 0.4);
         }
-      } catch (_) {}
-    }
+      }
+    } catch (_) {}
   }
 
   Future<void> _focusOnLastTravel() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null || _map == null) return;
-
     try {
       final lastTravel = await Supabase.instance.client
           .from('travels')
@@ -546,12 +632,25 @@ class GlobalMapPageState extends State<GlobalMapPage>
         if (lat != null && lng != null) {
           double focusZoom = 3.5;
           if (lat < -60) focusZoom = 0.5;
-          _map!.setCamera(
-            CameraOptions(
-              center: Point(coordinates: Position(lng, lat)),
-              zoom: focusZoom,
-            ),
-          );
+
+          if (widget.animateFocus) {
+            // 🎯 [이동 연출] '슥~' 하고 부드럽게 활주하며 이동
+            await _map!.flyTo(
+              CameraOptions(
+                center: Point(coordinates: Position(lng, lat)),
+                zoom: focusZoom,
+              ),
+              MapAnimationOptions(duration: 2500),
+            );
+          } else {
+            // 🎯 [순간 이동] 메인 화면 등에서 즉시 위치를 잡음
+            await _map!.setCamera(
+              CameraOptions(
+                center: Point(coordinates: Position(lng, lat)),
+                zoom: focusZoom,
+              ),
+            );
+          }
         }
       }
     } catch (e) {

@@ -119,10 +119,9 @@ class AppColors {
     68,
     162,
   ); // 방문 지역 (오래된 황토색 인장 느낌)
-  static const mapActiveFill = Color(
-    0x66EB5757,
-  ); // [여행 중] 연한 레드 (0x66은 40% 투명도)
-  static const mapSubMapBase = Color(
-    0x1FBD6E0E,
-  ); // [상세지도 배경] 황토색의 아주 연한 버전 (0x1F는 12% 투명도)
+
+  static const mapFill = Color.fromARGB(255, 141, 116, 240); // 피그마 보라
+  static const mapActiveFill = Color.fromARGB(255, 217, 212, 236);
+  static const mapSubMapBase = Color.fromARGB(255, 238, 238, 241);
+  static const mapActiveDomesticFill = Color.fromARGB(255, 149, 200, 236);
 }

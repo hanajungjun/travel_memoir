@@ -151,7 +151,7 @@ class DomesticMapPageState extends State<DomesticMapPage>
       ]);
 
       // 🎨 [색상 수정] AppColors 시스템 적용
-      final doneColor = _toHex(AppColors.mapVisitedFill); // 국내 완료 (황토색 인장)
+      final doneColor = _toHex(AppColors.travelingBlue); // 국내 완료 (황토색 인장)
       final activeColor = _toHex(AppColors.mapActiveFill); // 국내 진행중 (연한 레드)
 
       final colorExpr = completedSgg.isEmpty
