@@ -41,27 +41,6 @@ class _HomePageState extends State<HomePage> with RouteAware {
   // ==========================================
   // 🎁 데일리 보상 체크 및 지급
   // ==========================================
-  // Future<void> _checkDailyReward() async {
-  //   final user = Supabase.instance.client.auth.currentUser;
-  //   if (user == null) return;
-
-  //   try {
-  //     await FlutterAppBadgeControl.removeBadge();
-  //   } catch (e) {
-  //     debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
-  //   }
-
-  //   final reward = await _stampService.checkAndGrantDailyReward(user.id);
-
-  //   if (reward != null && mounted) {
-  //     // ✅ [로그] 보상 수량 확인 (Daily, VIP, Paid)
-  //     debugPrint("🎁 [Reward Log] Data: $reward");
-  //     _showRewardPopup(reward);
-  //   }
-  // }
-  // ==========================================
-  // 🎁 데일리 보상 체크 및 지급
-  // ==========================================
   Future<void> _checkDailyReward() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
@@ -72,56 +51,78 @@ class _HomePageState extends State<HomePage> with RouteAware {
       debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
     }
 
-    // 1️⃣ [로컬 체크] 이 기기에서 오늘 팝업을 이미 봤는지 확인
     final prefs = await SharedPreferences.getInstance();
-    final String today = DateTime.now().toString().split(' ')[0]; // yyyy-MM-dd
-    final String storageKey = 'last_reward_popup_${user.id}'; // 유저별 고유 키
+    final String today = DateTime.now().toString().split(' ')[0];
+    final String storageKey = 'last_reward_popup_${user.id}';
 
     if (prefs.getString(storageKey) == today) {
-      debugPrint("✅ [Reward] 오늘 이미 팝업을 본 유저(ID: ${user.id})입니다.");
-      return; // 팝업을 이미 봤다면 여기서 종료 (서버 요청도 안 함)
+      debugPrint("✅ [Reward] 오늘 이미 팝업을 본 유저입니다.");
+      return;
     }
 
-    // 2️⃣ 서버에서 보상 데이터 가져오기
+    // 1️⃣ [DB 실시간 조회] 일반 보상(daily_login) 수량을 DB에서 직접 가져옵니다.
+    int normalRewardAmount = 5; // 로드 실패 시 사용할 기본값
+    try {
+      final normalData = await Supabase.instance.client
+          .from('reward_config')
+          .select('reward_amount')
+          .eq('type', 'daily_login')
+          .maybeSingle();
+      if (normalData != null) {
+        normalRewardAmount = normalData['reward_amount'] as int;
+      }
+    } catch (e) {
+      debugPrint("⚠️ [Reward] 일반 보상 설정 로드 실패: $e");
+    }
+
+    // 2️⃣ 서버에서 보상 지급 처리 (StampService 호출)
     final reward = await _stampService.checkAndGrantDailyReward(user.id);
 
     if (reward != null && mounted) {
-      debugPrint("🎁 [Reward Log] Data: $reward");
+      // 3️⃣ [데이터 합성] 지급된 보상 데이터에 DB에서 읽어온 normal_amount를 추가합니다.
+      final Map<String, dynamic> rewardWithNormal = Map.from(reward);
+      rewardWithNormal['normal_amount'] = normalRewardAmount;
 
-      // 3️⃣ 팝업 표시
-      _showRewardPopup(reward);
+      debugPrint("🎁 [Reward Log] Data with Normal: $rewardWithNormal");
 
-      // 4️⃣ [로컬 저장] 팝업을 보여줬음을 기기에 기록
+      // 4️⃣ 팝업 표시
+      _showRewardPopup(rewardWithNormal);
+
+      // 5️⃣ 로컬 저장 (오늘 다시 안 뜨게)
       await prefs.setString(storageKey, today);
     }
   }
 
   // ==========================================
-  // 🎯 보상 알림 팝업 (reward_config 데이터 활용)
+  // 🎯 보상 알림 팝업 (전달받은 normal_amount 활용)
   // ==========================================
   void _showRewardPopup(Map<String, dynamic> reward) {
     final locale = context.locale.languageCode;
-    final bool isVip = reward['is_vip'] ?? false; // StampService에서 넘겨준 VIP 여부
+    final bool isVip = reward['is_vip'] ?? false;
 
-    // 1. 제목: 로컬 언어 설정에 맞춰 가져옴 (없으면 한국어 -> 기본값)
     final title = reward['title_$locale'] ?? reward['title_ko'] ?? 'Reward';
-
-    // 2. 설명: DB의 description_ko에 담긴 "일반 5개 + VIP 50개..." 문구 활용
     String desc =
         reward['description_$locale'] ?? reward['description_ko'] ?? '';
 
-    // 3. 텍스트 가공 (줄바꿈 처리 및 {amount} 변수 치환)
     desc = desc.replaceAll(r'\n', '\n');
+
+    // 🎯 [핵심] DB에서 넘어온 값을 그대로 사용 (하드코딩 제거 완료)
+    final String normalAmount = (reward['normal_amount'] ?? "5").toString();
+    final String vipAmount = (reward['reward_amount'] ?? "0").toString();
+
+    // {amount}와 {reward_amount}를 각각 실제 숫자로 치환
     if (desc.contains('{amount}')) {
-      desc = desc.replaceAll('{amount}', reward['reward_amount'].toString());
+      desc = desc.replaceAll('{amount}', normalAmount);
+    }
+    if (desc.contains('{reward_amount}')) {
+      desc = desc.replaceAll('{reward_amount}', vipAmount);
     }
 
-    // 4. ✅ [중요] showDynamicIconAlert 호출 (DB 문구 그대로 출력용)
     AppDialogs.showDynamicIconAlert(
       context: context,
       title: title,
       message: desc,
-      icon: isVip ? Icons.workspace_premium : Icons.stars, // 🎯 VIP는 전용 아이콘
+      icon: isVip ? Icons.workspace_premium : Icons.stars,
       iconColor: isVip ? Colors.amber : Colors.orangeAccent,
       barrierDismissible: false,
       onClose: () => _triggerRefresh(),

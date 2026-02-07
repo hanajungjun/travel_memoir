@@ -182,7 +182,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
     await _loadUserMapAccess();
     await _drawAll();
 
-    // 🎯 애니메이션 없이 위치만 잡아주도록 수정됨
     if (widget.showLastTravelFocus) {
       await _focusOnLastTravel();
     }
@@ -214,6 +213,11 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
     final style = map.style;
     if (style == null) return;
+
+    // 🎨 [핵심 수정] AppColors 변수로 색상 통일
+    final subMapBaseHex = _hex(AppColors.mapSubMapBase);
+    final doneHex = _hex(AppColors.mapOverseaVisitedFill);
+    final activeHex = _hex(AppColors.mapActiveFill);
 
     try {
       final travels = await Supabase.instance.client
@@ -273,14 +277,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
       ];
       await style.setStyleLayerProperty(_worldFill, 'filter', worldFilterExpr);
 
-      final subMapBaseHex = _hex(
-        const Color.fromARGB(255, 216, 219, 221).withOpacity(0.12),
-      );
-      final doneHex = _hex(AppColors.mapOverseaVisitedFill);
-      final activeHex = _hex(
-        const Color.fromARGB(255, 144, 73, 77).withOpacity(0.25),
-      );
-
       final List<dynamic> worldColorExpr = ['case'];
       for (var config in _supportedDetailedMaps) {
         worldColorExpr.add([
@@ -302,6 +298,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
         ]);
         worldColorExpr.add(subMapBaseHex);
       }
+
       worldColorExpr.addAll([
         [
           'any',
@@ -341,6 +338,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
             visitedRegions[config.countryCode] ?? {},
             completedRegions[config.countryCode] ?? {},
             doneHex,
+            activeHex, // 상세 지도용 '여행 중' 색상 추가 전달
           );
         }
       }
@@ -355,6 +353,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
     Set<String> visited,
     Set<String> completed,
     String doneHex,
+    String activeHex,
   ) async {
     try {
       final json = await rootBundle.loadString(config.geoJsonPath);
@@ -396,7 +395,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
           ['literal', completed.toList()],
         ],
         doneHex,
-        _hex(const Color.fromARGB(255, 228, 176, 180).withOpacity(0.4)),
+        activeHex, // 하드코딩된 색상 제거
       ]);
       await style.setStyleLayerProperty(config.layerId, 'fill-opacity', 0.45);
     } catch (e) {
@@ -453,24 +452,33 @@ class GlobalMapPageState extends State<GlobalMapPage>
   }) async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
     bool isDetailed = _hasAccess(countryCode);
+
+    // 🎯 [핵심 수정] 리스트로 받아 406 에러 방지 + created_at 최신순 정렬
     var query = Supabase.instance.client
         .from('travels')
         .select('map_image_url, ai_cover_summary')
         .eq('user_id', user.id)
-        .eq('country_code', countryCode);
+        .eq('country_code', countryCode)
+        .eq('is_completed', true);
+
     if (isDetailed) query = query.eq('region_name', regionName);
-    final res = await query
-        .eq('is_completed', true)
-        .order('completed_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-    if (res == null) return;
+
+    final List<dynamic> results = await query
+        .order('created_at', ascending: false)
+        .limit(1);
+
+    if (results.isEmpty) return;
+
+    final res = results.first;
     final rawPath = res['map_image_url']?.toString() ?? '';
 
     String finalUrl = (countryCode == 'US' && _hasAccess('US'))
         ? StorageUrls.usaMapFromPath(rawPath)
         : StorageUrls.globalMapFromPath('${countryCode.toUpperCase()}.png');
+
+    if (!mounted) return;
 
     showGeneralDialog(
       context: context,
@@ -482,7 +490,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
         opacity: anim.value,
         child: AiMapPopup(
           imageUrl: finalUrl,
-          regionName: regionName,
+          regionName: regionName.tr(),
           summary: res['ai_cover_summary'] ?? '',
         ),
       ),
@@ -537,10 +545,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
         if (lat != null && lng != null) {
           double focusZoom = 3.5;
-          if (lat < -60) {
-            focusZoom = 0.5; // 멀리서 봐야 주변 바다가 보여서 덜 빨갛게 보입니다.
-          }
-          // 🚀 flyTo 대신 setCamera를 사용하여 채널 에러 원천 차단
+          if (lat < -60) focusZoom = 0.5;
           _map!.setCamera(
             CameraOptions(
               center: Point(coordinates: Position(lng, lat)),

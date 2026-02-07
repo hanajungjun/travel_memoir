@@ -13,16 +13,15 @@ class DomesticMapPage extends StatefulWidget {
   const DomesticMapPage({super.key});
 
   @override
-  State<DomesticMapPage> createState() => DomesticMapPageState(); // ✅ '_' 제거
+  State<DomesticMapPage> createState() => DomesticMapPageState();
 }
 
-// ✅ '_' 제거 및 AutomaticKeepAliveClientMixin 추가
 class DomesticMapPageState extends State<DomesticMapPage>
     with AutomaticKeepAliveClientMixin {
   MapboxMap? _map;
 
   @override
-  bool get wantKeepAlive => true; // ✅ 탭 전환 시 지도 상태(위치 등) 유지
+  bool get wantKeepAlive => true;
 
   static const _sigSourceId = 'korea-sig-source';
   static const _visitedSigLayer = 'visited-sig-layer';
@@ -42,9 +41,7 @@ class DomesticMapPageState extends State<DomesticMapPage>
     "48120": ["48121", "48123", "48125", "48127", "48129"],
   };
 
-  // ✅ Pager에서 상세 페이지 복귀 시 호출할 데이터 갱신 함수
   Future<void> refreshData() async {
-    debugPrint('🇰🇷 [DOMESTIC MAP] refreshData called');
     if (_map != null) {
       await _drawMapData();
     }
@@ -55,45 +52,34 @@ class DomesticMapPageState extends State<DomesticMapPage>
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // mixin 필수
+    super.build(context);
     return Scaffold(
       body: MapWidget(
         styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
-        // 💡 초기값은 유지하되, 실제 제어는 onMapCreated에서 합니다.
         cameraOptions: CameraOptions(
           center: Point(coordinates: Position(127.8, 36.3)),
           zoom: 5.2,
         ),
         onMapCreated: (map) async {
           _map = map;
-          debugPrint('🗺️ [MAP] created');
-
           try {
-            // 1️⃣ [가두리 범위 수정] 카메라가 동쪽(오른쪽)으로 더 갈 수 있게 동쪽 벽을 135도까지 밉니다.
             await map.setBounds(
               CameraBoundsOptions(
                 bounds: CoordinateBounds(
                   southwest: Point(coordinates: Position(124.0, 32.5)),
-                  northeast: Point(
-                    coordinates: Position(131.2, 40.0),
-                  ), // 💡 132 -> 135 (더 동쪽으로)
+                  northeast: Point(coordinates: Position(131.2, 40.0)),
                   infiniteBounds: false,
                 ),
                 minZoom: 5.1,
                 maxZoom: 12.0,
               ),
             );
-
-            // 2️⃣ [강제 이동] 카메라를 오른쪽(동쪽)으로 밀어서 지도를 왼쪽으로 보냅니다.
-            // 💡 127.8 -> 129.5 (숫자를 높일수록 지도는 화면 왼쪽으로 이동합니다!)
             await map.setCamera(
               CameraOptions(
                 center: Point(coordinates: Position(129.5, 36.3)),
                 zoom: 5.2,
               ),
             );
-
-            // 3️⃣ [제스처 설정]
             await map.gestures.updateSettings(
               GesturesSettings(rotateEnabled: false, pitchEnabled: false),
             );
@@ -102,12 +88,9 @@ class DomesticMapPageState extends State<DomesticMapPage>
           }
         },
         onStyleLoadedListener: (data) async {
-          debugPrint('🎨 [MAP] style loaded');
-          // ⭐ Mapbox 채널 안정화 대기
           await Future.delayed(const Duration(milliseconds: 120));
           await _drawMapData();
         },
-
         onTapListener: (context) => _onMapTap(context),
       ),
     );
@@ -118,27 +101,19 @@ class DomesticMapPageState extends State<DomesticMapPage>
     if (style == null) return;
 
     try {
-      debugPrint('🗺️ [MAP] drawMapData start');
-
       await style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
-
       await _localizeLabels(style);
 
       final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        debugPrint('❌ [MAP] user null');
-        return;
-      }
+      if (user == null) return;
 
       final travels = await Supabase.instance.client
           .from('travels')
           .select('region_id, is_completed, map_image_url')
           .eq('user_id', user.id)
           .eq('travel_type', 'domestic');
-
-      debugPrint('🗺️ [MAP] travels count=${travels.length}');
 
       final Set<String> allSgg = {};
       final Set<String> completedSgg = {};
@@ -150,22 +125,17 @@ class DomesticMapPageState extends State<DomesticMapPage>
         if (codeInfo.sggCd != null) {
           final sgg = codeInfo.sggCd!;
           allSgg.add(sgg);
-
-          if (t['is_completed'] == true) {
-            completedSgg.add(sgg);
-          }
+          if (t['is_completed'] == true) completedSgg.add(sgg);
 
           if (majorCityMapping.containsKey(sgg)) {
             allSgg.addAll(majorCityMapping[sgg]!);
-            if (t['is_completed'] == true) {
+            if (t['is_completed'] == true)
               completedSgg.addAll(majorCityMapping[sgg]!);
-            }
           }
         }
       }
 
       final rawSig = await rootBundle.loadString(_sigGeoJson);
-
       await _rmLayer(style, _visitedSigLayer);
       await _rmSource(style, _sigSourceId);
 
@@ -180,8 +150,9 @@ class DomesticMapPageState extends State<DomesticMapPage>
         ['literal', allSgg.toList()],
       ]);
 
-      final doneColor = _toHex(AppColors.mapVisitedFill);
-      final activeColor = _toHex(const Color(0xFFE30C1A).withOpacity(0.4));
+      // 🎨 [색상 수정] AppColors 시스템 적용
+      final doneColor = _toHex(AppColors.mapVisitedFill); // 국내 완료 (황토색 인장)
+      final activeColor = _toHex(AppColors.mapActiveFill); // 국내 진행중 (연한 레드)
 
       final colorExpr = completedSgg.isEmpty
           ? activeColor
@@ -202,10 +173,8 @@ class DomesticMapPageState extends State<DomesticMapPage>
         colorExpr,
       );
       await style.setStyleLayerProperty(_visitedSigLayer, 'fill-opacity', 0.8);
-
-      debugPrint('✅ [MAP] drawMapData done');
     } catch (e) {
-      debugPrint('❌ [MAP] error=$e');
+      debugPrint('❌ [MAP DRAW ERROR] $e');
     }
   }
 
@@ -229,17 +198,13 @@ class DomesticMapPageState extends State<DomesticMapPage>
       final sggCode = props['SGG_CD']?.toString() ?? '';
       String lookup = sggCode;
       majorCityMapping.forEach((parent, children) {
-        if (children.contains(sggCode)) {
-          lookup = parent;
-        }
+        if (children.contains(sggCode)) lookup = parent;
       });
 
       final regId = SggCodeMap.getRegionIdFromSggCd(lookup);
-      if (regId.isNotEmpty) {
-        _handlePopup(regId);
-      }
+      if (regId.isNotEmpty) _handlePopup(regId);
     } catch (e) {
-      debugPrint('❌ [MAP TAP] error=$e');
+      debugPrint('❌ [MAP TAP ERROR] $e');
     }
   }
 
@@ -247,40 +212,46 @@ class DomesticMapPageState extends State<DomesticMapPage>
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    final res = await Supabase.instance.client
-        .from('travels')
-        .select()
-        .eq('user_id', user.id)
-        .eq('region_id', regId)
-        .maybeSingle();
+    try {
+      // 🎯 [로직 수정] 리스트로 받아 406 에러 방지 + created_at 최신순 정렬
+      final List<dynamic> results = await Supabase.instance.client
+          .from('travels')
+          .select()
+          .eq('user_id', user.id)
+          .eq('region_id', regId)
+          .eq('is_completed', true)
+          .order('created_at', ascending: false)
+          .limit(1);
 
-    if (res != null && res['is_completed'] == true) {
-      // =========================
-      // ✅ map_image_url(path) → public URL 변환
-      // =========================
-      final rawPath = res['map_image_url']?.toString();
-      String imageUrl = '';
+      if (results.isNotEmpty) {
+        final res = results.first;
+        final rawPath = res['map_image_url']?.toString();
+        String imageUrl = '';
 
-      if (rawPath != null && rawPath.isNotEmpty) {
-        imageUrl = StorageUrls.domesticMapFromPath(rawPath);
-      }
-      // =========================
+        if (rawPath != null && rawPath.isNotEmpty) {
+          imageUrl = StorageUrls.domesticMapFromPath(rawPath);
+        }
 
-      showGeneralDialog(
-        context: context,
-        barrierDismissible: true,
-        barrierLabel: "AI Map",
-        barrierColor: Colors.black54,
-        transitionDuration: const Duration(milliseconds: 400),
-        pageBuilder: (context, anim1, anim2) => Center(
-          child: AiMapPopup(
-            imageUrl: imageUrl, // ✅ URL로 전달
-            regionName:
-                "${res['province'].toString().tr()} ${res['region_name'].toString().tr()}",
-            summary: res['ai_cover_summary'] ?? "no_memories_recorded".tr(),
+        if (!mounted) return;
+
+        showGeneralDialog(
+          context: context,
+          barrierDismissible: true,
+          barrierLabel: "AI Map",
+          barrierColor: Colors.black54,
+          transitionDuration: const Duration(milliseconds: 400),
+          pageBuilder: (context, anim1, anim2) => Center(
+            child: AiMapPopup(
+              imageUrl: imageUrl,
+              regionName:
+                  "${res['province'].toString().tr()} ${res['region_name'].toString().tr()}",
+              summary: res['ai_cover_summary'] ?? "no_memories_recorded".tr(),
+            ),
           ),
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ [MAP POPUP ERROR] $e');
     }
   }
 
@@ -301,21 +272,13 @@ class DomesticMapPageState extends State<DomesticMapPage>
 
   Future<void> _rmLayer(StyleManager style, String id) async {
     try {
-      if (await style.styleLayerExists(id)) {
-        await style.removeStyleLayer(id);
-      }
-    } catch (e) {
-      debugPrint('⚠️ [MAP] skip remove layer $id: $e');
-    }
+      if (await style.styleLayerExists(id)) await style.removeStyleLayer(id);
+    } catch (_) {}
   }
 
   Future<void> _rmSource(StyleManager style, String id) async {
     try {
-      if (await style.styleSourceExists(id)) {
-        await style.removeStyleSource(id);
-      }
-    } catch (e) {
-      debugPrint('⚠️ [MAP] skip remove source $id: $e');
-    }
+      if (await style.styleSourceExists(id)) await style.removeStyleSource(id);
+    } catch (_) {}
   }
 }
