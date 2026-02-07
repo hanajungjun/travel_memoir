@@ -133,8 +133,19 @@ class PaymentService {
     final vipEntitlement = info.entitlements.all[_vipEntitlementId];
     final bool isVipActive = vipEntitlement?.isActive ?? false;
 
+    // 🚀 [추가할 로그 위치] DB 업데이트 직전에 변수 값 확인
+    debugPrint("------------------------------------------");
+    debugPrint("🚩 [DB 반영 전 체크]");
+    debugPrint("🚩 Entitlement ID (VIP): $_vipEntitlementId");
+    debugPrint("🚩 RevenueCat 실시간 VIP 상태: $isVipActive"); // 👈 이게 핵심!
+    debugPrint(
+      "🚩 RevenueCat 전체 활성 권한: ${info.entitlements.active.keys.toList()}",
+    );
+    debugPrint("------------------------------------------");
+    debugPrint("------------------------------------------");
     debugPrint("🔍 [결제체크] Pro 활성화 상태: $isProActive");
     debugPrint("🔍 [결제체크] VIP 활성화 상태: $isVipActive");
+    debugPrint("🚨 [전체 권한 목록]: ${info.entitlements.active.keys.toList()}");
 
     // Supabase DB와 동기화 (먼저 수행)
     await _syncStatusToSupabase(
@@ -194,6 +205,18 @@ class PaymentService {
 
       await _supabase.from('users').update(updateData).eq('auth_uid', user.id);
 
+      // (1-1). 🎯 진짜 "VIP 구독 상품"을 결제했을 때만 즉시 보너스 지급
+      // 단순히 isVipActive인 것만 체크하면 코인 살 때마다 보너스가 터집니다.
+      if (isVipActive && productIdentifier != null) {
+        final id = productIdentifier.toLowerCase();
+
+        // ✅ 상품 ID에 'vip'이 포함된 [구독권] 구매일 때만 보너스 실행
+        if (id.contains('vip')) {
+          await _supabase.rpc('grant_vip_bonus');
+          debugPrint("🎁 VIP 정기 구독권 구매 보너스 지급 완료 (vip_stamps)");
+        }
+      }
+
       // (2) ✅ 멤버십 보너스 지급 (RPC)
       if (isVipActive) {
         await _supabase.rpc('grant_membership_coins');
@@ -202,15 +225,28 @@ class PaymentService {
       }
 
       // (3) ✅ 코인 상품 구매 처리 (단발성 아이템)
+      // if (productIdentifier != null &&
+      //     productIdentifier.toLowerCase().contains('coins_')) {
+      //   final addedCoins = _parseCoinAmount(productIdentifier);
+      //   if (addedCoins > 0) {
+      //     await _supabase.rpc(
+      //       'increment_coins',
+      //       params: {'amount': addedCoins},
+      //     );
+      //     debugPrint("💰 코인 $addedCoins개 충전 성공");
+      //   }
+      // }
+      // (3) ✅ 코인(티켓) 상품 구매 처리
       if (productIdentifier != null &&
           productIdentifier.toLowerCase().contains('coins_')) {
         final addedCoins = _parseCoinAmount(productIdentifier);
         if (addedCoins > 0) {
+          // 🎯 VIP 유저라도 코인을 샀으면 'paid_stamps'로 들어감
           await _supabase.rpc(
-            'increment_coins',
+            'increment_coins', // 이 RPC가 users 테이블의 paid_stamps를 올리는지 확인!
             params: {'amount': addedCoins},
           );
-          debugPrint("💰 코인 $addedCoins개 충전 성공");
+          debugPrint("💰 유료 코인(티켓) $addedCoins개 충전 성공 (paid_stamps)");
         }
       }
 

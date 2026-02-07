@@ -16,25 +16,22 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
-import 'package:travel_memoir/services/logger_service.dart'; // ✅ 로거 임포트
+import 'package:travel_memoir/services/logger_service.dart';
 
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
 import 'package:travel_memoir/services/travel_day_service.dart';
 import 'package:travel_memoir/services/prompt_cache.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
-import 'package:travel_memoir/services/payment_service.dart';
 
 import 'package:travel_memoir/models/image_style_model.dart';
 import 'package:travel_memoir/core/widgets/image_style_picker.dart';
 import 'package:travel_memoir/core/widgets/coin_paywall_bottom_sheet.dart';
-import 'package:travel_memoir/features/mission/pages/ad_mission_page.dart';
 import 'package:travel_memoir/features/travel_day/pages/travel_completion_page.dart';
 import 'package:travel_memoir/services/travel_complete_service.dart';
 
 import 'package:travel_memoir/core/utils/date_utils.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
-import 'package:travel_memoir/storage_paths.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
@@ -337,8 +334,6 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _handleGenerateWithStamp() async {
-    //if (_contentController.text.trim().isEmpty) return;
-    //if (_selectedStyle == null) return;
     if (_contentController.text.trim().isEmpty) {
       AppToast.show(context, 'please_enter_diary_text'.tr());
       return;
@@ -347,27 +342,39 @@ class _TravelDayPageState extends State<TravelDayPage>
       AppToast.show(context, 'select_style_msg'.tr());
       return;
     }
+
     String stampType = "";
+
+    // 🎯 [수정된 로직] 코인 소진 우선순위 결정
     if (_isVip && _vipStamps > 0) {
+      // 1순위: VIP 스탬프 (VIP 유저인 경우)
       stampType = "vip";
-    } else if (_isPremiumUser) {
-      stampType = "paid";
     } else if (_usePaidStampMode && _paidStamps > 0) {
+      // 2순위 (유료모드 선택 시): 유료 스탬프
       stampType = "paid";
-    } else if (_dailyStamps > 0) {
+    } else if (!_usePaidStampMode && _dailyStamps > 0) {
+      // 2순위 (무료모드 선택 시): 무료 스탬프
       stampType = "daily";
+    } else if (_paidStamps > 0) {
+      // 3순위 (구원 로직): 선택한 모드엔 없지만 유료 스탬프가 남은 경우
+      stampType = "paid";
+      _logger.log("💡 선택 모드 코인 부족으로 유료 코인 자동 전환", tag: "STAMP_PROCESS");
+    } else if (_dailyStamps > 0) {
+      // 3순위 (구원 로직): 선택한 모드엔 없지만 무료 스탬프가 남은 경우
+      stampType = "daily";
+      _logger.log("💡 선택 모드 코인 부족으로 무료 코인 자동 전환", tag: "STAMP_PROCESS");
     } else {
+      // 4순위: 진짜 코인이 하나도 없을 때만 결제창
       _showCoinEmptyDialog();
       return;
     }
 
     _isAiDone = false;
     _isAdDone = false;
-    _logger.log(
-      "🚀 생성 버튼 클릭: 타입=$stampType, VIP=$_isVip",
-      tag: "TRAVEL_DAY_UI",
-    );
-    // ✅ 병렬 처리 1: AI 생성 시작 (비동기 호출 후 await 하지 않음)
+    _logger.log("🚀 생성 시작: 타입=$stampType, VIP=$_isVip", tag: "TRAVEL_DAY_UI");
+    debugPrint("🚀 생성 버튼 클릭: 타입=$stampType, VIP=$_isVip");
+
+    // ✅ AI 생성 시작
     _startAiGeneration(stampType)
         .then((_) {
           _isAiDone = true;
@@ -377,37 +384,19 @@ class _TravelDayPageState extends State<TravelDayPage>
           if (mounted) setState(() => _loading = false);
         });
 
-    // ✅ 병렬 처리 2: 광고 로직
+    // ✅ 광고 로직 처리
     if (stampType == "vip" || stampType == "paid") {
-      _logger.log("⏩ VIP/PAID 유저: 광고 스킵", tag: "AD_PROCESS");
       _isAdDone = true;
       _checkSync();
     } else {
-      _logger.log("📺 광고 로드 확인 중...", tag: "AD_PROCESS");
       if (_rewardedAd != null && _isAdLoaded) {
-        _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
-          onAdDismissedFullScreenContent: (ad) {
-            _logger.log("🎬 광고 닫힘", tag: "AD_PROCESS");
-            ad.dispose();
-            _loadAds();
-          },
-          onAdFailedToShowFullScreenContent: (ad, err) {
-            _logger.error("❌ 광고 표시 실패: $err", tag: "AD_PROCESS");
-            ad.dispose();
-            _loadAds();
-            _isAdDone = true;
-            _checkSync();
-          },
-        );
         _rewardedAd!.show(
           onUserEarnedReward: (_, reward) {
-            _logger.log("🎁 광고 보상 획득 완료", tag: "AD_PROCESS");
             _isAdDone = true;
             _checkSync();
           },
         );
       } else {
-        _logger.warn("⚠️ 광고 미로드 상태로 진행", tag: "AD_PROCESS");
         _isAdDone = true;
         _checkSync();
       }
@@ -556,34 +545,22 @@ class _TravelDayPageState extends State<TravelDayPage>
     return completer.future;
   }
 
-  // ✅ [수정 완료] AppDialogs.showChoice 적용
-  void _showCoinEmptyDialog() {
-    AppDialogs.showChoice(
+  // ✅ [수정 완료] 기존 알럿 없이 바로 바텀 시트를 띄웁니다.
+  void _showCoinEmptyDialog() async {
+    // 1. 코인 상점 바텀시트 즉시 호출
+    bool? purchased = await showModalBottomSheet<bool>(
       context: context,
-      title: 'coin_empty_title',
-      message: 'coin_empty_desc',
-      // 1. 무료 충전소 이동 (왼쪽 버튼)
-      firstLabel: 'free_charging_station',
-      onFirstAction: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const AdMissionPage()),
-        );
-      },
-      // 2. 코인 상점 바텀시트 열기 (오른쪽 버튼)
-      secondLabel: 'go_to_shop_btn',
-      onSecondAction: () async {
-        bool? purchased = await showModalBottomSheet<bool>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) => const CoinPaywallBottomSheet(),
-        );
-
-        // 구매 성공 시 스탬프 개수 새로고침
-        if (purchased == true) await _refreshStampCounts();
-      },
+      isScrollControlled: true, // 높이 조절(85%)을 위해 true 설정
+      backgroundColor: Colors.transparent, // 배경 투명 처리
+      builder: (context) => const CoinPaywallBottomSheet(),
     );
+
+    // 2. 구매 성공 혹은 광고 보상 획득 시(true 반환) 개수 새로고침
+    if (purchased == true) {
+      await _refreshStampCounts();
+      // (선택사항) 필요하다면 여기서 다시 생성 로직을 자동으로 호출할 수도 있습니다.
+      // _handleGenerateWithStamp();
+    }
   }
 
   Future<void> _saveDiary() async {

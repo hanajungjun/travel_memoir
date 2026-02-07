@@ -125,6 +125,9 @@ class OverseasTravelSummaryService {
   // =====================================================
   // 🌍 최다 방문 국가 리스트 (많이 간 순, 다국어)
   // =====================================================
+  // =====================================================
+  // 🌍 최다 방문 국가 리스트 (공동 1위 필터링 적용)
+  // =====================================================
   static Future<List<String>> getMostVisitedCountries({
     required String userId,
     bool? isCompleted,
@@ -158,12 +161,19 @@ class OverseasTravelSummaryService {
 
     if (countMap.isEmpty) return [];
 
+    // 1. 방문 횟수 순으로 정렬
     final sorted = countMap.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    // 🎯 2. [핵심 수정] 최다 방문 횟수가 몇 번인지 확인
+    final maxVisitCount = sorted.first.value;
+
+    // 🎯 3. [핵심 수정] 최다 방문 횟수와 동일한 국가만 필터링 (공동 1위 포함)
+    final topCountries = sorted.where((e) => e.value == maxVisitCount).toList();
+
     final isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
 
-    return sorted.map((e) {
+    return topCountries.map((e) {
       final names = nameMap[e.key];
       return isKo ? (names?['ko'] ?? e.key) : (names?['en'] ?? e.key);
     }).toList();

@@ -3,6 +3,7 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
+import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
 
 class CoinPaywallBottomSheet extends StatefulWidget {
   const CoinPaywallBottomSheet({super.key});
@@ -34,10 +35,9 @@ class _CoinPaywallBottomSheetState extends State<CoinPaywallBottomSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // ✅ 가로로 꽉 채우기 위한 설정
       width: double.infinity,
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.8, // 최대 높이 80% 제한
+        maxHeight: MediaQuery.of(context).size.height * 0.75, // 높이 적정 수준 조절
       ),
       padding: const EdgeInsets.fromLTRB(20, 15, 20, 40),
       decoration: const BoxDecoration(
@@ -60,7 +60,7 @@ class _CoinPaywallBottomSheetState extends State<CoinPaywallBottomSheet> {
           Text(
             'coin_shop_title'.tr(),
             style: const TextStyle(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               letterSpacing: -0.5,
             ),
@@ -70,12 +70,12 @@ class _CoinPaywallBottomSheetState extends State<CoinPaywallBottomSheet> {
             'coin_shop_desc'.tr(),
             style: TextStyle(
               color: Colors.grey[600],
-              fontSize: 16,
+              fontSize: 15,
               height: 1.4,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 35),
+          const SizedBox(height: 30),
 
           if (_isLoading)
             const Padding(
@@ -96,29 +96,52 @@ class _CoinPaywallBottomSheetState extends State<CoinPaywallBottomSheet> {
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 child: Column(
-                  children: _currentOffering!.availablePackages
-                      .map((package) => _buildProductItem(package))
-                      .toList(),
+                  children: () {
+                    // 1. 코인 상품만 필터링 (List<Package>)
+                    final coinPackages = _currentOffering!.availablePackages
+                        .where(
+                          (package) => package.storeProduct.identifier
+                              .toLowerCase()
+                              .contains('coin'),
+                        )
+                        .toList();
+
+                    // 2. 가격 낮은 순으로 정렬
+                    coinPackages.sort(
+                      (a, b) =>
+                          a.storeProduct.price.compareTo(b.storeProduct.price),
+                    );
+
+                    // 3. 위젯 리스트로 변환 (List<Widget>)
+                    return coinPackages
+                        .map((package) => _buildProductItem(package))
+                        .toList();
+                  }(),
                 ),
               ),
             ),
 
-          const SizedBox(height: 25),
+          const SizedBox(height: 20),
+
+          // 상점으로 이동하는 버튼 (광고 대신 배치)
           TextButton(
-            onPressed: () async {
-              setState(() => _isLoading = true);
-              await PaymentService.restorePurchases();
-              if (mounted) {
-                setState(() => _isLoading = false);
-                _loadProducts(); // 상태 새로고침
-              }
+            onPressed: () {
+              // 1. 먼저 바텀 시트를 닫습니다.
+              Navigator.pop(context);
+
+              // 2. 코인 상점 페이지로 이동합니다.
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CoinShopPage()),
+              );
             },
+
             child: Text(
-              'restore_purchase'.tr(),
-              style: TextStyle(
-                color: Colors.grey[500],
-                fontSize: 14,
-                decoration: TextDecoration.underline,
+              'go_to_shop_btn'.tr(), // "전체 상점 보기"
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
               ),
             ),
           ),
@@ -141,22 +164,12 @@ class _CoinPaywallBottomSheetState extends State<CoinPaywallBottomSheet> {
         }
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
-          border: Border.all(
-            color: AppColors.primary.withOpacity(0.2),
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          border: Border.all(color: Colors.grey[200]!, width: 1.5),
+          borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
           children: [
@@ -167,24 +180,24 @@ class _CoinPaywallBottomSheetState extends State<CoinPaywallBottomSheet> {
                   Text(
                     product.title,
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     product.description,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[500]),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 15),
+            const SizedBox(width: 10),
             Text(
               product.priceString,
               style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
                 color: AppColors.primary,
               ),
             ),

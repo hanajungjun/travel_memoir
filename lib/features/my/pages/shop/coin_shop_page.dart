@@ -129,8 +129,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
             final id = p.identifier.toLowerCase();
             return p.packageType == PackageType.monthly ||
                 p.packageType == PackageType.annual ||
-                id.contains('vip') ||
-                id.contains('777');
+                id.contains('vip');
           }).toList();
 
           _subscriptionPackages.sort(
@@ -419,9 +418,7 @@ class _CoinShopPageState extends State<CoinShopPage> {
         separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final p = _subscriptionPackages[index];
-          final bool isVip =
-              p.identifier.toLowerCase().contains('vip') ||
-              p.identifier.contains('777');
+          final bool isVip = p.identifier.toLowerCase().contains('vip');
           return SizedBox(
             width: MediaQuery.of(context).size.width * 0.78,
             child: _buildSubscriptionCard(

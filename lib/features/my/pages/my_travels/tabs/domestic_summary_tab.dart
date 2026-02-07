@@ -16,9 +16,6 @@ class DomesticSummaryTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return FutureBuilder(
       future: Future.wait([
-        // [0] 방문한 시/군 수
-        //DomesticTravelSummaryService.getVisitedCityCount(userId: userId),
-
         // [0] 전체 국내 여행 횟수 (전체)
         DomesticTravelSummaryService.getTravelCount(
           userId: userId,

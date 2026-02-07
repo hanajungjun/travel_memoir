@@ -104,10 +104,20 @@ class DomesticTravelSummaryService {
       map[name] = (map[name] ?? 0) + 1;
     }
 
+    if (map.isEmpty) return [];
+
+    // 1. 전체 데이터 정렬 (기존 로직)
     final sorted = map.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return sorted.map((e) => e.key).toList();
+    // 🎯 2. [수정 핵심] 최다 방문 횟수(Top 1)가 몇 번인지 찾기
+    final maxVisitCount = sorted.first.value;
+
+    // 🎯 3. [수정 핵심] 그 횟수와 동일한 지역들만 필터링 (공동 1등 포함)
+    return sorted
+        .where((e) => e.value == maxVisitCount) // 2번 간 곳이 최고면 2번 간 곳만 남김
+        .map((e) => e.key)
+        .toList();
   }
 
   // =====================================================

@@ -104,7 +104,7 @@ class UsaTravelSummaryService {
     }
   }
 
-  /// 5. 최다 방문 주 리스트
+  /// 5. 최다 방문 주 리스트 (공동 1위 필터링 적용)
   static Future<List<String>> getMostVisitedStates({
     required String userId,
     String travelType = 'usa',
@@ -132,10 +132,20 @@ class UsaTravelSummaryService {
         }
       }
 
+      if (counts.isEmpty) return [];
+
+      // 1. 방문 횟수 순 정렬
       var sortedEntries = counts.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
 
-      return sortedEntries.map((e) => e.key).toList();
+      // 🎯 2. [핵심 수정] 최다 방문 횟수 확인
+      final maxVisitCount = sortedEntries.first.value;
+
+      // 🎯 3. [핵심 수정] 최다 횟수와 동일한 지역들만 필터링
+      return sortedEntries
+          .where((e) => e.value == maxVisitCount)
+          .map((e) => e.key)
+          .toList();
     } catch (e) {
       return [];
     }

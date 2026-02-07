@@ -143,8 +143,7 @@ class _PayManagementPageState extends State<PayManagementPage>
           final id = p.identifier.toLowerCase();
           return p.packageType == PackageType.monthly ||
               p.packageType == PackageType.annual ||
-              id.contains('vip') ||
-              id.contains('777');
+              id.contains('vip');
         }).toList() ??
         [];
 
@@ -322,7 +321,7 @@ class _PayManagementPageState extends State<PayManagementPage>
 
   Widget _buildPackageCard(Package package) {
     final id = package.identifier.toLowerCase();
-    bool isVipProduct = id.contains('vip') || id.contains('777');
+    bool isVipProduct = id.contains('vip');
     bool isYearly = package.packageType == PackageType.annual;
 
     return Container(
