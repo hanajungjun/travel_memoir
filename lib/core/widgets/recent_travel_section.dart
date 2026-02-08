@@ -6,7 +6,7 @@ import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
-import 'package:travel_memoir/storage_urls.dart'; // ✅ 추가 (StorageUrls 사용)
+import 'package:travel_memoir/storage_urls.dart';
 
 class RecentTravelSection extends StatelessWidget {
   final VoidCallback onSeeAll;

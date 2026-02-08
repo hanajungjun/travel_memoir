@@ -35,8 +35,8 @@ class _AppShellState extends State<AppShell> {
       icon: Padding(
         //padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
         padding: const EdgeInsets.only(
-          top: 8,
-          bottom: 2,
+          top: 9,
+          bottom: 0,
         ), // ✅ bottom 대신 top 패딩을 주면 아래로 내려옵니다.
         child: isSvg
             ? SvgPicture.asset(iconAsset, width: 18, height: 18)
@@ -44,7 +44,7 @@ class _AppShellState extends State<AppShell> {
       ),
       activeIcon: Padding(
         // padding: const EdgeInsets.only(bottom: 5), // ✅ 살짝 줄임
-        padding: const EdgeInsets.only(top: 8, bottom: 2), // ✅ 여기도 동일하게 적용
+        padding: const EdgeInsets.only(top: 9, bottom: 0), // ✅ 여기도 동일하게 적용
         child: Stack(
           clipBehavior: Clip.none,
           children: [

@@ -172,27 +172,30 @@ class _HeaderContent extends StatelessWidget {
               children: [
                 // ===== 제목 =====
                 if (isTraveling)
-                  RichText(
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    text: (() {
-                      final loc = location;
-                      final rest = title.replaceFirst(loc, '').trim();
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5), // 원하는 여백 크기 설정
+                    child: RichText(
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      text: (() {
+                        final loc = location;
+                        final rest = title.replaceFirst(loc, '').trim();
 
-                      return TextSpan(
-                        children: [
-                          TextSpan(
-                            text: loc,
-                            style: AppTextStyles.homeTravelLocation,
-                          ),
-                          const TextSpan(text: ' '),
-                          TextSpan(
-                            text: rest,
-                            style: AppTextStyles.homeTravelStatus,
-                          ),
-                        ],
-                      );
-                    })(),
+                        return TextSpan(
+                          children: [
+                            TextSpan(
+                              text: loc,
+                              style: AppTextStyles.homeTravelLocation,
+                            ),
+                            const TextSpan(text: ' '),
+                            TextSpan(
+                              text: rest,
+                              style: AppTextStyles.homeTravelStatus,
+                            ),
+                          ],
+                        );
+                      })(),
+                    ),
                   )
                 else
                   Text(

@@ -96,6 +96,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   // =========================
   // 도
   // =========================
+  /*
   KoreaRegion(
     id: 'KR_GYEONGGI',
     name: '경기',
@@ -184,6 +185,7 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_GYEONGNAM',
     mapRegionType: MapRegionType.city,
   ),
+  */
   KoreaRegion(
     id: 'KR_JEJU',
     name: '제주',
@@ -1605,6 +1607,7 @@ const List<KoreaRegion> koreaRegionMaster = [
   // =========================
   // 제주특별자치도 - 시
   // =========================
+  /*
   KoreaRegion(
     id: 'KR_JEJU_JEJU',
     name: '제주',
@@ -1627,10 +1630,11 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_JEJU_SEOGWIPO',
     mapRegionType: MapRegionType.city,
   ),
-
+  */
   // =========================
   // 특수지역
   // =========================
+  /*
   KoreaRegion(
     id: 'KR_SPECIAL_ULLEUNG',
     name: '울릉도',
@@ -1642,6 +1646,7 @@ const List<KoreaRegion> koreaRegionMaster = [
     mapRegionId: 'KR_SPECIAL_ULLEUNG',
     mapRegionType: MapRegionType.special,
   ),
+  */
   KoreaRegion(
     id: 'KR_SPECIAL_DOKDO',
     name: '독도',

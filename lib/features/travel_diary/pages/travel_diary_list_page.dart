@@ -72,6 +72,21 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     });
   }
 
+  // ✅ 드래그 시 카드와 그림자만 깔끔하게 보이도록 설정
+  Widget _proxyDecorator(Widget child, int index, Animation<double> animation) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (BuildContext context, Widget? child) {
+        return Material(
+          elevation: 0,
+          color: Colors.transparent, // 전체 배경을 투명하게 설정
+          child: child,
+        );
+      },
+      child: child,
+    );
+  }
+
   Future<void> _saveChanges() async {
     setState(() => _loading = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -136,159 +151,186 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
-      body: Column(
+      body: Stack(
+        // ✅ 버튼 위치 제약을 풀기 위해 Stack 사용
         children: [
-          _buildHeader(travelType, title),
-          Expanded(
-            child: _loading
-                ? const TravelDiaryListSkeleton()
-                : SlidableAutoCloseBehavior(
-                    child: ReorderableListView.builder(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 27,
-                        vertical: 21,
-                      ),
-                      itemCount: _diaries.length,
-                      buildDefaultDragHandles: false,
-                      onReorder: _onReorder,
-                      itemBuilder: (context, index) {
-                        final diary = _diaries[index];
-                        final displayDate = startDate.add(
-                          Duration(days: index),
-                        );
-                        final dayIndex = index + 1;
-                        final text = diary['text']?.toString().trim() ?? '';
-                        final hasDiary = text.isNotEmpty;
-
-                        String? imageUrl;
-                        if (hasDiary) {
-                          final userId = _travel['user_id']?.toString();
-                          final travelId = _travel['id']?.toString();
-                          final diaryId = diary['id']?.toString();
-
-                          if (userId != null &&
-                              travelId != null &&
-                              diaryId != null) {
-                            final rawUrl = TravelDayService.getAiImageUrl(
-                              userId: userId,
-                              travelId: travelId,
-                              diaryId: diaryId,
+          Column(
+            children: [
+              _buildHeader(travelType, title),
+              Expanded(
+                child: _loading
+                    ? const TravelDiaryListSkeleton()
+                    : SlidableAutoCloseBehavior(
+                        child: ReorderableListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 27,
+                            vertical: 20,
+                          ),
+                          itemCount: _diaries.length,
+                          buildDefaultDragHandles: false,
+                          onReorder: _onReorder,
+                          proxyDecorator:
+                              _proxyDecorator, // 👈 이 줄을 꼭 추가해야 작동합니다!
+                          itemBuilder: (context, index) {
+                            final diary = _diaries[index];
+                            final displayDate = startDate.add(
+                              Duration(days: index),
                             );
-                            if (rawUrl != null && rawUrl.isNotEmpty) {
-                              // ✅ [해결 1] 서버 측 리사이징 적용 (width=100)
-                              imageUrl =
-                                  '$rawUrl?t=$_imageTimestamp&width=100&quality=20';
+                            final dayIndex = index + 1;
+                            final text = diary['text']?.toString().trim() ?? '';
+                            final hasDiary = text.isNotEmpty;
+
+                            String? imageUrl;
+                            if (hasDiary) {
+                              final userId = _travel['user_id']?.toString();
+                              final travelId = _travel['id']?.toString();
+                              final diaryId = diary['id']?.toString();
+
+                              if (userId != null &&
+                                  travelId != null &&
+                                  diaryId != null) {
+                                final rawUrl = TravelDayService.getAiImageUrl(
+                                  userId: userId,
+                                  travelId: travelId,
+                                  diaryId: diaryId,
+                                );
+                                if (rawUrl != null && rawUrl.isNotEmpty) {
+                                  // ✅ [해결 1] 서버 측 리사이징 적용 (width=100)
+                                  imageUrl =
+                                      '$rawUrl?t=$_imageTimestamp&width=100&quality=20';
+                                }
+                              }
                             }
-                          }
-                        }
 
-                        return Slidable(
-                          key: ValueKey(diary['id']),
-                          endActionPane: ActionPane(
-                            motion: const BehindMotion(),
-                            extentRatio: 0.22,
-                            children: [
-                              CustomSlidableAction(
-                                onPressed: (_) async {
-                                  final messenger = ScaffoldMessenger.of(
-                                    context,
-                                  );
-                                  await TravelDayService.clearDiaryRecord(
-                                    userId: _travel['user_id'],
-                                    travelId: _travel['id'],
-                                    date: diary['date'],
-                                    photoPaths: List<String>.from(
-                                      diary['photo_urls'] ?? [],
-                                    ),
-                                  );
-                                  // 🎯 [핵심 수정] 삭제 작업이 끝난 후 화면이 아직 살아있는지 확인합니다.
-                                  if (!mounted) return;
+                            return Slidable(
+                              key: ValueKey(diary['id']),
+                              endActionPane: ActionPane(
+                                motion: const BehindMotion(),
+                                extentRatio: 0.22,
+                                children: [
+                                  CustomSlidableAction(
+                                    onPressed: (_) async {
+                                      final messenger = ScaffoldMessenger.of(
+                                        context,
+                                      );
+                                      await TravelDayService.clearDiaryRecord(
+                                        userId: _travel['user_id'],
+                                        travelId: _travel['id'],
+                                        date: diary['date'],
+                                        photoPaths: List<String>.from(
+                                          diary['photo_urls'] ?? [],
+                                        ),
+                                      );
+                                      // 🎯 [핵심 수정] 삭제 작업이 끝난 후 화면이 아직 살아있는지 확인합니다.
+                                      if (!mounted) return;
 
-                                  AppToast.show(
-                                    context,
-                                    'diary_clear_success'.tr(),
-                                  );
-                                  await _loadAllDiaries();
-                                },
-                                backgroundColor: Colors.transparent,
-                                padding: const EdgeInsets.only(left: 6),
-                                child: Center(
-                                  child: Container(
-                                    width: 52,
-                                    height: 52,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.error,
-                                      borderRadius: BorderRadius.circular(8),
+                                      AppToast.show(
+                                        context,
+                                        'diary_clear_success'.tr(),
+                                      );
+                                      await _loadAllDiaries();
+                                    },
+                                    backgroundColor: Colors.transparent,
+                                    padding: const EdgeInsets.only(
+                                      left: 6,
+                                      bottom: 15,
                                     ),
-                                    alignment: Alignment.center,
-                                    child: Image.asset(
-                                      'assets/icons/ico_delete.png',
-                                      width: 19,
-                                      height: 19,
-                                      color: Colors.white,
+                                    child: Center(
+                                      child: Container(
+                                        width: 52,
+                                        height: 52,
+                                        decoration: BoxDecoration(
+                                          color: AppColors.error,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        alignment: Alignment.center,
+                                        child: Image.asset(
+                                          'assets/icons/ico_delete.png',
+                                          width: 19,
+                                          height: 19,
+                                          color: Colors.white,
+                                        ),
+                                      ),
                                     ),
                                   ),
+                                ],
+                              ),
+                              child: GestureDetector(
+                                onTap: () async {
+                                  final changed = await Navigator.push<bool>(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => TravelDayPage(
+                                        travelId: _travel['id'],
+                                        placeName: title,
+                                        startDate: startDate,
+                                        endDate: startDate.add(
+                                          Duration(days: _diaries.length - 1),
+                                        ),
+                                        date: displayDate,
+                                        initialDiary: diary,
+                                      ),
+                                    ),
+                                  );
+                                  if (changed == true && mounted) {
+                                    await _loadAllDiaries();
+                                    // ✅ [해결 2] 돌아오자마자 여행 완료 여부 체크!
+                                    await TravelCompleteService.tryCompleteTravel(
+                                      travelId: _travel['id'],
+                                      startDate: startDate,
+                                      endDate: startDate.add(
+                                        Duration(days: _diaries.length - 1),
+                                      ),
+                                    );
+                                  }
+                                },
+                                child: _buildListItem(
+                                  diary,
+                                  displayDate,
+                                  dayIndex,
+                                  hasDiary,
+                                  text,
+                                  imageUrl,
+                                  index,
                                 ),
                               ),
-                            ],
-                          ),
-                          child: GestureDetector(
-                            onTap: () async {
-                              final changed = await Navigator.push<bool>(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => TravelDayPage(
-                                    travelId: _travel['id'],
-                                    placeName: title,
-                                    startDate: startDate,
-                                    endDate: startDate.add(
-                                      Duration(days: _diaries.length - 1),
-                                    ),
-                                    date: displayDate,
-                                    initialDiary: diary,
-                                  ),
-                                ),
-                              );
-                              if (changed == true && mounted) {
-                                await _loadAllDiaries();
-                                // ✅ [해결 2] 돌아오자마자 여행 완료 여부 체크!
-                                await TravelCompleteService.tryCompleteTravel(
-                                  travelId: _travel['id'],
-                                  startDate: startDate,
-                                  endDate: startDate.add(
-                                    Duration(days: _diaries.length - 1),
-                                  ),
-                                );
-                              }
-                            },
-                            child: _buildListItem(
-                              diary,
-                              displayDate,
-                              dayIndex,
-                              hasDiary,
-                              text,
-                              imageUrl,
-                              index,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+            ],
           ),
+          if (_isChanged)
+            Positioned(
+              bottom: 27, // ✅ 하단에서 27px 띄움
+              right: 27, // ✅ 우측 패딩과 동일하게 맞춤
+              child: Material(
+                color: Colors.transparent,
+                elevation: 14, // ✅ 동일한 그림자 높이
+                shadowColor: Colors.black.withOpacity(0.25), // ✅ 동일한 그림자 색상
+                shape: const CircleBorder(),
+                child: FloatingActionButton(
+                  elevation: 0, // Material 위젯에서 그림자를 제어하므로 0으로 설정
+                  backgroundColor: isDomestic
+                      ? AppColors.travelingBlue
+                      : isUSA
+                      ? AppColors.travelingRed
+                      : AppColors.travelingPurple,
+                  onPressed: _saveChanges,
+                  // ✅ 동일한 라운딩 값 (50)
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  // ✅ 동일한 아이콘 사이즈 (30)
+                  child: const Icon(Icons.check, color: Colors.white, size: 30),
+                ),
+              ),
+            ),
         ],
       ),
-      floatingActionButton: _isChanged
-          ? FloatingActionButton(
-              backgroundColor: isDomestic
-                  ? AppColors.travelingBlue
-                  : isUSA
-                  ? AppColors.travelingRed
-                  : AppColors.travelingPurple,
-              onPressed: _saveChanges,
-              child: const Icon(Icons.check, color: Colors.white),
-            )
-          : null,
     );
   }
 
@@ -302,10 +344,10 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     int index,
   ) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 15),
+      margin: const EdgeInsets.only(bottom: 13),
       padding: const EdgeInsets.fromLTRB(15, 15, 0, 15),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.background,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -413,7 +455,10 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
         children: [
           Row(
             children: [
-              _TypeBadge(label: badgeLabel),
+              Padding(
+                padding: const EdgeInsets.only(top: 2), // 위쪽 패딩 추가
+                child: _TypeBadge(label: badgeLabel),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -465,7 +510,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
               ),
             ],
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             '${_travel['start_date'].toString().replaceAll('-', '.')} ~ ${_travel['end_date'].toString().replaceAll('-', '.')}',
             style: TextStyle(
@@ -486,7 +531,7 @@ class _TypeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(6, 3, 6, 1),
+      padding: const EdgeInsets.fromLTRB(6, 1, 6, 3),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.15),
         borderRadius: BorderRadius.circular(5),

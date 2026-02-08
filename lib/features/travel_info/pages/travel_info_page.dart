@@ -94,7 +94,7 @@ class _TravelInfoPageState extends State<TravelInfoPage> with RouteAware {
                       27,
                       65,
                       27,
-                      32 + MediaQuery.of(context).padding.bottom,
+                      10 + MediaQuery.of(context).padding.bottom,
                     ),
                     sliver: SliverList(
                       delegate: SliverChildBuilderDelegate((context, index) {
@@ -313,7 +313,7 @@ class _TravelListItem extends StatelessWidget {
               ],
             ),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 22, 22),
+              padding: const EdgeInsets.fromLTRB(22, 20, 20, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -324,7 +324,7 @@ class _TravelListItem extends StatelessWidget {
                         duration: const Duration(milliseconds: 200),
                         opacity: hasData ? 1.0 : 0.5,
                         child: Container(
-                          padding: const EdgeInsets.fromLTRB(6, 2, 6, 1),
+                          padding: const EdgeInsets.fromLTRB(6, 1, 6, 3),
                           decoration: BoxDecoration(
                             color: badgeColor,
                             borderRadius: BorderRadius.circular(5),
@@ -341,7 +341,7 @@ class _TravelListItem extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 9),
+                      const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           title,
@@ -382,7 +382,7 @@ class _TravelListItem extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     '$start ~ $end',
                     style: AppTextStyles.bodyMuted.copyWith(
