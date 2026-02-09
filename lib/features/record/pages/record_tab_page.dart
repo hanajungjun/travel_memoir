@@ -28,27 +28,61 @@ class _RecordTabPageState extends State<RecordTabPage> {
 
   @override
   Widget build(BuildContext context) {
+    // 🎯 1. build 시작점에 이 한 줄을 넣어주면 로케일 변경을 구독하게 됩니다.
+    final currentLocale = context.locale.toString();
+
     return Scaffold(
       backgroundColor: const Color(0xFF373B3E),
       body: SafeArea(
         top: false,
         bottom: false,
         child: StreamBuilder<List<Map<String, dynamic>>>(
+          // 🎯 2. key를 부여해서 언어 변경 시 스트림 빌더를 강제로 다시 태웁니다.
+          key: ValueKey(currentLocale),
           stream: _supabase
               .from('travels')
               .stream(primaryKey: ['id'])
               .order('end_date', ascending: false),
           builder: (context, snapshot) {
+            // 1️⃣ [디버깅] 실제 스트림으로 들어오는 원본 데이터 개수를 확인해봐
+            if (snapshot.hasData) {
+              debugPrint(
+                "🔍 [RECORD_DEBUG] Raw Data Count: ${snapshot.data?.length}",
+              );
+            }
+
+            // 로딩 상태 처리 (기존 로직 유지)
             if (snapshot.connectionState == ConnectionState.waiting &&
                 !snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final travels = (snapshot.data ?? [])
+            // 2️⃣ [보강] 원본 데이터는 있는데 필터링 후 비어있는지 확인
+            final rawData = snapshot.data ?? [];
+            final travels = rawData
                 .where((t) => t['is_completed'] == true)
                 .toList();
 
-            if (travels.isEmpty) {
+            // 3️⃣ [수정] 정말로 DB에 데이터가 하나도 없을 때만 "기록 없음" 표시
+            if (rawData.isEmpty &&
+                snapshot.connectionState == ConnectionState.active) {
+              return Center(
+                child: Text(
+                  'no_completed_travels'.tr(),
+                  style: AppTextStyles.bodyMuted.copyWith(
+                    color: Colors.white70,
+                  ),
+                ),
+              );
+            }
+
+            // 4️⃣ [방어] 만약 전체 데이터는 있는데 '완료된' 여행만 없는 경우라면?
+            // 형이 의도한 게 '완료된 것만 보여주는 것'이라면 현재 UI가 맞지만,
+            // 사용자에게 혼동을 줄 수 있으니 로그를 남겨두는 게 좋아.
+            if (travels.isEmpty && rawData.isNotEmpty) {
+              debugPrint(
+                "⚠️ [RECORD_DEBUG] 완료된 여행이 없어 리스트가 비어보임 (전체: ${rawData.length}개)",
+              );
               return Center(
                 child: Text(
                   'no_completed_travels'.tr(),
@@ -153,12 +187,13 @@ class SummaryHeroCard extends StatelessWidget {
             ),
             const SizedBox(height: 40),
             SizedBox(
-              height: 220,
+              height: 240,
               child: ListView.builder(
-                scrollDirection: Axis.horizontal,
+                scrollDirection: Axis.horizontal, // 🎯 괄호 지우고 쉼표로 수정 완료!
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 itemCount: travels.length,
                 itemBuilder: (context, index) {
+                  // 🎯 이제 itemBuilder를 정상적으로 인식해
                   final travel = travels[index];
                   final String type = travel['travel_type'] ?? 'domestic';
                   final String countryCode = (travel['country_code'] ?? '')
@@ -182,20 +217,35 @@ class SummaryHeroCard extends StatelessWidget {
                     ),
                     child: Container(
                       width: 200,
-                      margin: const EdgeInsets.only(right: 20),
+                      margin: const EdgeInsets.only(right: 20, bottom: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 8,
+                            offset: const Offset(2, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(8),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.zero,
-                        child: Container(
-                          color: Colors.white.withOpacity(0.05),
-                          child: CachedNetworkImage(
-                            imageUrl: finalUrl,
-                            fit: BoxFit.contain,
-                            placeholder: (_, __) => const Center(
+                        borderRadius: BorderRadius.circular(8),
+                        child: CachedNetworkImage(
+                          imageUrl: finalUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: Colors.grey[200],
+                            child: const Center(
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
-                            errorWidget: (_, __, ___) => const Icon(
-                              Icons.map,
-                              color: Colors.white10,
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: Colors.grey[200],
+                            child: const Icon(
+                              Icons.map_outlined,
+                              color: Colors.grey,
                               size: 40,
                             ),
                           ),

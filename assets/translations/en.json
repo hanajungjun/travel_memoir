@@ -19,7 +19,7 @@
   "close_memory": "Close Memory",
   "domestic": "Korea",
   "overseas": "Globals",
-  "usa": "usa",
+  "usa": "USA",
   "traveling_status": "Traveling in {}",
   "preparing_travel": "Preparing for travel",
   "register_travel_first": "Shall we register a trip first?",
@@ -382,5 +382,6 @@
   "today_image_hint": "Capture your day\nwith a drawing",
   "remaining_usage_today": "Remaining today: {}/50",
   "generate_error": "An error occurred during image generation",
-  "daily_reward_benefit": "Daily {amount} AI Image More generations" 
+  "daily_reward_benefit": "Daily {amount} AI Image More generations",
+  "select_year": "Select Year" 
 }

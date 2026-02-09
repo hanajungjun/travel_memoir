@@ -80,14 +80,17 @@ class DomesticTravelSummaryService {
   // =====================================================
   // ✅ 최다 방문 지역
   // =====================================================
+  // ✅ 최다 방문 지역 (형의 테이블 컬럼명 반영)
   static Future<List<String>> getMostVisitedRegions({
     required String userId,
     required bool isDomestic,
     bool? isCompleted,
+    required String langCode,
   }) async {
+    // 🎯 컬럼명 정확히: region_name, region_id
     var q = _supabase
         .from('travels')
-        .select('region_name')
+        .select('region_name, region_id')
         .eq('user_id', userId)
         .eq('travel_type', isDomestic ? 'domestic' : 'overseas');
 
@@ -97,47 +100,69 @@ class DomesticTravelSummaryService {
 
     final rows = await q;
     final map = <String, int>{};
+    final bool isEn = langCode == 'en';
 
     for (final r in rows) {
-      final name = r['region_name']?.toString();
-      if (name == null || name.isEmpty) continue;
-      map[name] = (map[name] ?? 0) + 1;
+      String? displayName;
+
+      if (isEn) {
+        // 🇺🇸 영어: region_id (KR_GB_BONGHWA) 에서 BONGHWA 추출
+        final String regId = r['region_id']?.toString() ?? '';
+        if (regId.contains('_')) {
+          displayName = regId.split('_').last; // 마지막 단어 추출
+        } else {
+          displayName = r['country_name_en'] ?? 'TRAVEL'; // 없으면 기본값
+        }
+      } else {
+        // 🇰🇷 한국어: region_name (봉화) 사용
+        displayName = r['region_name'];
+      }
+
+      if (displayName == null || displayName.isEmpty) continue;
+      map[displayName] = (map[displayName] ?? 0) + 1;
     }
 
     if (map.isEmpty) return [];
 
-    // 1. 전체 데이터 정렬 (기존 로직)
     final sorted = map.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // 🎯 2. [수정 핵심] 최다 방문 횟수(Top 1)가 몇 번인지 찾기
     final maxVisitCount = sorted.first.value;
 
-    // 🎯 3. [수정 핵심] 그 횟수와 동일한 지역들만 필터링 (공동 1등 포함)
     return sorted
-        .where((e) => e.value == maxVisitCount) // 2번 간 곳이 최고면 2번 간 곳만 남김
-        .map((e) => e.key)
+        .where((e) => e.value == maxVisitCount)
+        .map((e) => isEn ? e.key.toUpperCase() : e.key)
         .toList();
   }
 
   // =====================================================
   // ✅ 방문 도시 수
   // =====================================================
-  /*
-  static Future<int> getVisitedCityCount({required String userId}) async {
-    final rows = await _supabase
-        .from('domestic_travel_regions')
-        .select('sido_cd')
-        .eq('user_id', userId);
+  static Future<int> getUniqueVisitedRegionsCount({
+    required String userId,
+  }) async {
+    // 1. DB에서 해당 유저의 모든 국내 여행 region_id를 싹 가져옴
+    final response = await Supabase.instance.client
+        .from('travels')
+        .select('region_id')
+        .eq('user_id', userId)
+        .eq('travel_type', 'domestic');
+    // .eq('is_completed', true);
 
-    final set = <String>{};
-    for (final r in rows) {
-      final s = r['sido_cd']?.toString();
-      if (s != null) set.add(s);
-    }
-    return set.length;
+    if (response == null) return 0;
+
+    final List<dynamic> data = response as List<dynamic>;
+
+    // 2. Set을 사용하여 포항 중복(2번)을 1개로 합침
+    // id가 KR_SEOUL이든 KR_GB_BONGHWA이든 있는 그대로 다 담음
+    final uniqueIds = data
+        .map((item) => item['region_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+
+    print("✅ 실제 방문 지역 목록: $uniqueIds"); // 여기서 12개가 들어있는지 확인!
+    return uniqueIds.length; // 이제 12를 뱉어낼 거야
   }
-  */
 
   // =====================================================
   // ✅ 완성된 추억 개수 (🔥 일기 전부 작성된 여행)

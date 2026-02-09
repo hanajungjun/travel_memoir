@@ -40,7 +40,18 @@ class DomesticSummaryTab extends StatelessWidget {
         DomesticTravelSummaryService.getMostVisitedRegions(
           userId: userId,
           isDomestic: true,
-          isCompleted: null,
+          langCode: context.locale.languageCode,
+        ).catchError((_) => <String>[]),
+        // DomesticTravelSummaryService.getMostVisitedRegions(
+        //   userId: userId,
+        //   isDomestic: true,
+        //   isCompleted: null,
+        //   langCode: context.locale.languageCode, // 🎯 현재 언어 정보 추가
+        // ),
+
+        // [4]중복 없는 순수 방문 도시 수
+        DomesticTravelSummaryService.getUniqueVisitedRegionsCount(
+          userId: userId,
         ),
       ]),
       builder: (context, snapshot) {
@@ -54,11 +65,17 @@ class DomesticSummaryTab extends StatelessWidget {
 
         final data = snapshot.data!;
 
-        final visitedCityCount = data[0] as int;
-        final totalVisitCount = data[0] as int;
-        final completedMemoriesCount = data[1] as int;
-        final travelDays = data[2] as int;
+        // final visitedCityCount = data[0] as int;
+        // final totalVisitCount = data[0] as int;
+        // final completedMemoriesCount = data[1] as int;
+        // final travelDays = data[2] as int;
+        // final mostVisitedList = data[3] as List<String>;
+
+        final totalVisitCount = data[0] as int; // 전체 여행 횟수 (예: 10회)
+        final completedMemoriesCount = data[1] as int; // 완료된 추억
+        final travelDays = data[2] as int; // 총 여행 일수
         final mostVisitedList = data[3] as List<String>;
+        final visitedCityCount = data[4] as int; // 🎯 실제 방문한 도시 수 (예: 3곳)
 
         String mostVisitedText;
         if (mostVisitedList.isEmpty) {

@@ -41,6 +41,7 @@ class OverseasSummaryTab extends StatelessWidget {
         OverseasTravelSummaryService.getMostVisitedCountries(
           userId: userId,
           isCompleted: null,
+          langCode: context.locale.languageCode, // 🎯 현재 앱 언어 설정 전달
         ),
       ]),
       builder: (context, snapshot) {

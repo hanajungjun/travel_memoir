@@ -304,6 +304,8 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _pickImages() async {
+    // 🎯 [추가] 갤러리 열기 전에 키보드부터 확실하게 닫기
+    FocusScope.of(context).unfocus();
     final int currentTotal = _localPhotos.length + _remotePhotoUrls.length;
     if (currentTotal >= 3) return;
     final List<XFile> pickedFiles = await _picker.pickMultiImage();
@@ -1120,6 +1122,7 @@ class _TravelDayPageState extends State<TravelDayPage>
       child: TextField(
         controller: _contentController,
         maxLines: 5,
+        autofocus: false, // 🎯 [추가] 페이지 로드시 자동으로 키보드 뜨는 것 방지
         style: const TextStyle(
           fontSize: 13,
           height: 1.2,

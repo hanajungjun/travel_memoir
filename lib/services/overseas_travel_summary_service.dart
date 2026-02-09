@@ -45,7 +45,7 @@ class OverseasTravelSummaryService {
   }
 
   // =====================================================
-  // ✈️ 방문한 국가 수 (완료된 여행 기준)
+  // ✈️ 방문한 국가 수
   // =====================================================
   static Future<int> getVisitedCountryCount({required String userId}) async {
     final rows = await _supabase
@@ -122,15 +122,10 @@ class OverseasTravelSummaryService {
     return totalDays;
   }
 
-  // =====================================================
-  // 🌍 최다 방문 국가 리스트 (많이 간 순, 다국어)
-  // =====================================================
-  // =====================================================
-  // 🌍 최다 방문 국가 리스트 (공동 1위 필터링 적용)
-  // =====================================================
   static Future<List<String>> getMostVisitedCountries({
     required String userId,
     bool? isCompleted,
+    required String langCode, // 🎯 시스템 언어 대신 앱 설정 언어를 직접 받음
   }) async {
     var query = _supabase
         .from('travels')
@@ -161,26 +156,20 @@ class OverseasTravelSummaryService {
 
     if (countMap.isEmpty) return [];
 
-    // 1. 방문 횟수 순으로 정렬
     final sorted = countMap.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    // 🎯 2. [핵심 수정] 최다 방문 횟수가 몇 번인지 확인
     final maxVisitCount = sorted.first.value;
-
-    // 🎯 3. [핵심 수정] 최다 방문 횟수와 동일한 국가만 필터링 (공동 1위 포함)
     final topCountries = sorted.where((e) => e.value == maxVisitCount).toList();
 
-    final isKo = PlatformDispatcher.instance.locale.languageCode == 'ko';
+    // 🎯 전달받은 langCode를 기준으로 판단
+    final bool isKo = langCode == 'ko';
 
     return topCountries.map((e) {
       final names = nameMap[e.key];
-      return isKo ? (names?['ko'] ?? e.key) : (names?['en'] ?? e.key);
+      final name = isKo ? (names?['ko'] ?? '') : (names?['en'] ?? '');
+      // 이름이 비어있으면 코드(JPN, USA 등)라도 반환
+      return name.isNotEmpty ? name : e.key;
     }).toList();
-  }
-
-  // 🔥 [추가] 로그아웃 등을 할 때 캐시를 비워야 한다면 사용하세요.
-  static void clearCache() {
-    _totalCountryCountCache = null;
   }
 }

@@ -104,16 +104,17 @@ class UsaTravelSummaryService {
     }
   }
 
-  /// 5. 최다 방문 주 리스트 (공동 1위 필터링 적용)
+  /// 5. 최다 방문 주 리스트 (미국 전용: region_name 그대로 사용)
   static Future<List<String>> getMostVisitedStates({
     required String userId,
     String travelType = 'usa',
     bool? isCompleted,
   }) async {
     try {
+      // 🎯 region_name을 바로 가져옴
       var query = _supabase
           .from('travels')
-          .select('region_key')
+          .select('region_name')
           .eq('user_id', userId)
           .eq('travel_type', travelType);
 
@@ -126,25 +127,23 @@ class UsaTravelSummaryService {
 
       final Map<String, int> counts = {};
       for (var travel in response) {
-        final state = travel['region_key'] as String?;
-        if (state != null && state.isNotEmpty) {
-          counts[state] = (counts[state] ?? 0) + 1;
+        // 🎯 형 말대로 region_name 자체가 영어라 가공 없이 그대로 사용
+        final name = travel['region_name'] as String?;
+        if (name != null && name.isNotEmpty) {
+          counts[name] = (counts[name] ?? 0) + 1;
         }
       }
 
       if (counts.isEmpty) return [];
 
-      // 1. 방문 횟수 순 정렬
       var sortedEntries = counts.entries.toList()
         ..sort((a, b) => b.value.compareTo(a.value));
 
-      // 🎯 2. [핵심 수정] 최다 방문 횟수 확인
       final maxVisitCount = sortedEntries.first.value;
 
-      // 🎯 3. [핵심 수정] 최다 횟수와 동일한 지역들만 필터링
       return sortedEntries
           .where((e) => e.value == maxVisitCount)
-          .map((e) => e.key)
+          .map((e) => e.key.toUpperCase()) // 앨범 감성으로 대문자 변환만 추가
           .toList();
     } catch (e) {
       return [];
