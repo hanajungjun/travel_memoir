@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -64,37 +65,58 @@ class _MyStickerPageState extends State<MyStickerPage> {
     return "P<$nationality$name".padRight(44, '<');
   }
 
-  // 🎯 오직 DB의 visited_countries 테이블에서만 데이터를 가져오는 로직
+  // MyStickerPage.dart 내의 _loadData 함수 수정
+
   Future<Map<String, dynamic>> _loadData() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return {};
 
+    // 1️⃣ 유저 프로필 가져오기
     final profile = await _supabase
         .from('users')
         .select()
         .eq('auth_uid', user.id)
         .maybeSingle();
 
-    // 실제 방문한 국가만 조회 (필터링 핵심)
+    // 2️⃣ 방문한 국가 리스트 가져오기 (visited_countries)
     final List<dynamic> visitedRows = await _supabase
         .from('visited_countries')
         .select()
         .eq('user_id', user.id)
         .order('first_visited_at', ascending: false);
 
-    // 🚨 [DEBUG] 이 로그가 터미널에 찍혀야 합니다.
-    debugPrint("🚨🚨🚨 [MY_STICKER_PAGE] DB 가져온 국가 수: ${visitedRows.length}");
+    // 3️⃣ 국가 마스터 정보 가져오기 (passport_countries)
+    // 모든 국가의 한글/영문 이름을 한꺼번에 가져와서 캐시처럼 씁니다.
+    final List<dynamic> countryMaster = await _supabase
+        .from('passport_countries')
+        .select('code, name_ko, name_en');
+
+    // 조회를 위해 Map으로 변환 { 'KR': {name_ko: '대한민국', ...} }
+    final Map<String, dynamic> countryMap = {
+      for (var item in countryMaster) item['code']: item,
+    };
+
+    debugPrint(
+      "🚨 [MY_STICKER_PAGE] 방문 국가: ${visitedRows.length}개 / 마스터 로드: ${countryMaster.length}개",
+    );
 
     final List stickers = visitedRows.map((row) {
+      final bool isEn = context.locale.languageCode == 'en';
+      final String code = row['country_code'];
+
+      // 🎯 마스터 테이블에서 이름 찾기, 없으면 visited_countries의 기본값 사용
+      final master = countryMap[code];
+      final String displayName = isEn
+          ? (master?['name_en'] ?? row['country_name'] ?? 'GLOBAL')
+          : (master?['name_ko'] ?? row['country_name'] ?? '여행지');
+
       return {
         'id': row['id'],
-        'code': row['country_code'],
-        'name': row['country_name'],
+        'code': code,
+        'name': displayName.toUpperCase(), // 영문은 대문자로 깔끔하게
         'isUnlocked': true,
         'created_at': row['first_visited_at'],
-        'asset': _supabase.storage
-            .from('stickers')
-            .getPublicUrl('${row['country_code']}.png'),
+        'asset': _supabase.storage.from('stickers').getPublicUrl('$code.png'),
       };
     }).toList();
 
@@ -167,6 +189,66 @@ class _MyStickerPageState extends State<MyStickerPage> {
     );
   }
 
+  Widget _buildProfileImage(dynamic profile) {
+    bool isVip = profile?['is_vip'] ?? false;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // 1️⃣ 외부 프레임 (VIP는 골드, 일반은 빈티지)
+        Container(
+          width: 110,
+          height: 135,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: isVip
+                  ? const Color(0xFFD4AF37)
+                  : Colors.brown.withOpacity(0.2),
+              width: isVip ? 3 : 1,
+            ),
+            boxShadow: isVip
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFD4AF37).withOpacity(0.3),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                : [],
+          ),
+          padding: const EdgeInsets.all(4), // 프레임 두께만큼 안쪽 여백
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: profile?['profile_image_url'] != null
+                ? Image.network(profile['profile_image_url'], fit: BoxFit.cover)
+                : const Icon(Icons.person, size: 50, color: Colors.grey),
+          ),
+        ),
+
+        // 2️⃣ VIP 전용 뱃지 (우측 상단에 살짝 걸치게)
+        if (isVip)
+          Positioned(
+            top: -5,
+            right: -5,
+            child: Transform.rotate(
+              angle: 0.2,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFD4AF37),
+                  shape: BoxShape.circle,
+                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                ),
+                child: const Icon(Icons.stars, color: Colors.white, size: 18),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   Widget _buildIdentityPage(dynamic profile) {
     // 🛠️ 파서 에러 방지를 위해 명확하게 괄호를 사용한 로직
     bool isVip = profile?['is_vip'] ?? false;
@@ -208,26 +290,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
                 children: [
                   Column(
                     children: [
-                      Container(
-                        width: 100,
-                        height: 125,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(
-                            color: Colors.brown.withOpacity(0.1),
-                          ),
-                        ),
-                        child: profile?['profile_image_url'] != null
-                            ? Image.network(
-                                profile['profile_image_url'],
-                                fit: BoxFit.cover,
-                              )
-                            : const Icon(
-                                Icons.person,
-                                size: 50,
-                                color: Colors.grey,
-                              ),
-                      ),
+                      _buildProfileImage(profile),
                       const SizedBox(height: 12),
                       _bearerSignature(profile?['nickname'] ?? "TRAVELER"),
                     ],

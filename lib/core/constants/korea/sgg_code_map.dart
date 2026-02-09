@@ -7,14 +7,14 @@ class SggCodeMap {
     // =====================
     // 🔹 광역시 (SIDO)
     // =====================
-    'KR_SEOUL': (type: 'sido', sidoCd: '11', sggCd: null),
-    'KR_BUSAN': (type: 'sido', sidoCd: '26', sggCd: null),
-    'KR_DAEGU': (type: 'sido', sidoCd: '27', sggCd: null),
-    'KR_INCHEON': (type: 'sido', sidoCd: '28', sggCd: null),
-    'KR_GWANGJU': (type: 'sido', sidoCd: '29', sggCd: null),
-    'KR_DAEJEON': (type: 'sido', sidoCd: '30', sggCd: null),
-    'KR_ULSAN': (type: 'sido', sidoCd: '31', sggCd: null),
-    'KR_SEJONG': (type: 'sido', sidoCd: '36', sggCd: null),
+    'KR_SEOUL': (type: 'sido', sidoCd: '11', sggCd: '11000'),
+    'KR_BUSAN': (type: 'sido', sidoCd: '26', sggCd: '26000'),
+    'KR_DAEGU': (type: 'sido', sidoCd: '27', sggCd: '27000'),
+    'KR_INCHEON': (type: 'sido', sidoCd: '28', sggCd: '28000'),
+    'KR_GWANGJU': (type: 'sido', sidoCd: '29', sggCd: '29000'),
+    'KR_DAEJEON': (type: 'sido', sidoCd: '30', sggCd: '30000'),
+    'KR_ULSAN': (type: 'sido', sidoCd: '31', sggCd: '31000'),
+    'KR_SEJONG': (type: 'sido', sidoCd: '36', sggCd: '36110'),
 
     // =====================
     // 🔹 경기도 (GYEONGGI)

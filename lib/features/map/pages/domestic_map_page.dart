@@ -39,6 +39,88 @@ class DomesticMapPageState extends State<DomesticMapPage>
     "45110": ["45111", "45113"],
     "47110": ["47111", "47113"],
     "48120": ["48121", "48123", "48125", "48127", "48129"],
+
+    // --- 광역시 및 특별시 추가 (색칠 누락 해결) ---
+    // 서울특별시
+    "11000": [
+      "11110",
+      "11140",
+      "11170",
+      "11200",
+      "11215",
+      "11230",
+      "11260",
+      "11290",
+      "11305",
+      "11320",
+      "11350",
+      "11380",
+      "11410",
+      "11440",
+      "11470",
+      "11500",
+      "11530",
+      "11545",
+      "11560",
+      "11590",
+      "11620",
+      "11650",
+      "11680",
+      "11710",
+      "11740",
+    ],
+    // 부산광역시
+    "26000": [
+      "26110",
+      "26140",
+      "26170",
+      "26200",
+      "26230",
+      "26260",
+      "26290",
+      "26320",
+      "26350",
+      "26380",
+      "26410",
+      "26440",
+      "26470",
+      "26500",
+      "26530",
+      "26710",
+    ],
+    // 대구광역시
+    "27000": [
+      "27110",
+      "27140",
+      "27170",
+      "27200",
+      "27230",
+      "27260",
+      "27290",
+      "27710",
+      "27720",
+    ],
+    // 인천광역시
+    "28000": [
+      "28110",
+      "28140",
+      "28170",
+      "28185",
+      "28200",
+      "28237",
+      "28245",
+      "28260",
+      "28710",
+      "28720",
+    ],
+    // 광주광역시
+    "29000": ["29110", "29140", "29155", "29170", "29200"],
+    // 대전광역시
+    "30000": ["30110", "30140", "30170", "30200", "30230"],
+    // 울산광역시
+    "31000": ["31110", "31140", "31170", "31200", "31710"],
+    // 세종특별자치시
+    "36110": ["36110"],
   };
 
   Future<void> refreshData() async {
@@ -225,6 +307,22 @@ class DomesticMapPageState extends State<DomesticMapPage>
 
       if (results.isNotEmpty) {
         final res = results.first;
+        // 🎯 [수정] 현재 앱 언어 확인
+        final String langCode = context.locale.languageCode;
+        final bool isEn = langCode == 'en';
+
+        // 🎯 [핵심] 언어에 따른 지역명 조합 로직
+        String displayRegionName = '';
+        if (isEn) {
+          final String regIdStr = res['region_id']?.toString() ?? '';
+          // 'KR_GB_BONGHWA' -> 'BONGHWA'
+          displayRegionName = regIdStr.contains('_')
+              ? regIdStr.split('_').last.toUpperCase()
+              : res['region_name'].toString().toUpperCase();
+        } else {
+          // 한국어: "경상북도 봉화"
+          displayRegionName = "${res['province']} ${res['region_name']}";
+        }
         final rawPath = res['map_image_url']?.toString();
         String imageUrl = '';
 
@@ -243,8 +341,8 @@ class DomesticMapPageState extends State<DomesticMapPage>
           pageBuilder: (context, anim1, anim2) => Center(
             child: AiMapPopup(
               imageUrl: imageUrl,
-              regionName:
-                  "${res['province'].toString().tr()} ${res['region_name'].toString().tr()}",
+              //  regionName:"${res['province'].toString().tr()} ${res['region_name'].toString().tr()}",
+              regionName: displayRegionName,
               summary: res['ai_cover_summary'] ?? "no_memories_recorded".tr(),
             ),
           ),

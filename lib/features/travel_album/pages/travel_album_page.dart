@@ -350,21 +350,52 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
   }
 
   String _travelTitle() {
+    // 1️⃣ 사용자가 직접 입력한 제목이 있으면 최우선 사용
     String title = (widget.travel['title'] ?? '').toString();
-    if (title.isEmpty) {
-      final isDomestic = widget.travel['travel_type'] == 'domestic';
-      final place = isDomestic
+    if (title.isNotEmpty) return title.trim();
+
+    final bool isKo = context.locale.languageCode == 'ko';
+    final String type = widget.travel['travel_type'] ?? 'domestic';
+    String? place;
+
+    // 2️⃣ 언어/타입별 장소명 추출
+    if (isKo) {
+      place = (type == 'domestic')
           ? (widget.travel['region_name'] ?? widget.travel['city'])
-          : (context.locale.languageCode == 'ko'
-                ? widget.travel['country_name_ko']
-                : widget.travel['country_name_en']);
-      title = 'trip_with_place'.tr(args: [place ?? 'overseas'.tr()]);
+          : (widget.travel['country_name_ko'] ??
+                widget.travel['display_country_name']);
+    } else {
+      final String? savedEnName = widget.travel['display_country_name'];
+      final String? enName = widget.travel['country_name_en'];
+      final String? regKey = widget.travel['region_key'];
+
+      if (savedEnName != null && savedEnName.isNotEmpty) {
+        place = savedEnName;
+      } else if (type == 'domestic' && regKey != null) {
+        place = regKey.contains('_') ? regKey.split('_').last : 'KOREA';
+      } else {
+        place = enName ?? widget.travel['country_code'] ?? 'USA';
+      }
     }
-    return title
-        .replaceAll(' 여행', '')
-        .replaceAll('여행', '')
-        .replaceAll(' Trip', '')
-        .trim();
+
+    // 3️⃣ 번역 키 적용 (인자가 무시될 경우를 대비한 방어 코드)
+    final String finalPlace = place?.trim() ?? (isKo ? '여행' : 'TRAVEL');
+    String formattedTitle = 'trip_with_place'.tr(
+      args: [isKo ? finalPlace : finalPlace.toUpperCase()],
+    );
+
+    // 🎯 [핵심 방어 로직] 만약 tr() 결과가 장소명과 똑같다면 (번역 템플릿 실패 시) 강제로 조립
+    if (formattedTitle == finalPlace ||
+        formattedTitle == finalPlace.toUpperCase()) {
+      formattedTitle = isKo
+          ? "$finalPlace 여행"
+          : "Trip to ${finalPlace.toUpperCase()}";
+    }
+
+    debugPrint("🔍 [ALBUM_TITLE_DEBUG] Final Place: $finalPlace");
+    debugPrint("🔍 [ALBUM_TITLE_DEBUG] Result: $formattedTitle");
+
+    return formattedTitle.trim();
   }
 
   // ==========================================

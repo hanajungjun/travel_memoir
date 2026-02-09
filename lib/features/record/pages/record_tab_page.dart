@@ -277,21 +277,33 @@ class TravelRecordCard extends StatelessWidget {
     }
 
     String destination;
-    if (type == 'usa') {
-      destination =
-          travel['region_name'] ??
-          travel['region_key'] ??
-          (isKo ? 'usa'.tr() : 'USA');
-    } else if (type == 'domestic') {
-      destination = isKo
-          ? (travel['region_name'] ?? 'unknown_destination'.tr())
-          : (travel['region_key']?.split('_').last ?? 'Korea');
+    // 🎯 [핵심 수정] 언어 설정 및 DB 데이터에 따른 목적지 명칭 결정
+    if (isKo) {
+      // 한국어 모드: 기존처럼 한국어 명칭 우선
+      if (type == 'domestic') {
+        destination = travel['region_name'] ?? '알 수 없는 지역';
+      } else {
+        destination =
+            travel['country_name_ko'] ??
+            travel['display_country_name'] ??
+            '해외 여행';
+      }
     } else {
-      destination = isKo
-          ? (travel['country_name_ko'] ?? 'unknown_destination'.tr())
-          : (travel['country_name_en'] ?? 'Unknown');
-    }
+      // 영어 모드: 우리가 서비스에서 저장한 display_country_name을 최우선으로 사용
+      // 이게 없으면 region_key나 country_name_en에서 추출
+      final String? savedEnName = travel['display_country_name'];
 
+      if (savedEnName != null && savedEnName.isNotEmpty) {
+        destination = savedEnName;
+      } else if (type == 'domestic') {
+        // KR_GB_BONGHWA -> BONGHWA
+        final String regKey = travel['region_key']?.toString() ?? '';
+        destination = regKey.contains('_') ? regKey.split('_').last : 'KOREA';
+      } else {
+        destination =
+            travel['country_name_en'] ?? travel['country_code'] ?? 'Global';
+      }
+    }
     final String coverUrl = (travel['cover_image_url'] ?? '').toString();
     final String summary = (travel['ai_cover_summary'] ?? '').toString().trim();
     String finalImageUrl = coverUrl.isEmpty

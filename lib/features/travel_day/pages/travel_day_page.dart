@@ -704,7 +704,10 @@ class _TravelDayPageState extends State<TravelDayPage>
         );
         final totalDays =
             widget.endDate.difference(widget.startDate).inDays + 1;
+
         if (writtenDays >= totalDays) {
+          final String currentLangCode = context.locale.languageCode;
+
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -716,6 +719,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                   travelId: _cleanTravelId,
                   startDate: widget.startDate,
                   endDate: widget.endDate,
+                  languageCode: context.locale.languageCode,
                 ),
               ),
             ),

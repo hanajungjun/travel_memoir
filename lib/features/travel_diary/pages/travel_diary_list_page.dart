@@ -136,19 +136,39 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     final isUSA = travelType == 'usa';
     final bool isKo = context.locale.languageCode == 'ko';
 
-    String title = '';
-    if (isUSA || isDomestic) {
-      title =
-          _travel['region_name'] ??
-          (isKo ? (isUSA ? '미국' : '국내') : (isUSA ? 'USA' : 'Domestic'));
-    } else {
-      title = isKo
-          ? (_travel['country_name_ko'] ?? 'travel'.tr())
-          : (_travel['country_name_en'] ??
-                _travel['country_code'] ??
-                'travel'.tr());
-    }
+    // 🎯 범인 검거 및 수정: 전달받은 display_name을 최우선으로 사용
+    String title = _travel['display_name']?.toString() ?? '';
 
+    // 만약 display_name이 없을 때만 (방어 로직) 직접 계산
+    if (title.isEmpty) {
+      if (isUSA || isDomestic) {
+        if (isKo) {
+          title = _travel['region_name'] ?? (isUSA ? '미국' : '국내');
+        } else {
+          final String regId =
+              _travel['region_id']?.toString() ??
+              _travel['region_key']?.toString() ??
+              '';
+          if (regId.contains('_')) {
+            title = regId.split('_').last.toUpperCase();
+          } else {
+            title = (_travel['region_name'] ?? (isUSA ? 'USA' : 'Domestic'))
+                .toString()
+                .toUpperCase();
+          }
+        }
+      } else {
+        title = isKo
+            ? (_travel['country_name_ko'] ?? 'travel'.tr())
+            : (_travel['country_name_en'] ??
+                      _travel['country_code'] ??
+                      'travel'.tr())
+                  .toString()
+                  .toUpperCase();
+      }
+    }
+    //print("Final Header Title: $title");
+    //print("------------------------------");
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       body: Stack(
@@ -264,6 +284,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                     MaterialPageRoute(
                                       builder: (_) => TravelDayPage(
                                         travelId: _travel['id'],
+                                        // ✅ 수정: placeName: displayTitle
                                         placeName: title,
                                         startDate: startDate,
                                         endDate: startDate.add(
@@ -283,6 +304,9 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                       endDate: startDate.add(
                                         Duration(days: _diaries.length - 1),
                                       ),
+                                      languageCode: context
+                                          .locale
+                                          .languageCode, // 🎯 여기 추가!
                                     );
                                   }
                                 },
@@ -431,7 +455,8 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
         .length;
     final totalCount = _diaries.length;
     final isCompleted = totalCount > 0 && writtenCount == totalCount;
-
+    final bool isEn = context.locale.languageCode == 'en';
+    final String displayTitle = isEn ? title.toUpperCase() : title;
     Color primaryColor;
     String badgeLabel;
 
@@ -462,7 +487,11 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'travel_diary_list_title'.tr(args: [title]),
+                  // 🎯 이 부분이 핵심!
+                  // 영어일 때는 'POHANG Travel', 한국어일 때는 '포항 여행' 형식으로 나오게 함
+                  isEn
+                      ? "$displayTitle Travel"
+                      : 'travel_diary_list_title'.tr(args: [displayTitle]),
                   style: AppTextStyles.pageTitle.copyWith(
                     color: Colors.white,
                     fontSize: 17,

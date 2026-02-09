@@ -98,10 +98,19 @@ class _RecentTravelCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
+        // 1. 넘겨줄 travel 데이터를 복사해서 영문/국문이 가공된 destinationName을 주입!
+        final Map<String, dynamic> modifiedTravel = Map.from(travel);
+        modifiedTravel['display_name'] = destinationName;
+        // 🔴 로그 추가
+        // print("---------- [보낼 때] ----------");
+        // print("Original region_name: ${travel['region_name']}");
+        // print("Sent display_name: ${modifiedTravel['display_name']}");
+
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => TravelDiaryListPage(travel: travel),
+            // 2. 가공된 데이터를 상세 페이지로 넘겨줌
+            builder: (_) => TravelDiaryListPage(travel: modifiedTravel),
           ),
         );
       },

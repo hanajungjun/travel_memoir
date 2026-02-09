@@ -251,8 +251,20 @@ class _TravelListItem extends StatelessWidget {
 
     String title = '';
     if (isDomestic || isUSA) {
-      title = travel['region_name'] ?? (isUSA ? 'USA' : '');
+      if (isKo) {
+        // 한국어일 때는 기존처럼 region_name 출력 (예: 포항, 안양)
+        title = travel['region_name'] ?? (isUSA ? 'USA' : '');
+      } else {
+        // 영어일 때는 region_id에서 마지막 단어만 추출 (예: KR_GG_SUWON -> SUWON)
+        final String regId = travel['region_id']?.toString() ?? '';
+        if (regId.contains('_')) {
+          title = regId.split('_').last;
+        } else {
+          title = travel['region_name'] ?? (isUSA ? 'USA' : '');
+        }
+      }
     } else {
+      // 해외(Global)는 기존의 다국어 대응 로직 유지
       title = isKo
           ? (travel['country_name_ko'] ?? '')
           : (travel['country_name_en'] ?? travel['country_code'] ?? '');
@@ -299,7 +311,24 @@ class _TravelListItem extends StatelessWidget {
         }
 
         return GestureDetector(
-          onTap: onTap,
+          // ✅ 수정 코드
+          onTap: () async {
+            // 1. 넘겨줄 데이터를 복사해서 영문/국문 title을 'display_name'으로 추가
+            final Map<String, dynamic> modifiedTravel = Map.from(travel);
+            modifiedTravel['display_name'] = title;
+
+            // 2. 부모(TravelInfoPage)에서 정의한 이동 및 새로고침 로직 실행
+            // 이 Navigator 코드를 여기서 직접 실행하면 _refresh() 오류를 피할 수 있어
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TravelDiaryListPage(travel: modifiedTravel),
+              ),
+            );
+
+            // 3. 부모가 넘겨준 onTap 콜백을 실행해서 부모 쪽의 _refresh()가 돌게 함
+            onTap();
+          },
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,

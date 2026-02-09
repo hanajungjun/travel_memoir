@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,6 +18,7 @@ class TravelCompleteService {
     required String travelId,
     required DateTime startDate,
     required DateTime endDate,
+    required String languageCode,
   }) async {
     debugPrint('==================================================');
     debugPrint('🚀 [COMPLETE_SERVICE] START travelId=$travelId');
@@ -88,14 +90,22 @@ class TravelCompleteService {
         }, onConflict: 'user_id,region_id');
       }
 
-      final String placeName =
-          (travelType == 'domestic'
-                  ? travel['region_name']
-                  : (isKo
-                        ? travel['country_name_ko']
-                        : travel['country_name_en']))
-              ?.toString() ??
-          '여행';
+      // 🎯 [수정] AI에게 전달할 장소 이름은 무조건 영어로!
+      String placeName = '';
+      if (travelType == 'domestic') {
+        // 💡 국내: KR_GB_POHANG -> POHANG 추출
+        final String regId = travel['region_id']?.toString() ?? '';
+        placeName = regId.contains('_')
+            ? regId.split('_').last.toUpperCase()
+            : (travel['region_name']?.toString() ?? 'KOREA').toUpperCase();
+      } else {
+        // 💡 해외/미국: 무조건 country_name_en 사용 (없으면 country_code라도)
+        // 'South Korea' 등으로 고정하고 싶다면 여기서 'KR'일 때 별도 처리 가능
+        placeName =
+            (travel['country_name_en'] ?? travel['country_code'] ?? 'Global')
+                .toString()
+                .toUpperCase();
+      }
 
       // 3️⃣ AI 커버 생성 + 업로드
       try {
@@ -126,6 +136,12 @@ class TravelCompleteService {
       // 4️⃣ path 및 AI 요약 업데이트
       final coverPath = StoragePaths.travelCoverPath(userId, travelId);
       final Map<String, dynamic> finalUpdate = {'cover_image_url': coverPath};
+      // final String langCode = PlatformDispatcher.instance.locale.languageCode;
+      // 🎯 [수정] 시스템 언어가 아닌 '앱 설정 언어'를 가져오는 가장 확실한 방법
+
+      final String langCode = Intl.getCurrentLocale().split('_').first;
+      print("Final  langCode: $langCode");
+      print("------------------------------");
 
       if (travelType == 'domestic' && regionId != null) {
         finalUpdate['map_image_url'] = '$regionId.png';
@@ -135,6 +151,7 @@ class TravelCompleteService {
         final summary = await TravelHighlightService.generateHighlight(
           travelId: travelId,
           placeName: placeName,
+          languageCode: languageCode, // ✅ 전달받은 코드를 하위 서비스로 토스!
         );
         if (summary != null) {
           finalUpdate['ai_cover_summary'] = summary;

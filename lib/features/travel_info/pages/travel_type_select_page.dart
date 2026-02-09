@@ -125,7 +125,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     // 🌍 해외 여행
                     _TravelTypeCard(
                       title: 'overseas_travel_comma'.tr(),
-                      subTitleSuffix: 'abroad_label'.tr(),
+                      //  subTitleSuffix: 'abroad_label'.tr(),
                       description: 'overseas_description'.tr(),
                       icon: Icons.public_rounded,
                       iconColor: const Color(0xFF6C5CE7),
@@ -140,7 +140,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     // 🇰🇷 국내 여행
                     _TravelTypeCard(
                       title: 'domestic_travel_comma'.tr(),
-                      subTitleSuffix: 'local_label'.tr(),
+                      //   subTitleSuffix: 'local_label'.tr(),
                       description: 'domestic_description'.tr(),
                       icon: Icons.location_on_rounded,
                       iconColor: const Color(0xFF3498DB),
@@ -154,7 +154,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     // 🇺🇸 미국 여행 (비구매 시 잠금 상태)
                     _TravelTypeCard(
                       title: 'us_travel_comma'.tr(),
-                      subTitleSuffix: 'us_label'.tr(),
+                      //   subTitleSuffix: 'us_label'.tr(),
                       description: 'us_description'.tr(),
                       icon: _hasUsaAccess
                           ? Icons.flag_rounded
@@ -188,7 +188,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
 
 class _TravelTypeCard extends StatelessWidget {
   final String title;
-  final String subTitleSuffix;
+  //final String subTitleSuffix;
   final String description;
   final IconData icon;
   final Color iconColor;
@@ -197,7 +197,7 @@ class _TravelTypeCard extends StatelessWidget {
 
   const _TravelTypeCard({
     required this.title,
-    required this.subTitleSuffix,
+    //required this.subTitleSuffix,
     required this.description,
     required this.icon,
     required this.iconColor,
@@ -257,7 +257,7 @@ class _TravelTypeCard extends StatelessWidget {
                         children: [
                           TextSpan(text: title),
                           TextSpan(
-                            text: subTitleSuffix,
+                            //   text: subTitleSuffix,
                             style: const TextStyle(
                               color: const Color(0xFF111827),
                               fontWeight: FontWeight.w200,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/korea/korea_all.dart';
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // ✅ 아이콘 사용을 위해 추가
+import 'package:flutter_svg/flutter_svg.dart';
 
 class DomesticCitySelectSheet extends StatefulWidget {
   const DomesticCitySelectSheet({super.key, required this.onSelected});
@@ -143,7 +143,8 @@ class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
                       ),
                     ),
                     subtitle: Text(
-                      region.province,
+                      // 한국어면 기존 province(경기도 등), 영어면 추출한 코드(GG 등) 표시
+                      isKo ? region.province : _getProvinceCode(region),
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF686868),
@@ -197,4 +198,34 @@ class DashPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+// 💡 함수 추가 (State 클래스 내부에 작성)
+String _getProvinceCode(KoreaRegion region) {
+  final String id = region.id; // KR_GG_ANYANG 등
+
+  if (id.contains('_')) {
+    final parts = id.split('_');
+    if (parts.length >= 2) {
+      final String code = parts[1].toUpperCase();
+
+      // 🎯 코드를 풀네임으로 변환하는 매핑 테이블
+      const Map<String, String> provinceMap = {
+        'GG': 'GYEONGGI',
+        'GW': 'GANGWON',
+        'CB': 'CHUNGBUK',
+        'CN': 'CHUNGNAM',
+        'JB': 'JEONBUK',
+        'JN': 'JEONNAM',
+        'GB': 'GYEONGBUK',
+        'GN': 'GYEONGNAM',
+        'JJ': 'JEJU',
+      };
+
+      return provinceMap[code] ?? code; // 매핑 없으면 그냥 코드(예: JB) 출력
+    }
+  }
+
+  // _가 없는 특별시/광역시는 METRO 리턴
+  return 'KOREA';
 }
