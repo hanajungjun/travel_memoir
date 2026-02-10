@@ -532,17 +532,31 @@ class GlobalMapPageState extends State<GlobalMapPage>
     );
     if (world.isEmpty) return;
     final props = world.first?.queriedFeature.feature['properties'] as Map?;
-    final code = (props?['ISO_A2'] ?? props?['iso_a2'] ?? props?['ISO_A2_EH'])
+    // 🎯 [핵심 수정] 코소보(Kosovo) 예외 처리 추가
+    // 맵박스 데이터에 따라 name에 'Kosovo'가 포함되어 있는지 먼저 확인
+    final String? rawName =
+        props?['name']?.toString() ?? props?['NAME']?.toString();
+    String? code = (props?['ISO_A2'] ?? props?['iso_a2'] ?? props?['ISO_A2_EH'])
         ?.toString()
         .toUpperCase();
+
+    // 🚨 코드값이 없거나 RS(세르비아)로 잡히는데 이름이 코소보라면 XK로 강제 지정
+    if (rawName != null && rawName.contains('Kosovo')) {
+      code = 'XK';
+    }
+
     if (code != null) {
       final isKo = context.locale.languageCode == 'ko';
-      final name =
+      // 🎯 코소보일 경우 한글/영어 이름 직접 지정 (번역 파일 연동)
+      String name =
           (isKo
-                  ? (props?['NAME_KO'] ?? props?['NAME'])
-                  : (props?['NAME'] ?? props?['NAME_KO']))
-              ?.toString();
-      _showPopup(countryCode: code, regionName: name ?? code);
+                  ? (props?['NAME_KO'] ?? props?['NAME'] ?? '코소보')
+                  : (props?['NAME'] ?? props?['NAME_KO'] ?? 'Kosovo'))
+              .toString();
+
+      if (code == 'XK') name = 'kosovo'.tr(); // tr()에 'kosovo' 키가 있어야 함
+
+      _showPopup(countryCode: code, regionName: name);
     }
   }
 

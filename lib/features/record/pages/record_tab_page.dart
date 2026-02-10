@@ -57,15 +57,15 @@ class _RecordTabPageState extends State<RecordTabPage> {
               return const Center(child: CircularProgressIndicator());
             }
 
-            // 2️⃣ [보강] 원본 데이터는 있는데 필터링 후 비어있는지 확인
+            // 1️⃣ [수정] 완료된 여행만 필터링
             final rawData = snapshot.data ?? [];
             final travels = rawData
                 .where((t) => t['is_completed'] == true)
                 .toList();
 
-            // 3️⃣ [수정] 정말로 DB에 데이터가 하나도 없을 때만 "기록 없음" 표시
-            if (rawData.isEmpty &&
-                snapshot.connectionState == ConnectionState.active) {
+            // 2️⃣ [핵심] 완료된 여행이 하나도 없다면 "기록 없음" 표시
+            // 이렇게 해야 travels.first를 호출할 일이 없어서 앱이 안 터져!
+            if (travels.isEmpty) {
               return Center(
                 child: Text(
                   'no_completed_travels'.tr(),
@@ -75,24 +75,6 @@ class _RecordTabPageState extends State<RecordTabPage> {
                 ),
               );
             }
-
-            // 4️⃣ [방어] 만약 전체 데이터는 있는데 '완료된' 여행만 없는 경우라면?
-            // 형이 의도한 게 '완료된 것만 보여주는 것'이라면 현재 UI가 맞지만,
-            // 사용자에게 혼동을 줄 수 있으니 로그를 남겨두는 게 좋아.
-            if (travels.isEmpty && rawData.isNotEmpty) {
-              debugPrint(
-                "⚠️ [RECORD_DEBUG] 완료된 여행이 없어 리스트가 비어보임 (전체: ${rawData.length}개)",
-              );
-              return Center(
-                child: Text(
-                  'no_completed_travels'.tr(),
-                  style: AppTextStyles.bodyMuted.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-              );
-            }
-
             return PageView.builder(
               controller: _controller,
               scrollDirection: Axis.vertical,

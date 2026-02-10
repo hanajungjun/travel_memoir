@@ -63,6 +63,17 @@ class CountryModel {
   /// 📱 디바이스 언어에 맞는 국가명
   String displayName() {
     final lang = PlatformDispatcher.instance.locale.languageCode;
-    return lang == 'ko' ? nameKo : nameEn;
+
+    // 🎯 한국어 모드일 때 예외 처리
+    if (lang == 'ko') {
+      // 북한의 ISO 코드는 'KP'야
+      if (code.toUpperCase() == 'KP') {
+        return "북한(DPRK)";
+      }
+      return nameKo;
+    }
+
+    // 영어 모드는 그대로 nameEn 반환
+    return nameEn;
   }
 }

@@ -381,5 +381,6 @@
   "remaining_usage_today": "오늘 남은 생성 횟수: {}/50",
   "generate_error": "이미지 생성 중 오류가 발생했습니다",
   "daily_reward_benefit": "매일 {amount}회 AI이미지 추가 생성",
-  "select_year": "연도 선택"
+  "select_year": "연도 선택",
+  "kosovo": "코소보"
 }

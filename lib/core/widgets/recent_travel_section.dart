@@ -167,7 +167,7 @@ class _RecentTravelCard extends StatelessWidget {
                 _periodText(context, travel),
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
-                  fontSize: 13,
+                  fontSize: 10,
                   fontWeight: FontWeight.w300,
                 ),
               ),

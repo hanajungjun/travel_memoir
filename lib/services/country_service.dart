@@ -24,20 +24,42 @@ class CountryService {
 
       final List<dynamic> decoded = jsonDecode(res.body);
 
-      // 3. 필터링: API 국가 중 GeoJSON(ISO_A2)에 존재하는 나라만 포함
+      // 3. 필터링 및 이름 예외 처리
       final List<CountryModel> filteredCountries = decoded
-          .map<CountryModel>((e) => CountryModel.fromJson(e))
-          .where((country) => validCodes.contains(country.code.toUpperCase()))
-          .toList();
+          .map<CountryModel>((e) {
+            final model = CountryModel.fromJson(e);
 
+            // 🎯 [북한 이름 예외 처리]
+            if (model.code.toUpperCase() == 'KP') {
+              // nameKo가 final이라서 수정을 못 하니,
+              // 아예 JSON 데이터 자체를 가공해서 다시 Model을 만들어버림
+              final Map<String, dynamic> customJson = Map.from(e);
+
+              // API 원본의 한국어 번역 섹션을 강제로 덮어쓰기
+              if (customJson['translations'] != null &&
+                  customJson['translations']['kor'] != null) {
+                customJson['translations']['kor']['common'] = "북한(DPRK)";
+              }
+
+              return CountryModel.fromJson(customJson);
+            }
+
+            return model;
+          })
+          .where((country) {
+            return validCodes.contains(country.code.toUpperCase());
+          })
+          .toList();
       // 4. 이름순 정렬
       filteredCountries.sort(
         (a, b) => a.displayName().compareTo(b.displayName()),
       );
+      //final allCodes = filteredCountries.map((c) => c.code).toList();
+      //debugPrint("✅ [181개 국가 코드 리스트]: ${allCodes.join(', ')}");
+      // debugPrint(
+      //   "📊 [결과] 전체 API: ${decoded.length}개 -> 지도 있는 나라: ${filteredCountries.length}개",
+      // );
 
-      debugPrint(
-        "📊 [결과] 전체 API: ${decoded.length}개 -> 지도 있는 나라: ${filteredCountries.length}개",
-      );
       return filteredCountries;
     } catch (e) {
       debugPrint("❌ 에러 발생: $e");

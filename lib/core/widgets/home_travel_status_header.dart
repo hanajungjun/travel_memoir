@@ -131,26 +131,31 @@ class _HeaderContent extends StatelessWidget {
     final isTraveling = t != null;
     final isDomestic = t?['travel_type'] == 'domestic';
 
-    // 스탬프 수량 (로그 확인용 데이터)
-    final int daily = (stampData?['daily_stamps'] ?? 0).toInt();
-    final int vip = (stampData?['vip_stamps'] ?? 0).toInt();
-    final int paid = (stampData?['paid_stamps'] ?? 0).toInt();
+    // 🎯 1. 현재 언어가 한국어인지 확인
+    final isKo = context.locale.languageCode == 'ko';
 
     final String location;
     if (isTraveling) {
       if (isDomestic) {
-        location = t['region_name'] ?? t['city_name'] ?? 'domestic'.tr();
+        // 🎯 2. 국내 여행(울릉도 등)일 때 영어 버전 이름 처리
+        // DB에 region_name_en이 있다면 그걸 쓰고, 없으면 키값에서 추출하거나 맵핑이 필요해요.
+        if (isKo) {
+          location = t['region_name'] ?? '국내';
+        } else {
+          // region_key가 'KR_GB_ULLEUNG' 형태라면 마지막 단어만 추출하는 식으로 처리 가능
+          final String regKey = t['region_key']?.toString() ?? '';
+          location = regKey.contains('_')
+              ? regKey.split('_').last.toUpperCase()
+              : (t['region_name_en'] ?? 'KOREA');
+        }
       } else {
+        // 해외 여행 처리
         location =
-            (context.locale.languageCode == 'ko'
-                ? t['country_name_ko']
-                : t['country_name_en']) ??
-            'overseas'.tr();
+            (isKo ? t['country_name_ko'] : t['country_name_en']) ?? 'Overseas';
       }
     } else {
       location = '';
     }
-
     final title = isTraveling
         ? 'traveling_status'.tr(args: [location])
         : 'preparing_travel'.tr();

@@ -383,5 +383,6 @@
   "remaining_usage_today": "Remaining today: {}/50",
   "generate_error": "An error occurred during image generation",
   "daily_reward_benefit": "Daily {amount} AI Image More generations",
-  "select_year": "Select Year" 
+  "select_year": "Select Year",
+  "kosovo": "Kosovo" 
 }
