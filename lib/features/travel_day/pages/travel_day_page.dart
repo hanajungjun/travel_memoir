@@ -88,6 +88,18 @@ class _TravelDayPageState extends State<TravelDayPage>
   final TextEditingController _contentController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   final _logger = LoggerService(); // ✅ 로거 인스턴스
+
+  // ✅ 모든 번역 문자열을 클래스 변수로 선언
+  String _languageCode = 'en';
+  String _todaysMomentsText = '';
+  String _maxPhotosText = '';
+  String _drawingStyleText = '';
+  String _generateImageButtonText = '';
+  String _saveDiaryButtonText = '';
+  String _diaryHintText = '';
+  String _freeStampText = '';
+  String _paidStampText = '';
+
   ImageStyleModel? _selectedStyle;
   String? _existingAiStyleId;
   final List<File> _localPhotos = [];
@@ -117,7 +129,6 @@ class _TravelDayPageState extends State<TravelDayPage>
   late AnimationController _cardController;
   bool _isAiDone = false;
   bool _isAdDone = false;
-
   String get _userId => Supabase.instance.client.auth.currentUser!.id
       .replaceAll(RegExp(r'[\s\n\r\t]+'), '');
   String get _cleanTravelId =>
@@ -131,6 +142,21 @@ class _TravelDayPageState extends State<TravelDayPage>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // ✅ 모든 번역 문자열을 여기서 초기화
+    _languageCode = context.locale.languageCode;
+    _todaysMomentsText = 'todays_moments'.tr();
+    _maxPhotosText = 'max_3_photos'.tr();
+    _drawingStyleText = 'drawing_style'.tr();
+    _generateImageButtonText = 'generate_image_button'.tr();
+    _saveDiaryButtonText = 'save_diary_button'.tr();
+    _diaryHintText = 'diary_hint'.tr();
+    _freeStampText = 'free_stamp'.tr();
+    _paidStampText = 'paid_stamp'.tr();
   }
 
   @override
@@ -361,12 +387,16 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _handleGenerateWithStamp() async {
+    // ✅ setState 밖에서 미리 추출
+    final String enterDiaryMessage = 'please_enter_diary_text'.tr();
+    final String selectStyleMessage = 'select_style_msg'.tr();
+
     if (_contentController.text.trim().isEmpty) {
-      AppToast.show(context, 'please_enter_diary_text'.tr());
+      AppToast.show(context, enterDiaryMessage); // ✅ 미리 추출한 값 사용
       return;
     }
     if (_selectedStyle == null) {
-      AppToast.show(context, 'select_style_msg'.tr());
+      AppToast.show(context, selectStyleMessage); // ✅ 미리 추출한 값 사용
       return;
     }
 
@@ -431,22 +461,30 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   void _checkSync() {
+    // ✅ setState 밖에서 미리 추출
+    final String finishingMessage = "ai_finishing_touches".tr();
+
     if (_isAiDone && _isAdDone) {
       if (mounted) {
         setState(() => _loading = false);
         _cardController.forward();
       }
     } else if (_isAdDone && !_isAiDone) {
-      if (mounted)
-        setState(() => _loadingMessage = "ai_finishing_touches".tr());
+      if (mounted) {
+        setState(() => _loadingMessage = finishingMessage); // ✅ 미리 추출한 값 사용
+      }
     }
   }
 
   Future<void> _startAiGeneration(String stampType) async {
+    // ✅ setState 밖에서 미리 추출
+    final String drawingMessage = "ai_drawing_memories".tr();
+    final String generationFailedMessage = 'ai_generation_failed'.tr();
+
     if (mounted) {
       setState(() {
-        _loading = true; // 로딩 시작
-        _loadingMessage = "ai_drawing_memories".tr();
+        _loading = true;
+        _loadingMessage = drawingMessage; // ✅ 미리 추출한 값 사용
         _imageUrl = null;
         _generatedImage = null;
         _summaryText = null;
@@ -526,8 +564,8 @@ class _TravelDayPageState extends State<TravelDayPage>
         await _refreshStampCounts();
       }
       if (mounted) {
-        setState(() => _loading = false); // 에러 시에도 로딩 해제
-        AppToast.show(context, 'ai_generation_failed'.tr());
+        setState(() => _loading = false);
+        AppToast.show(context, generationFailedMessage); // ✅ 미리 추출한 값 사용
       }
     }
   }
@@ -595,15 +633,22 @@ class _TravelDayPageState extends State<TravelDayPage>
         _imageUrl == null &&
         _contentController.text.trim().isEmpty)
       return;
+
+    // ✅ setState 밖에서 미리 추출
+    final String savingMessage = "saving_diary".tr();
+    final String saveFailedMessage = 'save_failed'.tr();
+
     setState(() {
       _loading = true;
-      _loadingMessage = "saving_diary".tr();
+      _loadingMessage = savingMessage; // ✅ 미리 추출한 값 사용
     });
+
     try {
       final int currentDayIndex = DateUtilsHelper.calculateDayNumber(
         startDate: widget.startDate,
         currentDate: widget.date,
       );
+
       final diaryData = await TravelDayService.upsertDiary(
         travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
@@ -612,14 +657,14 @@ class _TravelDayPageState extends State<TravelDayPage>
         aiSummary: _summaryText,
         aiStyle: _selectedStyle?.id ?? _existingAiStyleId ?? 'default',
       );
+
       final String diaryId = diaryData['id'].toString().replaceAll(
         RegExp(r'[\s\n\r\t]+'),
         '',
       );
 
-      // ✅ [추가] 물리적 파일 삭제 로직 시작
+      // ✅ 물리적 파일 삭제 로직
       try {
-        // 1. DB에 저장되어 있던 기존 사진 리스트를 가져와서 비교합니다.
         final oldData = await Supabase.instance.client
             .from('travel_days')
             .select('photo_urls')
@@ -628,8 +673,6 @@ class _TravelDayPageState extends State<TravelDayPage>
 
         if (oldData != null && oldData['photo_urls'] != null) {
           final List<String> oldUrls = List<String>.from(oldData['photo_urls']);
-
-          // 2. 기존엔 있었으나 현재 화면(_remotePhotoUrls)에는 없는 URL을 찾습니다.
           final List<String> toDelete = oldUrls
               .where((url) => !_remotePhotoUrls.contains(url))
               .toList();
@@ -639,16 +682,13 @@ class _TravelDayPageState extends State<TravelDayPage>
               'travel_images',
             );
 
-            // 3. URL에서 스토리지 삭제에 필요한 상대 경로를 추출합니다.
             final List<String> pathsToDelete = toDelete.map((url) {
               final uri = Uri.parse(url);
               final segments = uri.pathSegments;
-              // 'travel_images' 버킷 이름 이후의 경로만 합칩니다.
               final int bucketIndex = segments.indexOf('travel_images');
               return segments.skip(bucketIndex + 1).join('/');
             }).toList();
 
-            // 4. 스토리지에서 실제 파일 삭제
             await storage.remove(pathsToDelete);
             _logger.log(
               "🗑️ 스토리지 물리 파일 삭제 완료: $pathsToDelete",
@@ -662,10 +702,9 @@ class _TravelDayPageState extends State<TravelDayPage>
           tag: "STORAGE_CLEANUP",
         );
       }
-      // ✅ [추가] 물리적 파일 삭제 로직 끝
 
       List<String> newlyUploadedUrls = [];
-      // 사용자 업로드 사진 압축
+
       if (_localPhotos.isNotEmpty) {
         final storage = Supabase.instance.client.storage.from('travel_images');
         for (int i = 0; i < _localPhotos.length; i++) {
@@ -681,16 +720,12 @@ class _TravelDayPageState extends State<TravelDayPage>
           final String fullPath =
               'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/moment_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
           await storage.upload(fullPath, File(result!.path));
-
-          // ✅ [수정] 업로드된 URL을 리스트에 추가합니다.
           newlyUploadedUrls.add(storage.getPublicUrl(fullPath));
         }
       }
-      // ✅ [가장 중요] for문 바깥에서 호출해야 합니다!
-      // 그래야 새로 추가한 사진이 없어도(삭제만 했어도) DB에 반영됩니다.
+
       await _updatePhotoUrls(diaryId, newlyUploadedUrls);
 
-      // ✅ AI 생성 이미지 압축 처리 (기존 로직 유지)
       if (_generatedImage != null) {
         final tempDir = await getTemporaryDirectory();
         final tempPath =
@@ -723,18 +758,20 @@ class _TravelDayPageState extends State<TravelDayPage>
         }
       }
 
-      // ✅ 나머지 로직 (여행 완료 체크) (기존 로직 유지)
       if (mounted) {
         setState(() => _loading = false);
+
         final writtenDays = await TravelDayService.getWrittenDayCount(
           travelId: _cleanTravelId,
         );
+
+        if (!mounted) return;
+
         final totalDays =
             widget.endDate.difference(widget.startDate).inDays + 1;
 
         if (writtenDays >= totalDays) {
-          final String currentLangCode = context.locale.languageCode;
-
+          // ✅ _languageCode 변수 사용
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -746,7 +783,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                   travelId: _cleanTravelId,
                   startDate: widget.startDate,
                   endDate: widget.endDate,
-                  languageCode: context.locale.languageCode,
+                  languageCode: _languageCode, // ✅ 클래스 변수 사용
                 ),
               ),
             ),
@@ -754,6 +791,12 @@ class _TravelDayPageState extends State<TravelDayPage>
         } else {
           Navigator.pop(context, true);
         }
+      }
+    } catch (e) {
+      _logger.error("🔥 저장 중 에러: $e", tag: "SAVE_PROCESS");
+      if (mounted) {
+        setState(() => _loading = false);
+        AppToast.show(context, saveFailedMessage); // ✅ 미리 추출한 값 사용
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -978,15 +1021,15 @@ class _TravelDayPageState extends State<TravelDayPage>
                   const SizedBox(height: 17),
                   _buildSectionTitle(
                     'assets/icons/ico_camera.png',
-                    'todays_moments'.tr(),
-                    'max_3_photos'.tr(),
+                    _todaysMomentsText, // ✅ 변수 사용
+                    _maxPhotosText, // ✅ 변수 사용
                   ),
                   const SizedBox(height: 7),
                   _buildPhotoList(),
                   const SizedBox(height: 18),
                   _buildSectionTitle(
                     'assets/icons/ico_palette.png',
-                    'drawing_style'.tr(),
+                    _drawingStyleText, // ✅ 변수 사용
                     '',
                   ),
                   const SizedBox(height: 3),
@@ -1076,7 +1119,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         child: Row(
           children: [
             _coinUnit(
-              'free_stamp'.tr(),
+              _freeStampText,
               _dailyStamps,
               const Color.fromARGB(255, 77, 181, 255),
               !_usePaidStampMode,
@@ -1088,7 +1131,7 @@ class _TravelDayPageState extends State<TravelDayPage>
               color: Colors.white.withOpacity(0.2),
             ),
             _coinUnit(
-              'paid_stamp'.tr(),
+              _paidStampText,
               _paidStamps,
               const Color.fromARGB(226, 255, 183, 68),
               _usePaidStampMode,
@@ -1155,7 +1198,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         ),
         decoration: InputDecoration(
           border: InputBorder.none,
-          hintText: 'diary_hint'.tr(),
+          hintText: _diaryHintText,
           hintStyle: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 13),
         ),
       ),
@@ -1266,7 +1309,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         ),
         child: Center(
           child: Text(
-            'generate_image_button'.tr(),
+            _generateImageButtonText,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
@@ -1300,7 +1343,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                     ),
                   )
                 : Text(
-                    'save_diary_button'.tr(),
+                    _saveDiaryButtonText,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 15,
@@ -1323,7 +1366,7 @@ class _TravelDayPageState extends State<TravelDayPage>
             Lottie.asset('assets/lottie/ai_magic_wand.json', width: 200),
             const SizedBox(height: 20),
             Text(
-              _loadingMessage.tr(),
+              _loadingMessage,
               style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
           ],

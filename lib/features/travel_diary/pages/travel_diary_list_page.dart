@@ -158,7 +158,8 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     final isUSA = travelType == 'usa';
     final bool isKo = context.locale.languageCode == 'ko';
 
-    // 🎯 범인 검거 및 수정: 전달받은 display_name을 최우선으로 사용
+    // ✅ [추가] build 시작 시점에 미리 추출
+    final String currentLanguageCode = context.locale.languageCode;
     String title = _travel['display_name']?.toString() ?? '';
 
     // 만약 display_name이 없을 때만 (방어 로직) 직접 계산
@@ -326,9 +327,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                       endDate: startDate.add(
                                         Duration(days: _diaries.length - 1),
                                       ),
-                                      languageCode: context
-                                          .locale
-                                          .languageCode, // 🎯 여기 추가!
+                                      languageCode: currentLanguageCode,
                                     );
                                   }
                                 },
