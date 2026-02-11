@@ -21,6 +21,33 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
+/**
+ * 📱 Screen ID : MY_PAGE
+ * 📝 Name      : 마이페이지 (프로필 및 설정 허브)
+ * 🛠 Feature   : 
+ * - 사용자 프로필 정보 및 여행 통계 조회
+ * - 등급별(VIP, Premium) 배지 노출 및 프리미엄 전용 여권 스티커 기능
+ * - 결제 성공 시 PaymentService 알림을 통한 실시간 데이터 새로고침
+ * - 하단 그리드 메뉴를 통한 설정, 지도 관리, 지원 페이지 이동
+ * * [ UI Structure ]
+ * ----------------------------------------------------------
+ * my_page.dart (Scaffold)
+ * ├── SingleChildScrollView (Body)
+ * │    ├── ProfileSection [닉네임, 등급 배지, 프로필 이미지]
+ * │    ├── PassportBanner [여권 스티커 팝업 진입 - 프리미엄 전용]
+ * │    ├── Tile 1: [나의 여행] -> 완료된 여행 통계 및 요약
+ * │    │           (path: lib/features/my/pages/my_travels/my_travel_summary_page.dart)
+ * │    ├── Tile 2: [지도 설정] -> 보유 지도 활성화/비활성화 관리
+ * │    │           (path: lib/features/my/pages/map_management/map_management_page.dart)
+ * │    ├── Tile 3: [계정 관리] -> 계정 정보 확인 및 회원 탈퇴/로그아웃
+ * │    │           (path: lib/features/my/pages/user_details/user_details.dart)
+ * │    ├── Tile 4: [고객 지원] -> 이용약관 및 고객 센터 연결
+ * │    │           (path: lib/features/my/pages/supports/my_support_page.dart)
+ * │    ├── Tile 5: [설정]      -> 알림 설정 및 다국어/버전 관리
+ * │    │           (path: lib/features/my/pages/settings/my_settings_page.dart)
+ * └── passport_open_dialog.dart [여권 스티커 연출 팝업]
+ * ----------------------------------------------------------
+ */
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
 

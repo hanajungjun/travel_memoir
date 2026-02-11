@@ -3,11 +3,17 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/features/home/pages/home_page.dart';
 import 'package:travel_memoir/features/record/pages/record_tab_page.dart';
-import 'package:travel_memoir/features/travel_info/pages/travel_info_page.dart';
+import 'package:travel_memoir/features/travel_list/pages/travel_list_page.dart';
 import 'package:travel_memoir/features/my/pages/my_page.dart';
 import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
-
 import 'package:flutter_svg/flutter_svg.dart'; // SVG 아이콘을 사용하기 위해 추가
+
+/**
+ * 📱 Screen ID: APP_SHELL
+ * 📝 Name: 앱 메인 레이아웃 (Bottom Navigation)
+ * 🛠 Feature: 5개 메인 탭 전환 관리, 하단바 슬림화 디자인 적용
+ * 🎨 Design: 인덱스 0(홈) 아닐 때만 상단 보더라인 노출 분기 처리
+ */
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -74,7 +80,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       HomePage(onGoToTravel: () => _onTabSelected(1)),
-      const TravelInfoPage(),
+      const TravelListPage(),
       const RecordTabPage(),
       const MyPage(),
       const CoinShopPage(),

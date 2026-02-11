@@ -210,8 +210,8 @@ class SggCodeMap {
     // =====================
     // 🔹 제주특별자치도 (JEJU)
     // =====================
-    'KR_JJ_JEJU': (type: 'city', sidoCd: '50', sggCd: '50110'),
-    'KR_JJ_SEOGWIPO': (type: 'city', sidoCd: '50', sggCd: '50130'),
+    'KR_JEJU_JEJU': (type: 'city', sidoCd: '50', sggCd: '50110'),
+    'KR_JEJU_SEOGWIPO': (type: 'city', sidoCd: '50', sggCd: '50130'),
   };
 
   /// regionId 기준으로 코드 반환

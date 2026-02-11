@@ -8,6 +8,19 @@ import 'package:travel_memoir/app/route_observer.dart';
 import 'package:travel_memoir/screens/onboarding_screen.dart';
 import 'package:easy_localization/easy_localization.dart';
 
+/**
+ * 📱 Screen ID: APP_ROOT / APP_GATE
+ * 📝 Name: 앱 최상위 관제탑 (App Configuration & Routing)
+ * 🛠 Feature: 
+ * - Supabase 초기화 및 인증(Auth) 상태 실시간 감시
+ * - [초기화 -> 온보딩 -> 로그인 -> 메인(AppShell)] 네비게이션 분기 관리
+ * - 앱 전역 테마(Theme), 다국어(Locale), 폰트(NotoSansKR) 설정
+ * 🌐 Global Settings:
+ * - ElevatedButton Splash 효과 제거 (NoSplash)
+ * - RouteObserver 등록 (화면 전환 감지)
+ * 🎨 Design: 앱 전체 스타일 가이드 및 라우팅 시스템 정의
+ */
+
 class TravelMemoirApp extends StatefulWidget {
   final bool showOnboarding;
 

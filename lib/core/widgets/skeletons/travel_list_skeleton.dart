@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/core/widgets/skeletons/skeleton_box.dart';
 
-class TravelInfoListSkeleton extends StatelessWidget {
-  const TravelInfoListSkeleton({super.key});
+class TravelListSkeleton extends StatelessWidget {
+  const TravelListSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {

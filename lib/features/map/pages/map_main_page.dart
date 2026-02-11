@@ -6,6 +6,26 @@ import 'package:travel_memoir/features/map/pages/domestic_map_page.dart';
 import 'package:travel_memoir/features/map/pages/global_map_page.dart';
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
+/**
+ * 📱 Screen ID : MAP_MAIN_PAGE
+ * 📝 Name      : 지도 통합 메인 화면
+ * 🛠 Feature   : 
+ * - 활성 지도 설정(active_maps)에 따른 동적 탭 구성
+ * - travelType(domestic/overseas) 기반 초기 탭 자동 포커싱
+ * - 지도 관리 페이지(MapManagementPage) 연동 및 설정 실시간 반영
+ * * [ UI Structure ]
+ * ----------------------------------------------------------
+ * map_main_page.dart (Scaffold)
+ * ├── AppBar [Title: travel_map / Action: Settings]
+ * ├── Column (Body)
+ * │    ├── _Tab (Custom Stateless Widget) [세계/한국 탭 스위치]
+ * │    └── IndexedStack [지도 컨텐츠 영역]
+ * │         ├── global_map_page.dart   [세계 지도]
+ * │         └── domestic_map_page.dart [한국 지도]
+ * └── map_management_page.dart         [지도 관리 설정 - Push]
+ * ----------------------------------------------------------
+ */
+
 class MapMainPage extends StatefulWidget {
   final String travelId;
   final String travelType; // domestic / overseas / usa

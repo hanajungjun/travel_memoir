@@ -13,6 +13,28 @@ import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_diary_list_skeleton.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
+/**
+ * 📱 Screen ID : TRAVEL_DIARY_LIST_PAGE
+ * 📝 Name      : 내가쓴 여행일기 리스트
+ * 🛠 Feature   : 
+ * - ReorderableListView 기반의 일기 순서 변경 및 날짜 재할당 로직
+ * - Slidable 위젯을 이용한 개별 일기 기록 삭제 (Storage 파일 포함)
+ * - CachedNetworkImage 활용 메모리 최적화 및 서버 사이드 이미지 리사이징
+ * - 여행 타입(국내/해외/미국)에 따른 유동적 헤더 컬러 및 배지 적용
+ * * [ UI Structure ]
+ * ----------------------------------------------------------
+ * travel_diary_list_page.dart (Scaffold)
+ * ├── Column (Body)
+ * │    ├── _buildHeader [여행 정보, 작성률(0/0), 날짜 배지]
+ * │    └── Expanded [일기 리스트 영역]
+ * │         └── ReorderableListView.builder
+ * │              └── Slidable [밀어서 삭제]
+ * │                   └── _buildListItem [일기 썸네일, 날짜, 본문 요약]
+ * └── Positioned (Stack)
+ * └── FloatingActionButton [_isChanged 발생 시 '순서 저장' 버튼]
+ * ----------------------------------------------------------
+ */
+
 class TravelDiaryListPage extends StatefulWidget {
   final Map<String, dynamic> travel;
   const TravelDiaryListPage({super.key, required this.travel});

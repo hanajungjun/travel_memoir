@@ -15,6 +15,25 @@ class DomesticCitySelectSheet extends StatefulWidget {
 
 class _DomesticCitySelectSheetState extends State<DomesticCitySelectSheet> {
   String _query = '';
+  // 🎯 여기에 이 블록을 통째로 넣으세요!
+  @override
+  void initState() {
+    super.initState();
+
+    // 대표 도시로 필터링된 리스트 뽑기
+    // final filtered = koreaRegions.where(_isRepresentativeCity).toList();
+
+    // debugPrint('====================================================');
+    // debugPrint('📍 [CITY_LIST] 필터링된 총 도시 개수: ${filtered.length}개');
+    // debugPrint('----------------------------------------------------');
+
+    // for (var region in filtered) {
+    //   // region.id가 바로 형이 궁금해한 regionKey야!
+    //   debugPrint('ID(Key): ${region.id.padRight(18)} | 이름: ${region.name}');
+    // }
+
+    // debugPrint('====================================================');
+  }
 
   bool _isRepresentativeCity(KoreaRegion region) {
     if (region.province.endsWith('광역시') || region.province.endsWith('특별시')) {

@@ -17,6 +17,23 @@ import 'package:travel_memoir/core/widgets/skeletons/recent_travel_section_skele
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
+/**
+ * 📱 Screen ID : HOME_PAGE
+ * 📝 Name      : 메인 홈 화면
+ * 🛠 Feature   : 보상 팝업, 최근 여행, 지도 페이저
+ * 🔄 Refresh   : RouteObserver 실시간 데이터 갱신
+ * * [ UI Structure ]
+ * ----------------------------------------------------------
+ * home_page.dart (Scaffold)
+ * ├── home_travel_status_header.dart  [상단 헤더]
+ * ├── recent_travel_section.dart      [최근 여행 섹션]
+ * │    └── recent_travel_section_skeleton.dart (로딩)
+ * ├── travel_map_pager.dart           [메인 지도 영역]
+ * │    └── travel_map_skeleton.dart (로딩)
+ * └── app_dialogs.dart                [보상 팝업 - Overlay]
+ * ----------------------------------------------------------
+ */
+
 class HomePage extends StatefulWidget {
   final VoidCallback onGoToTravel;
   const HomePage({super.key, required this.onGoToTravel});

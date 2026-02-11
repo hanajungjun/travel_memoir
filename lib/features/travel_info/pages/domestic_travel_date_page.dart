@@ -14,6 +14,24 @@ import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 import 'package:flutter_svg/flutter_svg.dart'; // SVG 아이콘을 사용하기 위해 추가
 
+/**
+ * 📱 Screen ID : DOMESTIC_CITY_SELECT
+ * 📝 Name      : 국내 도시 선택 바텀시트
+ * 🛠 Feature   : 
+ * - 대한민국 행정구역 데이터(koreaRegions) 기반 검색 및 선택
+ * - CustomPaint를 이용한 도트 라인(DottedDivider) 구분선 적용
+ * - 영문 모드 시 광역지자체 코드(GG, GW 등) 풀네임 매핑 로직 적용
+ * * [ UI Structure ]
+ * ----------------------------------------------------------
+ * domestic_city_select_sheet.dart (Scaffold)
+ * ├── Column (Body)
+ * │    ├── Header [IconButton: Close]
+ * │    ├── SearchBar [TextField with SvgIcon & Shadow]
+ * │    └── Expanded [ListView.separated]
+ * │         ├── ListTile [City Name, Province Name]
+ * │         └── DottedDivider [Custom Dash Painter]
+ * ----------------------------------------------------------
+ */
 class DomesticTravelDatePage extends StatefulWidget {
   const DomesticTravelDatePage({super.key});
 

@@ -35,6 +35,31 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
+/**
+ * 📱 Screen ID : TRAVEL_DAY_PAGE
+ * 📝 Name      : 여행 일기 작성 및 AI 생성 화면
+ * 🛠 Feature   : 
+ * - Gemini AI 기반 일기 요약 및 커스텀 이미지 생성
+ * - 스탬프(Daily/VIP/Paid) 차감 및 광고(AdMob) 연동 로직
+ * - 멀티 이미지 선택(ImagePicker) 및 스토리지 업로드/관리
+ * - 일기 저장 시 여행 완료 여부 자동 체크 (TravelCompleteService)
+ * * [ UI Structure ]
+ * ----------------------------------------------------------
+ * travel_day_page.dart (Scaffold)
+ * ├── Stack (Main Body)
+ * │    ├── Column (Content)
+ * │    │    ├── _buildTopInputCard (입력 영역)
+ * │    │    │    ├── TextField [일기 입력]
+ * │    │    │    ├── _buildPhotoList [사진 첨부]
+ * │    │    │    ├── ImageStylePicker [AI 스타일 선택]
+ * │    │    │    └── _buildGenerateButton [AI 생성 버튼]
+ * │    │    └── Expanded [AI 생성 이미지 결과 영역]
+ * │    ├── _buildFixedBottomSaveBar [하단 저장 버튼 고정]
+ * │    └── _buildLoadingOverlay [AI 생성 중 Lottie 애니메이션]
+ * └── app_dialogs.dart (이미지 크게 보기 / 공유 팝업)
+ * ----------------------------------------------------------
+ */
+
 class TravelDayPage extends StatefulWidget {
   final String travelId;
   final String placeName;

@@ -4,6 +4,24 @@ import 'package:lottie/lottie.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:easy_localization/easy_localization.dart';
 
+/**
+ * 📱 Screen ID : TRAVEL_COMPLETION_PAGE
+ * 📝 Name      : 여행 완료 처리 대기 화면
+ * 🛠 Feature   : 
+ * - 여행 종료 로직(TravelCompleteService) 실행 및 대기
+ * - VIP 유무 및 유료 코인 사용 여부에 따른 보상 광고(AdMob) 노출 제어
+ * - 완료 후 메인 탭(/travel_info)으로 스택 초기화 및 이동
+ * * [ UI Structure ]
+ * ----------------------------------------------------------
+ * travel_completion_page.dart (Scaffold)
+ * └── Center (Body)
+ * └── Column
+ * ├── Lottie.asset [travel_success 애니메이션]
+ * ├── Text [완료 처리 중 문구]
+ * └── CircularProgressIndicator [진행 상태 인디케이터]
+ * ----------------------------------------------------------
+ */
+
 class TravelCompletionPage extends StatefulWidget {
   final Future<void> processingTask;
   final RewardedAd? rewardedAd;
