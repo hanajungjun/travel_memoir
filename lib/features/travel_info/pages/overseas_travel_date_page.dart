@@ -77,7 +77,7 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
   @override
   Widget build(BuildContext context) {
     const themeColor = AppColors.travelingPurple;
-
+    final bool isKo = context.locale.languageCode == 'ko';
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
       body: Column(
@@ -169,9 +169,11 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
                         ),
                         const SizedBox(height: 8),
                         _buildInputField(
-                          text:
-                              _country?.displayName() ??
-                              'select_country_hint'.tr(), // ✅ 번역 적용
+                          text: _country == null
+                              ? 'select_country_hint'.tr()
+                              : (isKo
+                                    ? (_country!.nameKo ?? _country!.nameEn)
+                                    : _country!.nameEn),
                           isSelected: _country != null,
                           onTap: _pickCountry,
                         ),

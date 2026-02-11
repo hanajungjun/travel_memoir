@@ -113,7 +113,7 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
 
 class _HeaderContent extends StatelessWidget {
   final Map<String, dynamic>? travel;
-  final Map<String, dynamic>? stampData; // ✅ 추가
+  final Map<String, dynamic>? stampData;
   final VoidCallback onGoToTravel;
   final Color bgColor;
 
@@ -130,32 +130,29 @@ class _HeaderContent extends StatelessWidget {
     final t = travel;
     final isTraveling = t != null;
     final isDomestic = t?['travel_type'] == 'domestic';
-
-    // 🎯 1. 현재 언어가 한국어인지 확인
     final isKo = context.locale.languageCode == 'ko';
 
+    // 1. 장소명(location) 결정
     final String location;
     if (isTraveling) {
       if (isDomestic) {
-        // 🎯 2. 국내 여행(울릉도 등)일 때 영어 버전 이름 처리
-        // DB에 region_name_en이 있다면 그걸 쓰고, 없으면 키값에서 추출하거나 맵핑이 필요해요.
         if (isKo) {
           location = t['region_name'] ?? '국내';
         } else {
-          // region_key가 'KR_GB_ULLEUNG' 형태라면 마지막 단어만 추출하는 식으로 처리 가능
           final String regKey = t['region_key']?.toString() ?? '';
           location = regKey.contains('_')
               ? regKey.split('_').last.toUpperCase()
               : (t['region_name_en'] ?? 'KOREA');
         }
       } else {
-        // 해외 여행 처리
         location =
             (isKo ? t['country_name_ko'] : t['country_name_en']) ?? 'Overseas';
       }
     } else {
       location = '';
     }
+
+    // 2. 전체 타이틀 텍스트 (tr 활용)
     final title = isTraveling
         ? 'traveling_status'.tr(args: [location])
         : 'preparing_travel'.tr();
@@ -175,30 +172,50 @@ class _HeaderContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ===== 제목 =====
                 if (isTraveling)
                   Padding(
-                    padding: const EdgeInsets.only(top: 5), // 원하는 여백 크기 설정
+                    padding: const EdgeInsets.only(top: 5),
                     child: RichText(
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       text: (() {
+                        // 🎯 [핵심 수정] 언어에 따른 TextSpan 순서 교체
                         final loc = location;
-                        final rest = title.replaceFirst(loc, '').trim();
+                        final String statusText = title
+                            .replaceFirst(loc, '')
+                            .trim();
 
-                        return TextSpan(
-                          children: [
-                            TextSpan(
-                              text: loc,
-                              style: AppTextStyles.homeTravelLocation,
-                            ),
-                            const TextSpan(text: ' '),
-                            TextSpan(
-                              text: rest,
-                              style: AppTextStyles.homeTravelStatus,
-                            ),
-                          ],
-                        );
+                        if (isKo) {
+                          // 한국어: [울릉도] [여행 중]
+                          return TextSpan(
+                            children: [
+                              TextSpan(
+                                text: loc,
+                                style: AppTextStyles.homeTravelLocation,
+                              ),
+                              const TextSpan(text: ' '),
+                              TextSpan(
+                                text: statusText,
+                                style: AppTextStyles.homeTravelStatus,
+                              ),
+                            ],
+                          );
+                        } else {
+                          // 영어: [Traveling in] [ULLEUNG]
+                          return TextSpan(
+                            children: [
+                              TextSpan(
+                                text: statusText,
+                                style: AppTextStyles.homeTravelStatus,
+                              ),
+                              const TextSpan(text: ' '),
+                              TextSpan(
+                                text: loc,
+                                style: AppTextStyles.homeTravelLocation,
+                              ),
+                            ],
+                          );
+                        }
                       })(),
                     ),
                   )
@@ -209,10 +226,7 @@ class _HeaderContent extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-
                 const SizedBox(height: 0),
-
-                // ===== 서브타이틀 =====
                 if (isTraveling)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
@@ -229,9 +243,6 @@ class _HeaderContent extends StatelessWidget {
                   )
                 else
                   Text(subtitle, style: AppTextStyles.homeTravelInfo),
-
-                // 💡 [참고] 대표님, 나중에 vip_stamps를 화면에 보여주고 싶으시면
-                // 여기에 Text("VIP: $vip") 같은 코드를 추가하시면 됩니다!
               ],
             ),
           ),
@@ -241,7 +252,6 @@ class _HeaderContent extends StatelessWidget {
                 onGoToTravel();
                 return;
               }
-
               await Navigator.push(
                 context,
                 MaterialPageRoute(
