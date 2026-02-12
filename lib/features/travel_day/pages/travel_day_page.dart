@@ -874,7 +874,7 @@ class _TravelDayPageState extends State<TravelDayPage>
                   Expanded(
                     child: Container(
                       width: double.infinity,
-                      margin: const EdgeInsets.only(top: 10),
+                      margin: const EdgeInsets.only(top: 22),
                       color: hasAiImage
                           ? Colors.transparent
                           : const Color(0xFFE6E6E6),
@@ -1152,7 +1152,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             label,
@@ -1160,6 +1160,7 @@ class _TravelDayPageState extends State<TravelDayPage>
               fontSize: 10,
               fontWeight: FontWeight.w500,
               color: textColor,
+              height: 1.15,
               letterSpacing: -0.2,
             ),
           ),
