@@ -479,14 +479,13 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _startAiGeneration(String stampType) async {
-    // ✅ setState 밖에서 미리 추출
     final String drawingMessage = "ai_drawing_memories".tr();
     final String generationFailedMessage = 'ai_generation_failed'.tr();
 
     if (mounted) {
       setState(() {
         _loading = true;
-        _loadingMessage = drawingMessage; // ✅ 미리 추출한 값 사용
+        _loadingMessage = drawingMessage;
         _imageUrl = null;
         _generatedImage = null;
         _summaryText = null;
@@ -496,78 +495,110 @@ class _TravelDayPageState extends State<TravelDayPage>
     bool isStampDeducted = false;
 
     try {
-      _logger.log(
-        "🎯 [STEP 1] 스탬프 선차감 시도 (타입: $stampType)",
-        tag: "STAMP_PROCESS",
-      );
-      isStampDeducted = await _stampService.useStamp(_userId, stampType);
+      // 🎯 [강력 로그] 여기서부터 시작입니다!
+      print('🚩 [START_PROCESS] AI 생성 로직 진입');
 
+      List<Uint8List> allPhotoBytes = [];
+
+      // 리스트 개수부터 확인
+      print(
+        '📊 [CHECK] 로컬 사진: ${_localPhotos.length}장 / 서버 사진: ${_remotePhotoUrls.length}장',
+      );
+
+      // 1. 로컬 사진 처리
+      for (int i = 0; i < _localPhotos.length; i++) {
+        final file = _localPhotos[i];
+        print('📸 [LOCAL_LOAD] ($i) 파일 읽기 시도: ${file.path}');
+        final bytes = await file.readAsBytes();
+        allPhotoBytes.add(bytes);
+        print('✅ [LOCAL_LOAD] ($i) 완료: ${bytes.length} bytes');
+      }
+
+      // 2. 서버 사진 다운로드 (이 부분이 안 찍힌다면 _remotePhotoUrls가 [] 인 것입니다)
+      for (int i = 0; i < _remotePhotoUrls.length; i++) {
+        final url = _remotePhotoUrls[i];
+        print('🌐 [REMOTE_LOAD] ($i) 다운로드 시도: $url');
+        try {
+          final res = await http
+              .get(Uri.parse(url))
+              .timeout(const Duration(seconds: 15));
+          if (res.statusCode == 200) {
+            allPhotoBytes.add(res.bodyBytes);
+            print('✅ [REMOTE_LOAD] ($i) 성공: ${res.bodyBytes.length} bytes');
+          } else {
+            print('❌ [REMOTE_LOAD] ($i) 실패: HTTP ${res.statusCode}');
+          }
+        } catch (e) {
+          print('🔥 [REMOTE_LOAD] ($i) 에러: $e');
+        }
+      }
+
+      print('🚀 [TOTAL_READY] 총 ${allPhotoBytes.length}장의 사진 데이터 준비 완료');
+
+      // --- 스탬프 로직 ---
+      isStampDeducted = await _stampService.useStamp(_userId, stampType);
       if (!isStampDeducted) {
-        _logger.warn("⚠️ 스탬프 부족으로 중단", tag: "STAMP_PROCESS");
+        print('⚠️ [STAMP] 스탬프 부족');
         if (mounted) setState(() => _loading = false);
         _showCoinEmptyDialog();
         return;
       }
-
       await _refreshStampCounts();
       await _loadDailyUsage();
 
       final gemini = GeminiService();
 
-      if (stampType == 'daily') {
-        _logger.log("📺 daily 코인: 광고 + AI 병렬 실행", tag: "GEMINI_PROCESS");
-        await Future.wait([
-          _playAdParallel(), // 광고 실행 (아래 수정된 버전 사용)
-          Future(() async {
-            final summary = await gemini.generateSummary(
-              finalPrompt:
-                  '${PromptCache.textPrompt.contentKo}\n[Info] Location: ${widget.placeName}\nDiary: ${_contentController.text}',
-              photos: _localPhotos,
-            );
-            _summaryText = summary;
-
-            final image = await gemini.generateImage(
-              finalPrompt:
-                  '${PromptCache.imagePrompt.contentKo}\nStyle: ${_selectedStyle!.prompt}\n[Context]: $summary',
-            );
-            if (image == null) throw Exception("Image generation failed");
-            _generatedImage = image;
-          }),
-        ]);
-      } else {
-        _logger.log("⚡ ${stampType} 코인: 즉시 생성", tag: "GEMINI_PROCESS");
+      // 🤖 AI 작업 정의
+      Future<void> runAiTask() async {
+        print('🤖 [GEMINI] summary 요청 시작...');
         final summary = await gemini.generateSummary(
-          finalPrompt:
-              '${PromptCache.textPrompt.contentKo}\n[Info] Location: ${widget.placeName}\nDiary: ${_contentController.text}',
-          photos: _localPhotos,
+          diaryText: _contentController.text,
+          location: widget.placeName,
+          photoBytes: allPhotoBytes,
+          languageCode: _languageCode,
         );
         _summaryText = summary;
+        print('✅ [GEMINI] 요약 완료');
 
+        print('🤖 [GEMINI] image 요청 시작...');
         final image = await gemini.generateImage(
-          finalPrompt:
-              '${PromptCache.imagePrompt.contentKo}\nStyle: ${_selectedStyle!.prompt}\n[Context]: $summary',
+          summary: summary,
+          stylePrompt: _selectedStyle!.prompt,
+          languageCode: _languageCode,
         );
         if (image == null) throw Exception("Image generation failed");
         _generatedImage = image;
+        print('✅ [GEMINI] 이미지 생성 완료');
       }
 
-      // ✅ [핵심 수정] 성공 시 로딩을 반드시 꺼줘야 합니다.
-      if (mounted) {
-        setState(() {
-          _loading = false;
-        });
+      if (stampType == 'daily') {
+        await Future.wait([_playAdParallel(), runAiTask()]);
+      } else {
+        await runAiTask();
       }
-      _logger.log("✅ [STEP 3] 모든 프로세스 완료", tag: "GEMINI_PROCESS");
+
+      if (mounted) setState(() => _loading = false);
     } catch (e) {
-      _logger.error("🔥 프로세스 에러 발생: $e", tag: "TRAVEL_DAY_UI");
-      if (isStampDeducted) {
-        _logger.warn("🔄 생성 실패로 인한 스탬프 복구 실행", tag: "STAMP_PROCESS");
-        await _stampService.addFreeStamp(_userId, 1);
-        await _refreshStampCounts();
-      }
+      print('🔥 [CRITICAL_ERROR] $e');
+
+      // 1️⃣ 스탬프 복구 (기존 로직 유지)
+      if (isStampDeducted) await _stampService.addFreeStamp(_userId, 1);
+
       if (mounted) {
         setState(() => _loading = false);
-        AppToast.show(context, generationFailedMessage); // ✅ 미리 추출한 값 사용
+
+        // 2️⃣ 에러 메시지 가공
+        // 'Exception: '이라는 지저분한 문구를 지우고 알맹이만 추출합니다.
+        String errorMessage = e.toString().replaceAll('Exception: ', '');
+
+        // 만약 메시지가 너무 길거나 비어있을 경우를 대비한 방어 로직
+        if (errorMessage.isEmpty || errorMessage.contains('Instance of')) {
+          errorMessage = generationFailedMessage;
+        }
+
+        // 3️⃣ 사용자에게 토스트로 노출
+        // 이제 "The content or photos may be difficult..." 문구가 직접 뜹니다.
+        AppToast.show(context, errorMessage);
       }
     }
   }
@@ -715,9 +746,9 @@ class _TravelDayPageState extends State<TravelDayPage>
           final result = await FlutterImageCompress.compressAndGetFile(
             _localPhotos[i].absolute.path,
             targetPath,
-            quality: 50,
-            minWidth: 1024,
-            minHeight: 1024,
+            quality: 80,
+            minWidth: 800,
+            minHeight: 800,
           );
           final String fullPath =
               'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/moment_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';

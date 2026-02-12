@@ -6,7 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:travel_memoir/env.dart';
-
+import 'package:travel_memoir/services/prompt_cache.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/models/ai_premium_prompt_model.dart';
 import 'package:travel_memoir/services/ai_premium_prompt_service.dart';
 
@@ -14,23 +15,28 @@ class GeminiService {
   final String _apiKey = AppEnv.geminiApiKey;
 
   // ============================
-  // ✍️ 텍스트 요약 (개별 일차용) - 기존 동일
+  // ✍️ 텍스트 요약 (generateSummary)
   // ============================
   Future<String> generateSummary({
-    required String finalPrompt,
-    required List<File> photos,
+    String? finalPrompt,
+    String? diaryText,
+    String? location,
+    required List<Uint8List> photoBytes,
+    String languageCode = 'en',
   }) async {
     final url =
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=$_apiKey';
 
-    debugPrint('🤖 [GEMINI] summary request');
+    // 변수명 충돌 방지를 위해 targetPrompt 사용
+    String targetPrompt = (finalPrompt != null && finalPrompt.isNotEmpty)
+        ? finalPrompt
+        : '${(languageCode == 'ko') ? PromptCache.textPrompt.contentKo : PromptCache.textPrompt.contentEn}\n[Info] Location: $location\nDiary: $diaryText';
 
     final parts = <Map<String, dynamic>>[
-      {'text': finalPrompt},
+      {'text': targetPrompt},
     ];
 
-    for (final file in photos) {
-      final bytes = await file.readAsBytes();
+    for (final bytes in photoBytes) {
       parts.add({
         'inlineData': {'mimeType': 'image/jpeg', 'data': base64Encode(bytes)},
       });
@@ -46,55 +52,64 @@ class GeminiService {
       }),
     );
 
+    final decoded = jsonDecode(res.body);
+
+    // 에러 발생 시 상세 로그 출력 (디버깅용)
     if (res.statusCode != 200) {
-      throw Exception('❌ Gemini summary HTTP ${res.statusCode}: ${res.body}');
+      debugPrint('❌ [Gemini Error Body]: ${res.body}');
+      throw Exception('❌ HTTP ${res.statusCode}');
     }
 
-    final decoded = jsonDecode(res.body);
     final candidates = decoded['candidates'];
     if (candidates == null || candidates.isEmpty) {
-      throw Exception('❌ Gemini summary: no candidates');
+      // 🎯 Safety Filter에 걸렸을 가능성이 높음
+      debugPrint('⚠️ [Safety Blocked]: ${decoded['promptFeedback']}');
+      throw Exception('ai_error_guide'.tr());
     }
 
-    final content = candidates[0]['content'];
-    final partsRes = content?['parts'];
-    if (partsRes == null || partsRes.isEmpty || partsRes[0]['text'] == null) {
-      throw Exception('❌ Gemini summary: empty text response');
-    }
-
-    final text = partsRes[0]['text'].toString().trim();
-    debugPrint('✅ [GEMINI] summary success');
-    return text;
+    return candidates[0]['content']['parts'][0]['text'].toString().trim();
   }
 
   // ============================
-  // 🎨 이미지 생성 (반드시 IMAGE 반환) - 기존 동일
+  // 🎨 이미지 생성 (generateImage)
   // ============================
-  Future<Uint8List> generateImage({required String finalPrompt}) async {
-    debugPrint('🤖 [GEMINI] image request');
+  Future<Uint8List> generateImage({
+    String? finalPrompt, // 👈 파라미터명 유지
+    String? summary,
+    String? stylePrompt,
+    String languageCode = 'en',
+  }) async {
+    // 내부 변수명을 imagePrompt로 변경하여 파라미터와 충돌 방지
+    String imagePrompt = "";
 
+    if (finalPrompt != null && finalPrompt.isNotEmpty) {
+      imagePrompt = finalPrompt;
+    } else {
+      final basePrompt = (languageCode == 'ko')
+          ? PromptCache.imagePrompt.contentKo
+          : PromptCache.imagePrompt.contentEn;
+      imagePrompt = '$basePrompt\nStyle: $stylePrompt\n[Context]: $summary';
+    }
+
+    debugPrint('🤖 [GEMINI] image request (Lang: $languageCode)');
     final uri = Uri.parse(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey',
     );
 
     try {
-      return await _requestImage(uri, finalPrompt);
+      return await _requestImage(uri, imagePrompt);
     } catch (e) {
       debugPrint('⚠️ [GEMINI] image retry once');
+      return await _requestImage(
+        uri,
+        '$imagePrompt\n\nGenerate exactly ONE image. No text.',
+      );
     }
-
-    return await _requestImage(uri, '''
-$finalPrompt
-
-  Generate exactly ONE image as the final result.
-  Return IMAGE ONLY with no text explanation.
-  ''');
   }
 
-  // ============================
-  // 내부 이미지 요청 (공통 헬퍼) - 기존 동일
-  // ============================
+  // 내부 이미지 요청 헬퍼
   Future<Uint8List> _requestImage(Uri uri, String prompt) async {
+    debugPrint('🚀 [GEMINI_FINAL_PROMPT] >>>\n$prompt\n<<<');
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json'},
@@ -110,21 +125,26 @@ $finalPrompt
         'generationConfig': {
           'responseModalities': ['IMAGE'],
         },
+        'safetySettings': [
+          {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+          {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
+          {
+            'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'threshold': 'BLOCK_NONE',
+          },
+          {
+            'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            'threshold': 'BLOCK_NONE',
+          },
+        ],
       }),
     );
 
-    if (response.statusCode != 200) {
-      throw Exception('❌ Gemini image HTTP ${response.statusCode}');
-    }
-
+    if (response.statusCode != 200) throw Exception('❌ Gemini Image Error');
     final decoded = jsonDecode(response.body);
     final base64Str =
         decoded['candidates'][0]['content']?['parts'][0]['inlineData']?['data'];
-
-    if (base64Str == null) {
-      throw Exception('GEMINI_TEXT_ONLY_RESPONSE');
-    }
-
+    if (base64Str == null) throw Exception('GEMINI_TEXT_ONLY_RESPONSE');
     return base64Decode(base64Str);
   }
 
@@ -215,6 +235,18 @@ $finalPrompt
         'generationConfig': {
           'responseModalities': ['IMAGE'],
         },
+        'safetySettings': [
+          {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+          {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
+          {
+            'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'threshold': 'BLOCK_NONE',
+          },
+          {
+            'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            'threshold': 'BLOCK_NONE',
+          },
+        ],
       }),
     );
 
