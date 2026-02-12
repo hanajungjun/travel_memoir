@@ -630,6 +630,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
           .select('region_lat, region_lng, country_lat, country_lng')
           .eq('user_id', user.id)
           .order('end_date', ascending: false)
+          .order('created_at', ascending: false) // 🔥 이 줄을 추가하세요!
           .limit(1)
           .maybeSingle();
 

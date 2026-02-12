@@ -348,23 +348,23 @@ class _TravelListItem extends StatelessWidget {
         }
 
         return GestureDetector(
-          // ✅ 수정 코드
           onTap: () async {
-            // 1. 넘겨줄 데이터를 복사해서 영문/국문 title을 'display_name'으로 추가
             final Map<String, dynamic> modifiedTravel = Map.from(travel);
             modifiedTravel['display_name'] = title;
 
-            // 2. 부모(TravelInfoPage)에서 정의한 이동 및 새로고침 로직 실행
-            // 이 Navigator 코드를 여기서 직접 실행하면 _refresh() 오류를 피할 수 있어
-            await Navigator.push(
+            // 🎯 [수정] 상세 페이지(TravelDiaryListPage)에 갔다 왔을 때
+            // 삭제가 발생했다면(true가 반환되면) 부모에게도 알려야 합니다.
+            final result = await Navigator.push(
               context,
               MaterialPageRoute(
                 builder: (_) => TravelDiaryListPage(travel: modifiedTravel),
               ),
             );
 
-            // 3. 부모가 넘겨준 onTap 콜백을 실행해서 부모 쪽의 _refresh()가 돌게 함
-            onTap();
+            if (result == true) {
+              onTap(); // 부모 리스트 갱신
+              // 만약 여기서 리스트가 홈으로 신호를 주려면 Navigator.pop(context, true); 가 필요할 수 있습니다.
+            }
           },
           child: Container(
             decoration: BoxDecoration(

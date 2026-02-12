@@ -10,7 +10,7 @@ import 'package:travel_memoir/services/stamp_service.dart';
 import 'package:travel_memoir/core/widgets/recent_travel_section.dart';
 import 'package:travel_memoir/core/widgets/travel_map_pager.dart';
 import 'package:travel_memoir/core/widgets/home_travel_status_header.dart';
-
+import 'package:travel_memoir/features/travel_list/pages/travel_list_page.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_map_skeleton.dart';
 import 'package:travel_memoir/core/widgets/skeletons/recent_travel_section_skeleton.dart';
 
@@ -172,7 +172,18 @@ class _HomePageState extends State<HomePage> with RouteAware {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          HomeTravelStatusHeader(onGoToTravel: widget.onGoToTravel),
+          HomeTravelStatusHeader(
+            key: ValueKey('header-$_refreshKey'), // 이건 이미 잘 넣으셨습니다!
+            onGoToTravel: () async {
+              // 🎯 [수정] 이동할 때 await를 붙이고, 돌아오면 새로고침 함수를 호출합니다.
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const TravelListPage()),
+              );
+              _triggerRefresh(); // 리스트 보고 돌아오면 무조건 홈 화면 갱신!
+            },
+            onRefresh: _triggerRefresh,
+          ),
           Expanded(
             child: Padding(
               padding: EdgeInsets.fromLTRB(
@@ -206,11 +217,33 @@ class _HomePageState extends State<HomePage> with RouteAware {
                       future: TravelListService.getTravels(),
                       builder: (context, snapshot) {
                         final travels = snapshot.data ?? [];
-                        final String travelId = travels.isNotEmpty
-                            ? travels.first['id']?.toString() ?? 'preview'
+                        // 🎯 [수정 핵심] 오늘 날짜를 포함하는 여행이 있는지 먼저 찾습니다.
+                        final now = DateTime.now();
+                        final today =
+                            "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+                        // 리스트 중 오늘 날짜(start_date <= today <= end_date)에 걸리는 여행 찾기
+                        final currentTravel = travels.firstWhere(
+                          (t) =>
+                              (t['start_date'] ?? "").toString().compareTo(
+                                    today,
+                                  ) <=
+                                  0 &&
+                              (t['end_date'] ?? "").toString().compareTo(
+                                    today,
+                                  ) >=
+                                  0,
+                          orElse: () => travels.isNotEmpty
+                              ? travels.first
+                              : {}, // 없으면 그냥 첫 번째
+                        );
+
+                        final String travelId = currentTravel.isNotEmpty
+                            ? currentTravel['id']?.toString() ?? 'preview'
                             : 'preview';
-                        final String travelType = travels.isNotEmpty
-                            ? travels.first['travel_type']?.toString() ??
+
+                        final String travelType = currentTravel.isNotEmpty
+                            ? currentTravel['travel_type']?.toString() ??
                                   'overseas'
                             : 'overseas';
 

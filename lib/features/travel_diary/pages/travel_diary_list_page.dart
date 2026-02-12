@@ -111,7 +111,12 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
 
   Future<void> _saveChanges() async {
     setState(() => _loading = true);
-    final messenger = ScaffoldMessenger.of(context);
+    //final messenger = ScaffoldMessenger.of(context);
+    // 🎯 context가 살아있을 때 필요한 정보를 미리 뽑아둠
+    final navigator = Navigator.of(context);
+    final String successMsg = 'save_reorder_success'.tr();
+    final String errorMsgBase = 'save_reorder_error'.tr();
+
     try {
       final startDate = DateTime.parse(_travel['start_date']);
 
@@ -139,12 +144,12 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       // ✅ [방어 코드 추가] 모든 비동기 작업이 끝난 후 체크
       if (!mounted) return;
 
-      AppToast.show(context, 'save_reorder_success'.tr());
+      AppToast.show(context, successMsg);
       await _loadAllDiaries();
     } catch (e) {
       // 에러 발생 시에도 화면이 살아있을 때만 토스트 노출
       if (!mounted) return;
-      AppToast.error(context, 'save_reorder_error'.tr(args: [e.toString()]));
+      AppToast.error(context, '$errorMsgBase: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

@@ -107,20 +107,21 @@ class _UsaMapPageState extends State<UsaMapPage> {
     _init = true;
 
     // ✅ 1. 안정적인 로드를 위해 지연 시간 추가
-    await Future.delayed(const Duration(milliseconds: 200));
-
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return; // 🎯 비동기 대기 후 반드시 체크
     try {
+      // 2. 각 메서드 호출 시 try-catch로 감싸서 채널 에러가 전역으로 퍼지지 않게 합니다.
       await _map!.style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
+
+      await _localizeLabels();
+      await _drawVisitedStates();
+
+      if (mounted) setState(() => _ready = true);
     } catch (e) {
-      debugPrint('Projection error: $e');
+      debugPrint('Mapbox style init error: $e');
     }
-
-    await _localizeLabels();
-    await _drawVisitedStates();
-
-    if (mounted) setState(() => _ready = true);
   }
 
   Future<void> _drawVisitedStates() async {
@@ -149,12 +150,21 @@ class _UsaMapPageState extends State<UsaMapPage> {
     final style = _map!.style;
     final usaJson = await rootBundle.loadString(_usaGeo);
 
-    if (await style.styleSourceExists(_usaSource)) {
-      await style.removeStyleSource(_usaSource);
+    // 🎯 [핵심] 채널 연결 상태를 확인하며 안전하게 소스/레이어 제거
+    // styleSourceExists 호출 시 발생할 수 있는 PlatformException을 개별적으로 잡습니다.
+    try {
+      if (await style.styleSourceExists(_usaSource)) {
+        await style.removeStyleSource(_usaSource);
+      }
+      if (await style.styleLayerExists(_usaFill)) {
+        await style.removeStyleLayer(_usaFill);
+      }
+    } catch (e) {
+      debugPrint("Mapbox Source/Layer check error (Ignored): $e");
     }
-    if (await style.styleLayerExists(_usaFill)) {
-      await style.removeStyleLayer(_usaFill);
-    }
+
+    // 소스 및 레이어 추가 (위젯이 살아있을 때만)
+    if (!mounted) return;
 
     await style.addSource(GeoJsonSource(id: _usaSource, data: usaJson));
     await style.addLayer(FillLayer(id: _usaFill, sourceId: _usaSource));
@@ -198,5 +208,11 @@ class _UsaMapPageState extends State<UsaMapPage> {
         );
       }
     } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _map = null; // 🎯 컨트롤러 참조 해제
+    super.dispose();
   }
 }

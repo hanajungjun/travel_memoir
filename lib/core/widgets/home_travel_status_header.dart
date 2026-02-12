@@ -10,8 +10,13 @@ import 'package:travel_memoir/core/widgets/skeletons/home_travel_status_header_s
 
 class HomeTravelStatusHeader extends StatefulWidget {
   final VoidCallback onGoToTravel;
+  final VoidCallback onRefresh;
 
-  const HomeTravelStatusHeader({super.key, required this.onGoToTravel});
+  const HomeTravelStatusHeader({
+    super.key,
+    required this.onGoToTravel,
+    required this.onRefresh,
+  });
 
   @override
   State<HomeTravelStatusHeader> createState() => _HomeTravelStatusHeaderState();
@@ -40,7 +45,7 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<dynamic>>(
-      future: _headerDataFuture,
+      future: _loadHeaderData(), // 👈 여기서 직접 함수를 호출해서 새 Future를 만드세요!
       builder: (context, snapshot) {
         // 데이터 구조 분해
         final travel = snapshot.data?[0] as Map<String, dynamic>?;
@@ -105,6 +110,14 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
           stampData: stampData, // ✅ 스탬프 데이터 전달 (추후 UI 노출용)
           onGoToTravel: widget.onGoToTravel,
           bgColor: bgColor,
+          // 🎯 여기서 부모의 setState와 데이터를 새로고침하는 함수를 넘깁니다.
+          onRefresh: () {
+            if (mounted) {
+              setState(() {
+                _headerDataFuture = _loadHeaderData();
+              });
+            }
+          },
         ),
       ),
     );
@@ -116,6 +129,7 @@ class _HeaderContent extends StatelessWidget {
   final Map<String, dynamic>? stampData;
   final VoidCallback onGoToTravel;
   final Color bgColor;
+  final VoidCallback onRefresh;
 
   const _HeaderContent({
     super.key,
@@ -123,6 +137,7 @@ class _HeaderContent extends StatelessWidget {
     this.stampData,
     required this.onGoToTravel,
     required this.bgColor,
+    required this.onRefresh,
   });
 
   @override
@@ -133,9 +148,13 @@ class _HeaderContent extends StatelessWidget {
     final isKo = context.locale.languageCode == 'ko';
 
     // 1. 장소명(location) 결정
+    // 1. 장소명(location) 결정
     final String location;
     if (isTraveling) {
+      final travelType = t['travel_type']; // 타입 변수화
+
       if (isDomestic) {
+        // [국내] 한국어/영어 구분
         if (isKo) {
           location = t['region_name'] ?? '국내';
         } else {
@@ -144,7 +163,12 @@ class _HeaderContent extends StatelessWidget {
               ? regKey.split('_').last.toUpperCase()
               : (t['region_name_en'] ?? 'KOREA');
         }
+      } else if (travelType == 'usa') {
+        // 🎯 [미국 전용] 영문 이름만 사용 (구분 필요 없음)
+        // DB 컬럼명이 city_name 이나 region_name 인지 확인 후 맞춰주세요.
+        location = t['city_name'] ?? t['region_name'] ?? 'USA';
       } else {
+        // [기타 해외] 한국어/영어 구분
         location =
             (isKo ? t['country_name_ko'] : t['country_name_en']) ?? 'Overseas';
       }
@@ -207,12 +231,12 @@ class _HeaderContent extends StatelessWidget {
                               TextSpan(
                                 text: statusText,
                                 style: AppTextStyles.homeTravelStatus,
-                              ),
+                              ), // 1. Traveling in
                               const TextSpan(text: ' '),
                               TextSpan(
                                 text: loc,
                                 style: AppTextStyles.homeTravelLocation,
-                              ),
+                              ), // 2. Palestine
                             ],
                           );
                         }
@@ -248,16 +272,23 @@ class _HeaderContent extends StatelessWidget {
           ),
           GestureDetector(
             onTap: () async {
-              if (!isTraveling) {
+              if (travel == null) {
                 onGoToTravel();
                 return;
               }
-              await Navigator.push(
+
+              // 🎯 Navigator 결과값을 기다립니다.
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => TravelDiaryListPage(travel: t),
+                  builder: (_) => TravelDiaryListPage(travel: travel!),
                 ),
               );
+
+              // 🎯 결과가 true면 부모가 넘겨준 새로고침 함수를 실행!
+              if (result == true) {
+                onRefresh();
+              }
             },
             child: Container(
               width: 50,

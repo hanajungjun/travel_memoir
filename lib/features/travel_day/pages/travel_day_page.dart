@@ -434,6 +434,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     // ✅ AI 생성 시작
     _startAiGeneration(stampType)
         .then((_) {
+          if (!mounted) return; // ✅ 화면이 닫혔으면 중단
           _isAiDone = true;
           _checkSync();
         })
@@ -466,12 +467,13 @@ class _TravelDayPageState extends State<TravelDayPage>
 
     if (_isAiDone && _isAdDone) {
       if (mounted) {
+        // ✅ 이미 체크 중이지만 확실히 유지
         setState(() => _loading = false);
         _cardController.forward();
       }
     } else if (_isAdDone && !_isAiDone) {
       if (mounted) {
-        setState(() => _loadingMessage = finishingMessage); // ✅ 미리 추출한 값 사용
+        setState(() => _loadingMessage = finishingMessage);
       }
     }
   }
