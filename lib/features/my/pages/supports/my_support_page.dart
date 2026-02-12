@@ -97,10 +97,10 @@ class MySupportPage extends StatelessWidget {
             _SupportTile(
               title: 'contact_email'.tr(),
               trailing: const Text(
-                'hanajungjun@gmail.com',
+                'HajungTech@gmail.com',
                 style: TextStyle(color: Colors.grey, fontSize: 13),
               ),
-              onTap: () => _launchURL('mailto:hanajungjun@gmail.com'),
+              onTap: () => _launchURL('mailto:HajungTech@gmail.com'),
             ),
             const _Divider(),
             _SupportTile(
