@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // 🎯 SVG 사용을 위해 추가 확인
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
@@ -17,85 +18,108 @@ class RecordTabPage extends StatefulWidget {
 }
 
 class _RecordTabPageState extends State<RecordTabPage> {
-  final PageController _controller = PageController(viewportFraction: 0.85);
+  // 🎯 로직 유지: 컨트롤러는 필요에 따라 유지하거나 제거해도 무방합니다.
   final _supabase = Supabase.instance.client;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     // 🎯 1. build 시작점에 이 한 줄을 넣어주면 로케일 변경을 구독하게 됩니다.
     final currentLocale = context.locale.toString();
-
     return Scaffold(
-      backgroundColor: const Color(0xFF373B3E),
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: StreamBuilder<List<Map<String, dynamic>>>(
-          // 🎯 2. key를 부여해서 언어 변경 시 스트림 빌더를 강제로 다시 태웁니다.
-          key: ValueKey(currentLocale),
-          stream: _supabase
-              .from('travels')
-              .stream(primaryKey: ['id'])
-              .order('end_date', ascending: false),
-          builder: (context, snapshot) {
-            // 1️⃣ [디버깅] 실제 스트림으로 들어오는 원본 데이터 개수를 확인해봐
-            if (snapshot.hasData) {
-              debugPrint(
-                "🔍 [RECORD_DEBUG] Raw Data Count: ${snapshot.data?.length}",
-              );
-            }
-
-            // 로딩 상태 처리 (기존 로직 유지)
-            if (snapshot.connectionState == ConnectionState.waiting &&
-                !snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            // 1️⃣ [수정] 완료된 여행만 필터링
-            final rawData = snapshot.data ?? [];
-            final travels = rawData
-                .where((t) => t['is_completed'] == true)
-                .toList();
-
-            // 2️⃣ [핵심] 완료된 여행이 하나도 없다면 "기록 없음" 표시
-            // 이렇게 해야 travels.first를 호출할 일이 없어서 앱이 안 터져!
-            if (travels.isEmpty) {
-              return Center(
-                child: Text(
-                  'no_completed_travels'.tr(),
-                  style: AppTextStyles.bodyMuted.copyWith(
-                    color: Colors.white70,
-                  ),
-                ),
-              );
-            }
-            return PageView.builder(
-              controller: _controller,
-              scrollDirection: Axis.vertical,
-              padEnds: false,
-              clipBehavior: Clip.none,
-              physics: const ClampingScrollPhysics(),
-              itemCount: travels.length + 1,
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return SummaryHeroCard(
-                    totalCount: travels.length,
-                    travels: travels,
-                  );
-                }
-                return TravelRecordCard(
-                  key: ValueKey(travels[index - 1]['id']),
-                  travel: travels[index - 1],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0.5, 1],
+            colors: [Color(0xFF474D51), Color(0xFF393E41)],
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          bottom: false,
+          child: StreamBuilder<List<Map<String, dynamic>>>(
+            key: ValueKey(currentLocale),
+            stream: _supabase
+                .from('travels')
+                .stream(primaryKey: ['id'])
+                .order('end_date', ascending: false),
+            builder: (context, snapshot) {
+              // 1️⃣ [디버깅] 실제 스트림으로 들어오는 원본 데이터 개수를 확인해봐
+              if (snapshot.hasData) {
+                debugPrint(
+                  "🔍 [RECORD_DEBUG] Raw Data Count: ${snapshot.data?.length}",
                 );
-              },
-            );
-          },
+              }
+
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              // 1️⃣ [수정] 완료된 여행만 필터링
+              final rawData = snapshot.data ?? [];
+              final travels = rawData
+                  .where((t) => t['is_completed'] == true)
+                  .toList();
+
+              // 2️⃣ [핵심] 완료된 여행이 하나도 없다면 "기록 없음" 표시
+              if (travels.isEmpty) {
+                return Center(
+                  child: Text(
+                    'no_completed_travels'.tr(),
+                    style: AppTextStyles.bodyMuted.copyWith(
+                      color: Colors.white70,
+                    ),
+                  ),
+                );
+              }
+
+              // 🎯 MediaQuery 대신 LayoutBuilder를 사용하여 실제 가용 높이에 맞춥니다.
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final availableHeight = constraints.maxHeight;
+
+                  // 🎯 디자인 최종 수정: 첫 페이지 100% + 이후 70% 카드들이 '딱딱' 붙게 구현
+                  // 🎯 마지막 카드도 70%를 유지하되 메뉴바 위로 올리기 위해 CustomScrollView 구조를 조정합니다.
+                  return CustomScrollView(
+                    physics: const PageScrollPhysics(), // 🎯 스냅 효과 유지
+                    slivers: [
+                      // 1. 첫 번째 페이지: 디바이스 높이 100% (메뉴바 포함 전체 기준)
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: MediaQuery.of(context).size.height,
+                          child: SummaryHeroCard(
+                            totalCount: travels.length,
+                            travels: travels,
+                          ),
+                        ),
+                      ),
+                      // 2. 이후 여행 카드 리스트 (70% 높이 유지)
+                      SliverList(
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          return SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.7,
+                            child: TravelRecordCard(
+                              key: ValueKey(travels[index]['id']),
+                              travel: travels[index],
+                            ),
+                          );
+                        }, childCount: travels.length),
+                      ),
+                      // 🎯 핵심 수정: 마지막 카드 뒤에 메뉴바 높이만큼의 여백(Sliver)을 추가합니다.
+                      // 이렇게 하면 마지막 70% 카드가 메뉴바 위로 밀려 올라오게 됩니다.
+                      SliverToBoxAdapter(
+                        child: SizedBox(
+                          height: MediaQuery.of(context).padding.bottom,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -118,15 +142,14 @@ class SummaryHeroCard extends StatelessWidget {
     final end =
         DateTime.tryParse(lastTravel['end_date'] ?? '') ?? DateTime.now();
 
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 60, 0, 30),
-        child: Column(
+    // 🎯 디자인 수정: Spacer 사용 시 발생할 수 있는 런타임 오류 방지를 위해 LayoutBuilder 사용
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.fromLTRB(45, 120, 45, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -134,25 +157,32 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_title'.tr(),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   Text(
                     'memory_hero_label'.tr(),
                     style: const TextStyle(
-                      color: Color(0xFFFFC107),
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFFFC669),
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      height: 1.2,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
                   Text(
                     'memory_hero_subtitle'.tr(),
-                    style: const TextStyle(color: Colors.white60, fontSize: 18),
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w100,
+                      letterSpacing: -1,
+                    ),
                   ),
                   const SizedBox(height: 50),
-
                   _infoTile(
                     'total_travels_format1'.tr(),
                     'total_travels_format2'.tr(args: [totalCount.toString()]),
@@ -167,15 +197,17 @@ class SummaryHeroCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 40),
+
+            // 🎯 디자인 핵심: Spacer를 통해 하단 카드 리스트를 바닥으로 밀착시킵니다.
+            const Spacer(),
+
             SizedBox(
-              height: 240,
+              height: 250,
               child: ListView.builder(
-                scrollDirection: Axis.horizontal, // 🎯 괄호 지우고 쉼표로 수정 완료!
-                padding: const EdgeInsets.symmetric(horizontal: 24),
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 30),
                 itemCount: travels.length,
                 itemBuilder: (context, index) {
-                  // 🎯 이제 itemBuilder를 정상적으로 인식해
                   final travel = travels[index];
                   final String type = travel['travel_type'] ?? 'domestic';
                   final String countryCode = (travel['country_code'] ?? '')
@@ -198,22 +230,20 @@ class SummaryHeroCard extends StatelessWidget {
                       ),
                     ),
                     child: Container(
-                      width: 200,
-                      margin: const EdgeInsets.only(right: 20, bottom: 15),
+                      width: 250,
+                      margin: const EdgeInsets.only(right: 18),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(15),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(2, 4),
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 18,
+                            offset: const Offset(0, 8),
                           ),
                         ],
                       ),
-                      padding: const EdgeInsets.all(8),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(15),
                         child: CachedNetworkImage(
                           imageUrl: finalUrl,
                           fit: BoxFit.cover,
@@ -238,17 +268,27 @@ class SummaryHeroCard extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 40),
-            const Center(
-              child: Icon(
-                Icons.keyboard_arrow_down,
-                color: Colors.white24,
-                size: 32,
+            // 🎯 수정 후 (SummaryHeroCard 맨 하단 아이콘 부분)
+            Container(
+              padding: EdgeInsets.fromLTRB(
+                27,
+                20,
+                27,
+                MediaQuery.of(context).padding.bottom, // 🎯 요청하신 정밀 수치
+              ),
+              child: Center(
+                child: SvgPicture.asset(
+                  'assets/icons/ico_arrowdown.svg',
+                  width: 18,
+                  height: 11,
+                  color: Colors.white24, // 1.1.6 버전은 colorFilter 대신 color 사용
+                ),
               ),
             ),
+            const SizedBox(height: 20),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -258,29 +298,33 @@ class SummaryHeroCard extends StatelessWidget {
       Row(
         children: [
           Container(
-            width: 4,
-            height: 4,
+            width: 3,
+            height: 3,
             decoration: const BoxDecoration(
-              color: Colors.white38,
+              color: Color(0xFFC6C7C9),
               shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 5),
           Text(
             label,
-            style: const TextStyle(color: Colors.white38, fontSize: 14),
+            style: const TextStyle(
+              color: Color(0xFFC6C7C9),
+              fontSize: 12,
+              fontWeight: FontWeight.w200,
+            ),
           ),
         ],
       ),
-      const SizedBox(height: 6),
+      const SizedBox(height: 4),
       Padding(
         padding: const EdgeInsets.only(left: 12),
         child: Text(
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -298,20 +342,19 @@ class TravelRecordCard extends StatelessWidget {
     final type = travel['travel_type'] ?? 'domestic';
 
     String badgeText = 'overseas'.tr();
-    Color badgeColor = const Color(0xFF42A5F5);
+    Color badgeColor = AppColors.travelingPurple;
 
     if (type == 'domestic') {
       badgeText = 'domestic'.tr();
-      badgeColor = const Color(0xFF66BB6A);
+      badgeColor = AppColors.travelingBlue;
     } else if (type == 'usa') {
       badgeText = 'usa'.tr();
-      badgeColor = const Color(0xFFEF5350);
+      badgeColor = AppColors.travelingRed;
     }
 
     String destination;
     // 🎯 [핵심 수정] 언어 설정 및 DB 데이터에 따른 목적지 명칭 결정
     if (isKo) {
-      // 한국어 모드: 기존처럼 한국어 명칭 우선
       if (type == 'domestic') {
         destination = travel['region_name'] ?? '알 수 없는 지역';
       } else {
@@ -321,14 +364,10 @@ class TravelRecordCard extends StatelessWidget {
             '해외 여행';
       }
     } else {
-      // 영어 모드: 우리가 서비스에서 저장한 display_country_name을 최우선으로 사용
-      // 이게 없으면 region_key나 country_name_en에서 추출
       final String? savedEnName = travel['display_country_name'];
-
       if (savedEnName != null && savedEnName.isNotEmpty) {
         destination = savedEnName;
       } else if (type == 'domestic') {
-        // KR_GB_BONGHWA -> BONGHWA
         final String regKey = travel['region_key']?.toString() ?? '';
         destination = regKey.contains('_') ? regKey.split('_').last : 'KOREA';
       } else {
@@ -350,22 +389,16 @@ class TravelRecordCard extends StatelessWidget {
           '$finalImageUrl?t=${travel['completed_at']}&width=500&quality=70';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 40),
+      padding: const EdgeInsets.all(0), // 🎯 여백 완전 제거
       child: GestureDetector(
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => TravelAlbumPage(travel: travel)),
         ),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             borderRadius: BorderRadius.zero,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 15,
-                offset: const Offset(0, 10),
-              ),
-            ],
+            // 🎯 기존 BoxShadow 대신 배경색을 지정하거나 비워둡니다.
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.zero,
@@ -382,31 +415,49 @@ class TravelRecordCard extends StatelessWidget {
                       : Container(color: const Color(0xFF454B54)),
                 ),
 
-                // ✅ 수정된 타이틀 영역 (Summary 위로 이동)
+                // 🎯 [신규 추가] 카드의 하단 절반 정도를 덮는 어두운 그라데이션 영역
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        // 🎯 0.5(절반) 지점부터 검은색이 시작되어 바닥으로 갈수록 진해집니다.
+                        stops: const [0.5, 1.0],
+                        colors: [
+                          Colors.transparent,
+                          Colors.black.withOpacity(0.75), // 농도는 0.6 정도로 조절 가능
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: summary.isNotEmpty
-                      ? 120
-                      : 60, // summary 존재 여부에 따라 위치 조정
+                  bottom: summary.isEmpty
+                      ? 60 // 1. 내용이 아예 없을 때
+                      : (summary.length > 40
+                            ? 103 // 2. 글이 길 때 (약 2줄 이상)
+                            : 80), // 3. 글이 짧을 때 (1줄)
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
+                          horizontal: 8,
+                          vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: badgeColor.withOpacity(0.9),
+                          color: badgeColor,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           badgeText,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -416,16 +467,8 @@ class TravelRecordCard extends StatelessWidget {
                           destination.toUpperCase(),
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black54,
-                                blurRadius: 10,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
+                            fontSize: 27,
+                            fontWeight: FontWeight.w700,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -433,7 +476,6 @@ class TravelRecordCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
                 if (summary.isNotEmpty)
                   BottomLabel(text: summary, gradient: true),
                 if (finalImageUrl.isNotEmpty && summary.isEmpty)
@@ -458,7 +500,12 @@ class BottomLabel extends StatelessWidget {
       right: 0,
       bottom: 0,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 80), // 마지막 40을 20으로 변경
+        padding: const EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          50,
+        ), // 🎯 하단 여백 제거 (80 -> 20)
         decoration: gradient
             ? BoxDecoration(
                 gradient: LinearGradient(
