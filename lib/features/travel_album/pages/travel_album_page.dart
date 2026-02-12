@@ -205,11 +205,36 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
         }
       });
 
+      // 🎯 인포그래픽 전용: "Trip to"가 빠진 순수 장소명 로직
+      final bool isKo = context.locale.languageCode == 'ko';
+      final String type = widget.travel['travel_type'] ?? 'domestic';
+      String purePlace = "";
+
+      if (type == 'usa') {
+        // 🇺🇸 USA: region_name(예: New York) 우선
+        purePlace = widget.travel['region_name'] ?? "USA";
+      } else if (type == 'overseas') {
+        // 🌏 해외: region_name 우선, 없으면 국가명
+        purePlace =
+            widget.travel['region_name'] ??
+            (isKo
+                ? widget.travel['country_name_ko']
+                : widget.travel['country_name_en']) ??
+            widget.travel['display_country_name'] ??
+            "TRAVEL";
+      } else {
+        // 🏠 국내: 제주, 서울 등 지역명 우선
+        purePlace =
+            widget.travel['region_name'] ?? widget.travel['city'] ?? "KOREA";
+      }
+
+      // 중복 호출 방지를 위해 스티커 추출은 여기서 한 번만
       _extractAndShuffleStickers(data);
 
       final imageBytes = await GeminiService().generateFullTravelInfographic(
         allDiaryTexts: allTexts,
-        placeName: _travelTitle(),
+        getPlaceName: purePlace.toUpperCase(),
+        travelType: widget.travel['travel_type'] ?? 'domestic',
         photoUrls: _includePhotos
             ? _stickerPlacements.map((e) => e.url).toList()
             : null,
@@ -358,42 +383,47 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
     final String type = widget.travel['travel_type'] ?? 'domestic';
     String? place;
 
-    // 2️⃣ 언어/타입별 장소명 추출
-    if (isKo) {
+    // 2️⃣ [개선된 로직] 언어/타입별 장소명 추출
+    if (type == 'usa') {
+      // 🇺🇸 미국: 'United States'가 나오는 것을 방지하기 위해 region_name을 최우선으로 사용
+      place = widget.travel['region_name'] ?? 'USA';
+    } else if (isKo) {
+      // 🇰🇷 한국어 설정일 때
       place = (type == 'domestic')
           ? (widget.travel['region_name'] ?? widget.travel['city'])
           : (widget.travel['country_name_ko'] ??
                 widget.travel['display_country_name']);
     } else {
-      final String? savedEnName = widget.travel['display_country_name'];
-      final String? enName = widget.travel['country_name_en'];
-      final String? regKey = widget.travel['region_key'];
-
-      if (savedEnName != null && savedEnName.isNotEmpty) {
-        place = savedEnName;
-      } else if (type == 'domestic' && regKey != null) {
+      // 🇺🇸 영어 설정일 때
+      if (type == 'domestic') {
+        // 🏠 국내 여행 영어 버전: region_key의 마지막 값 추출 (예: KOR_JEJU -> JEJU)
+        final String regKey = widget.travel['region_key']?.toString() ?? '';
         place = regKey.contains('_') ? regKey.split('_').last : 'KOREA';
       } else {
-        place = enName ?? widget.travel['country_code'] ?? 'USA';
+        // 🌏 기타 해외 여행
+        place =
+            widget.travel['display_country_name'] ??
+            widget.travel['country_name_en'] ??
+            widget.travel['country_code'] ??
+            'TRAVEL';
       }
     }
 
-    // 3️⃣ 번역 키 적용 (인자가 무시될 경우를 대비한 방어 코드)
+    // 3️⃣ 번역 키 적용 및 최종 조립
     final String finalPlace = place?.trim() ?? (isKo ? '여행' : 'TRAVEL');
+
+    // 'trip_with_place' 키가 정상 작동한다고 가정 (args 전달)
     String formattedTitle = 'trip_with_place'.tr(
       args: [isKo ? finalPlace : finalPlace.toUpperCase()],
     );
 
-    // 🎯 [핵심 방어 로직] 만약 tr() 결과가 장소명과 똑같다면 (번역 템플릿 실패 시) 강제로 조립
+    // 🎯 [핵심 방어 로직] 번역 템플릿 실패 시 강제로 "Trip to [PLACE]" 형태 생성
     if (formattedTitle == finalPlace ||
         formattedTitle == finalPlace.toUpperCase()) {
       formattedTitle = isKo
           ? "$finalPlace 여행"
           : "Trip to ${finalPlace.toUpperCase()}";
     }
-
-    debugPrint("🔍 [ALBUM_TITLE_DEBUG] Final Place: $finalPlace");
-    debugPrint("🔍 [ALBUM_TITLE_DEBUG] Result: $formattedTitle");
 
     return formattedTitle.trim();
   }
@@ -501,21 +531,55 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
                 top: 20,
                 left: 20,
                 right: 20,
-                child: Text(
-                  _travelTitle(),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        offset: const Offset(0, 2),
-                        blurRadius: 10.0,
-                        color: Colors.black.withOpacity(0.6),
+                child: Builder(
+                  builder: (context) {
+                    final String type =
+                        widget.travel['travel_type'] ?? 'domestic';
+                    final bool isKo = context.locale.languageCode == 'ko';
+                    String purePlace = "";
+
+                    if (type == 'usa') {
+                      // 🇺🇸 미국: United States 대신 지역명 우선 표시
+                      purePlace = widget.travel['region_name'] ?? "USA";
+                    } else if (type == 'overseas') {
+                      purePlace =
+                          widget.travel['region_name'] ??
+                          (isKo
+                              ? widget.travel['country_name_ko']
+                              : widget.travel['country_name_en']) ??
+                          "TRAVEL";
+                    } else {
+                      // 국내 여행 로직 (이전 수정안 반영)
+                      if (!isKo) {
+                        final String? regKey = widget.travel['region_key'];
+                        purePlace = (regKey != null && regKey.contains('_'))
+                            ? regKey.split('_').last
+                            : (widget.travel['region_name'] ?? "KOREA");
+                      } else {
+                        purePlace =
+                            widget.travel['region_name'] ??
+                            widget.travel['city'] ??
+                            "한국";
+                      }
+                    }
+
+                    return Text(
+                      purePlace.toUpperCase(), // 🎯 "Trip to" 없이 장소명만 대문자로 표시
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            offset: const Offset(0, 2),
+                            blurRadius: 10.0,
+                            color: Colors.black.withOpacity(0.6),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
             if (!_isPremiumUser && !_isVipUser)
@@ -761,6 +825,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
                           ),
                           if (_isPremiumUser || _isVipUser) ...[
                             const SizedBox(width: 4),
+                            /*
                             SizedBox(
                               width: 24,
                               child: Checkbox(
@@ -791,6 +856,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
                                 color: Colors.grey[700],
                               ),
                             ),
+                            */
                             const SizedBox(width: 4),
                             Flexible(
                               child: TextButton(

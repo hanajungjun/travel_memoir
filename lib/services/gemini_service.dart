@@ -150,7 +150,8 @@ class GeminiService {
 
   Future<Uint8List> generateFullTravelInfographic({
     required List<String> allDiaryTexts,
-    required String placeName, // 👈 widget.placeName 대신 파라미터로 받음
+    required String getPlaceName, // 👈 widget.placeName 대신 파라미터로 받음
+    required String travelType, // 👈 travel_type을 파라미터로 추가로 받으세요!
     List<String>? photoUrls,
   }) async {
     final url =
@@ -160,6 +161,11 @@ class GeminiService {
 
     if (premiumPrompt == null) {
       throw Exception('❌ 활성 프리미엄 프롬프트 없음');
+    }
+
+    String placeName = getPlaceName;
+    if (travelType == 'usa') {
+      placeName = "$getPlaceName, a state in the United States Of America";
     }
 
     // 1️⃣ 'Infographic' 단어 제거 -> 'Mural Illustration'으로 교체 (배너 방지)
@@ -220,6 +226,8 @@ class GeminiService {
         ) +
         durationInstruction +
         layoutAndTextInstruction;
+
+    print(' [finalPrompt] $finalPrompt');
 
     final parts = <Map<String, dynamic>>[
       {'text': finalPrompt},

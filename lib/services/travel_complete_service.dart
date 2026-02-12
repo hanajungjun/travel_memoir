@@ -92,19 +92,30 @@ class TravelCompleteService {
 
       // 🎯 [수정] AI에게 전달할 장소 이름은 무조건 영어로!
       String placeName = '';
-      if (travelType == 'domestic') {
-        // 💡 국내: KR_GB_POHANG -> POHANG 추출
+      if (travelType == 'usa') {
+        // 🇺🇸 미국: region_name(예: Georgia)을 최우선으로, 없으면 USA
+        placeName =
+            (travel['region_name'] ?? travel['country_name_en'] ?? 'USA')
+                .toString()
+                .toUpperCase();
+      } else if (travelType == 'domestic') {
+        // 🏠 국내: KR_GB_POHANG -> POHANG 추출
         final String regId = travel['region_id']?.toString() ?? '';
         placeName = regId.contains('_')
             ? regId.split('_').last.toUpperCase()
             : (travel['region_name']?.toString() ?? 'KOREA').toUpperCase();
       } else {
-        // 💡 해외/미국: 무조건 country_name_en 사용 (없으면 country_code라도)
-        // 'South Korea' 등으로 고정하고 싶다면 여기서 'KR'일 때 별도 처리 가능
+        // 🌏 해외: 국가명 영어 사용
         placeName =
             (travel['country_name_en'] ?? travel['country_code'] ?? 'Global')
                 .toString()
                 .toUpperCase();
+      }
+
+      // 💡 미국 여행 강조 (GeminiService에 전달하기 전 맥락 보강)
+      String finalPlaceForAi = placeName;
+      if (travelType == 'usa') {
+        finalPlaceForAi = "$placeName, a state in the United States Of America";
       }
 
       // 3️⃣ AI 커버 생성 + 업로드
@@ -118,7 +129,7 @@ class TravelCompleteService {
 
         if (promptRow?['content'] != null) {
           final bytes = await GeminiService().generateImage(
-            finalPrompt: '${promptRow!['content']}\nPlace: $placeName',
+            finalPrompt: '${promptRow!['content']}\nPlace: $finalPlaceForAi',
           );
 
           if (bytes.isNotEmpty) {

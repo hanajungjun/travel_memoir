@@ -353,15 +353,15 @@ class TravelRecordCard extends StatelessWidget {
     }
 
     String destination;
-    // 🎯 [수정] 미국(usa) 여행도 국내(domestic)처럼 지역명을 우선하도록 변경
+
     if (isKo) {
       // 한국어 설정일 때
-      if (type == 'domestic' || type == 'usa') {
-        // 국내 또는 미국 여행이면 지역명(region_name) 사용
-        destination =
-            travel['region_name'] ?? (type == 'usa' ? '미국 여행' : '알 수 없는 지역');
+      if (type == 'usa') {
+        // 🇺🇸 미국: region_name(예: 뉴욕)이 있으면 쓰고, 없으면 '미국 여행'
+        destination = travel['region_name'] ?? '미국 여행';
+      } else if (type == 'domestic') {
+        destination = travel['region_name'] ?? travel['city'] ?? '알 수 없는 지역';
       } else {
-        // 그 외 해외 여행은 국가명 사용
         destination =
             travel['country_name_ko'] ??
             travel['display_country_name'] ??
@@ -369,21 +369,23 @@ class TravelRecordCard extends StatelessWidget {
       }
     } else {
       // 영어 설정일 때
-      final String? savedEnName = travel['display_country_name'];
-
       if (type == 'usa') {
-        // 미국 여행일 때 지역명(region_name)이나 미리 저장된 영어 이름 사용
-        destination = savedEnName ?? travel['region_name'] ?? 'USA';
-      } else if (savedEnName != null && savedEnName.isNotEmpty) {
-        destination = savedEnName;
+        // 🇺🇸 미국: display_country_name보다 region_name을 먼저 확인!
+        // 만약 region_name이 "New York"이면 "New York"이 나오고, 없으면 "USA"가 나옵니다.
+        destination =
+            travel['region_name'] ?? travel['display_country_name'] ?? 'USA';
       } else if (type == 'domestic') {
         final String regKey = travel['region_key']?.toString() ?? '';
         destination = regKey.contains('_') ? regKey.split('_').last : 'KOREA';
       } else {
         destination =
-            travel['country_name_en'] ?? travel['country_code'] ?? 'Global';
+            travel['display_country_name'] ??
+            travel['country_name_en'] ??
+            travel['country_code'] ??
+            'Global';
       }
     }
+
     final String coverUrl = (travel['cover_image_url'] ?? '').toString();
     final String summary = (travel['ai_cover_summary'] ?? '').toString().trim();
     String finalImageUrl = coverUrl.isEmpty
