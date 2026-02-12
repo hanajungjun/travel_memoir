@@ -157,6 +157,7 @@ class GeminiService {
     final url =
         'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey';
 
+    //어드민페이지 프리미엄프롬프트
     final premiumPrompt = await AiPremiumPromptService.fetchActive();
 
     if (premiumPrompt == null) {
