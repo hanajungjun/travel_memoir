@@ -5,6 +5,7 @@ import 'package:scrollable_clean_calendar/scrollable_clean_calendar.dart';
 import 'package:scrollable_clean_calendar/controllers/clean_calendar_controller.dart';
 import 'package:scrollable_clean_calendar/utils/enums.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // ✅ SVG 사용을 위한 임포트 추가
 
 class CustomRangeCalendarPage extends StatefulWidget {
   final String travelType;
@@ -20,10 +21,12 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
   late CleanCalendarController calendarController;
   DateTime? rangeMin;
   DateTime? rangeMax;
+  late DateTime focusedYear;
 
   @override
   void initState() {
     super.initState();
+    focusedYear = DateTime.now(); // 🎯 초기값 할당
   }
 
   @override
@@ -33,6 +36,9 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
   }
 
   void _initController(DateTime focusDate) {
+    setState(() {
+      focusedYear = focusDate; // 🎯 상단 버튼의 년도를 현재 포커스된 날짜로 업데이트
+    });
     calendarController = CleanCalendarController(
       minDate: DateTime(2000, 1, 1),
       maxDate: DateTime(2027, 12, 31),
@@ -53,26 +59,77 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
     });
   }
 
-  void _showYearPicker(BuildContext context) {
+  void _showYearPicker(BuildContext context, Color themeColor) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("select_year".tr()),
+          backgroundColor: AppColors.background,
+          surfaceTintColor: Colors.transparent, // 배경색 유지
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: EdgeInsets.zero,
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, // 왼쪽 정렬
+            children: [
+              Text(
+                "select_year".tr(),
+                style: const TextStyle(
+                  fontSize: 15, // 🎯 타이틀 사이즈 축소
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textColor01,
+                ),
+              ),
+              const SizedBox(height: 18), // 글자와 라인 사이 간격
+              // 🎯 타이틀 밑 도트 라인
+              CustomPaint(
+                size: const Size(double.infinity, 2),
+                painter: DotLinePainter(
+                  color: AppColors.textColor01.withOpacity(0.8),
+                ),
+              ),
+            ],
+          ),
           content: SizedBox(
             width: 300,
-            height: 300,
-            child: YearPicker(
-              firstDate: DateTime(2000), // 범위 확장
-              lastDate: DateTime(2027),
-              initialDate: rangeMin ?? DateTime.now(),
-              selectedDate: rangeMin ?? DateTime.now(),
-              onChanged: (DateTime dateTime) {
-                setState(() {
-                  _initController(dateTime);
-                });
-                Navigator.pop(context);
-              },
+            height: 190,
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                // 🎯 추가: 기본 Divider(가로선)를 투명하게 만듦
+                dividerTheme: const DividerThemeData(color: Colors.transparent),
+                dividerColor: Colors.transparent,
+                textButtonTheme: TextButtonThemeData(
+                  style: ButtonStyle(
+                    // 🎯 클릭 시 배경색(Overlay) 투명하게 제거
+                    overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  ),
+                ),
+                textTheme: const TextTheme(
+                  bodyLarge: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textColor01,
+                  ),
+                ),
+                colorScheme: ColorScheme.light(
+                  primary: themeColor, // 선택된 년도 강조색
+                  onSurface: AppColors.textColor01, // 일반 글자색
+                ),
+              ),
+              child: YearPicker(
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2027),
+                // 🎯 에러 해결: 파라미터명을 정확히 입력 (initialDate, selectedDate)
+                initialDate: focusedYear, // 팝업 열었을 때 초기 위치
+                selectedDate: focusedYear, // 현재 선택된 연도 강조
+                onChanged: (DateTime dateTime) {
+                  setState(() {
+                    _initController(dateTime);
+                  });
+                  Navigator.pop(context);
+                },
+              ),
             ),
           ),
         );
@@ -110,26 +167,56 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                     onPressed: () => Navigator.pop(context),
                   ),
                   const Spacer(),
-                  IconButton(
-                    icon: Icon(
-                      Icons.calendar_month,
-                      size: 24,
-                      color: themeColor,
+                  Container(
+                    height: 33,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB7BABB),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    onPressed: () => _showYearPicker(context),
-                  ),
-                  TextButton(
-                    onPressed: _jumpToToday,
-                    child: Text(
-                      'today'.tr(),
-                      style: TextStyle(
-                        color: themeColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    child: TextButton.icon(
+                      onPressed: () => _showYearPicker(
+                        context,
+                        themeColor,
+                      ), // 👈 themeColor 전달,
+                      icon: Text(
+                        DateFormat('yyyy').format(focusedYear), // 🎯 실시간 연도 표시
+                        style: const TextStyle(
+                          color: AppColors.textColor02,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                      label: const Icon(
+                        Icons.keyboard_arrow_down,
+                        color: AppColors.textColor02,
+                        size: 18,
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 6, 0),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
+                  // 📍 오늘 버튼 (연한 테마색 배경의 캡슐 형태)
+                  Container(
+                    height: 33,
+                    decoration: BoxDecoration(
+                      color: themeColor.withOpacity(0.45),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: TextButton(
+                      onPressed: _jumpToToday,
+                      child: Text(
+                        'today'.tr().toUpperCase(), // TODAY 대문자 표시
+                        style: const TextStyle(
+                          color: AppColors.textColor02,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   GestureDetector(
                     onTap: () {
                       if (rangeMin != null && rangeMax != null) {
@@ -185,10 +272,14 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                   children: [
                     Row(
                       children: [
-                        const Icon(
-                          Icons.calendar_today_outlined,
-                          size: 12,
-                          color: AppColors.textColor01,
+                        // 🎯 [수정 부분] 카드 내부의 작은 달력 아이콘을 SVG로 변경
+                        SvgPicture.asset(
+                          'assets/icons/ico_calendar.svg',
+                          width: 12,
+                          height: 12,
+                          color: AppColors
+                              .textColor01, // ✅ colorFilter 대신 color 사용
+                          colorBlendMode: BlendMode.srcIn,
                         ),
                         const SizedBox(width: 4),
                         Text(
@@ -271,7 +362,19 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                                   );
                                 }).toList(),
                           ),
-                          const SizedBox(height: 13),
+                          // monthBuilder 내부 요일 Row 바로 아래
+                          const SizedBox(height: 10),
+                          // 🎯 사라졌던 도트 라인(점선) 추가
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: CustomPaint(
+                              size: const Size(double.infinity, 1),
+                              painter: DotLinePainter(
+                                color: AppColors.textColor01.withOpacity(0.2),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 0),
                         ],
                       );
                     },
@@ -320,10 +423,10 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                               children: [
                                 if (isToday && !isStart && !isEnd && !isBetween)
                                   Container(
-                                    width: 35,
-                                    height: 35,
+                                    width: 45,
+                                    height: 45,
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.05),
+                                      color: themeColor.withOpacity(0.45),
                                       shape: BoxShape.circle,
                                     ),
                                   ),
@@ -356,11 +459,15 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                                 Text(
                                   values.text,
                                   style: TextStyle(
-                                    color: textColor,
+                                    color:
+                                        (isToday ||
+                                            isStart ||
+                                            isEnd ||
+                                            isBetween) // 🎯 오늘이거나 선택된 영역이면 color02 적용
+                                        ? AppColors.textColor02
+                                        : AppColors.textColor01,
                                     fontSize: 15,
-                                    fontWeight: isToday
-                                        ? FontWeight.bold
-                                        : FontWeight.w500,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
@@ -378,4 +485,24 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
       ),
     );
   }
+}
+
+// 🎨 도트 라인을 그리는 클래스
+class DotLinePainter extends CustomPainter {
+  final Color color;
+  DotLinePainter({required this.color});
+  @override
+  void paint(Canvas canvas, Size size) {
+    double dashWidth = 2, dashSpace = 3, startX = 0;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1;
+    while (startX < size.width) {
+      canvas.drawCircle(Offset(startX, 0), 0.5, paint);
+      startX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

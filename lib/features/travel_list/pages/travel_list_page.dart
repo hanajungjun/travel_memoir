@@ -101,9 +101,27 @@ class _TravelListPageState extends State<TravelListPage> with RouteAware {
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: Center(
-                      child: Text(
-                        'no_travels_yet'.tr(),
-                        style: AppTextStyles.bodyMuted,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min, // 중앙 정렬을 위해 추가
+                        children: [
+                          Text(
+                            'no_travels_yet'.tr(),
+                            style: AppTextStyles.bodyMuted.copyWith(
+                              fontSize: 21,
+                              color: AppColors.textColor01,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 3), // 텍스트 사이의 간격 (필요시 조절)
+                          Text(
+                            'no_travels_yet2'.tr(),
+                            style: AppTextStyles.bodyMuted.copyWith(
+                              fontSize: 17,
+                              color: AppColors.textColor01,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   )

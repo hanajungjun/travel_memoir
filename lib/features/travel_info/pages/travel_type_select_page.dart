@@ -5,6 +5,7 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'domestic_travel_date_page.dart';
 import 'overseas_travel_date_page.dart';
@@ -80,17 +81,11 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false, // ✅ 이 줄 추가
-        // ),
-      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 27),
+                padding: const EdgeInsets.fromLTRB(27, 76, 27, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -101,7 +96,6 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                           style: const TextStyle(
                             fontSize: 19,
                             color: Color(0xFF555759),
-                            height: 1.4,
                           ),
                           children: [
                             TextSpan(
@@ -125,9 +119,8 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     // 🌍 해외 여행
                     _TravelTypeCard(
                       title: 'overseas_travel_comma'.tr(),
-                      //  subTitleSuffix: 'abroad_label'.tr(),
                       description: 'overseas_description'.tr(),
-                      icon: Icons.public_rounded,
+                      iconPath: 'assets/icons/ico_Abroad.svg',
                       iconColor: const Color(0xFF6C5CE7),
                       onTap: () => _navigateToPage(
                         context,
@@ -140,9 +133,8 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     // 🇰🇷 국내 여행
                     _TravelTypeCard(
                       title: 'domestic_travel_comma'.tr(),
-                      //   subTitleSuffix: 'local_label'.tr(),
                       description: 'domestic_description'.tr(),
-                      icon: Icons.location_on_rounded,
+                      iconPath: 'assets/icons/ico_Local.svg',
                       iconColor: const Color(0xFF3498DB),
                       onTap: () => _navigateToPage(
                         context,
@@ -154,11 +146,8 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     // 🇺🇸 미국 여행 (비구매 시 잠금 상태)
                     _TravelTypeCard(
                       title: 'us_travel_comma'.tr(),
-                      //   subTitleSuffix: 'us_label'.tr(),
                       description: 'us_description'.tr(),
-                      icon: _hasUsaAccess
-                          ? Icons.flag_rounded
-                          : Icons.lock_rounded,
+                      iconPath: 'assets/icons/ico_State.svg',
                       iconColor: const Color(0xFFE74C3C),
                       isLocked: !_hasUsaAccess,
                       onTap: _hasUsaAccess
@@ -188,18 +177,16 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
 
 class _TravelTypeCard extends StatelessWidget {
   final String title;
-  //final String subTitleSuffix;
   final String description;
-  final IconData icon;
+  final String iconPath;
   final Color iconColor;
   final VoidCallback onTap;
   final bool isLocked;
 
   const _TravelTypeCard({
     required this.title,
-    //required this.subTitleSuffix,
     required this.description,
-    required this.icon,
+    required this.iconPath,
     required this.iconColor,
     required this.onTap,
     this.isLocked = false,
@@ -213,7 +200,7 @@ class _TravelTypeCard extends StatelessWidget {
         opacity: isLocked ? 0.5 : 1.0,
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -227,51 +214,38 @@ class _TravelTypeCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: isLocked
-                      ? Colors.grey.withOpacity(0.1)
-                      : iconColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: isLocked ? Colors.grey : iconColor,
-                  size: 28,
+              // ✅ BoxDecoration(Shape) 제거 후 아이콘만 배치
+              Padding(
+                padding: const EdgeInsets.only(
+                  bottom: 20,
+                ), // 원하는 만큼 숫자 조절 (예: 4~8)
+                child: SvgPicture.asset(
+                  iconPath,
+                  width: 26,
+                  height: 26,
+                  color: isLocked ? Color(0xFFCACBCC) : iconColor,
+                  colorBlendMode: BlendMode.srcIn,
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                          fontSize: 18,
-                          color: const Color(0xFF111827),
-                          fontWeight: FontWeight.w700,
-                        ),
-                        children: [
-                          TextSpan(text: title),
-                          TextSpan(
-                            //   text: subTitleSuffix,
-                            style: const TextStyle(
-                              color: const Color(0xFF111827),
-                              fontWeight: FontWeight.w200,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ],
+                    // ✅ 이미지에서 오류나던 RichText를 깔끔한 Text 위젯으로 교체
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        color: Color(0xFF111827),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       isLocked ? 'unlock_required'.tr() : description,
                       style: const TextStyle(
-                        color: const Color(0xFF666666),
+                        color: Color(0xFF666666),
                         fontSize: 14,
                         fontWeight: FontWeight.w200,
                       ),
@@ -279,12 +253,6 @@ class _TravelTypeCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isLocked)
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 14,
-                  color: Colors.black12,
-                ),
             ],
           ),
         ),

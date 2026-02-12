@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
 
 class AppDialogs {
   // 1️⃣ [알림형] 확인 버튼 1개 (단순 안내용)
@@ -12,7 +13,8 @@ class AppDialogs {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -37,25 +39,37 @@ class AppDialogs {
     required String title,
     required String message,
     required String actionLabel,
-    Color actionColor = Colors.amber,
-    Color actionTextColor = Colors.black,
+    Color actionColor = const Color(0xFF1C2328),
+    Color actionTextColor = Colors.white,
     required VoidCallback onAction,
   }) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
         ),
-        content: Text(message.tr()),
+        content: Text(
+          message.tr(),
+          style: const TextStyle(fontSize: 14, color: AppColors.textColor03),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
+            style:
+                TextButton.styleFrom(
+                  // 클릭 시 발생하는 하이라이트/스플래시 효과를 투명하게 설정
+                  backgroundColor: Colors.transparent, // 기본 배경색 투명
+                ).copyWith(
+                  // 모든 상태(눌림, 호버 등)에서 배경색이 생기지 않도록 처리
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                ),
             child: Text(
               'close'.tr(),
-              style: const TextStyle(color: Colors.grey),
+              style: const TextStyle(color: AppColors.textColor03),
             ),
           ),
           ElevatedButton(
@@ -73,7 +87,7 @@ class AppDialogs {
             },
             child: Text(
               actionLabel.tr(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -92,7 +106,8 @@ class AppDialogs {
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -131,7 +146,8 @@ class AppDialogs {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -179,7 +195,8 @@ class AppDialogs {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
           style: const TextStyle(fontWeight: FontWeight.bold),
@@ -225,7 +242,8 @@ class AppDialogs {
       context: context,
       barrierDismissible: barrierDismissible,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Center(
           child: Text(
             title.tr(),
@@ -353,7 +371,8 @@ class AppDialogs {
       useRootNavigator: true, // 탭바 위로 띄우기
       barrierDismissible: barrierDismissible,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: AppColors.background,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Center(
           child: Text(
             title,
