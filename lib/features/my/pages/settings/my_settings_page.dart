@@ -198,17 +198,17 @@ class _MySettingsPageState extends State<MySettingsPage> {
                   _Divider(),
 
                   // 📊 데이터 설정
-                  _SettingTile(
-                    title: 'data_settings'.tr(),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const DataSettingsPage(),
-                        ),
-                      );
-                    },
-                  ),
+                  // _SettingTile(
+                  //   title: 'data_settings'.tr(),
+                  //   onTap: () {
+                  //     Navigator.push(
+                  //       context,
+                  //       MaterialPageRoute(
+                  //         builder: (_) => const DataSettingsPage(),
+                  //       ),
+                  //     );
+                  //   },
+                  // ),
                   _Divider(),
                 ],
               ),

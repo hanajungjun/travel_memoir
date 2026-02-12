@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // 🎯 SVG 사용을 위해 추가 확인
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
@@ -353,19 +353,28 @@ class TravelRecordCard extends StatelessWidget {
     }
 
     String destination;
-    // 🎯 [핵심 수정] 언어 설정 및 DB 데이터에 따른 목적지 명칭 결정
+    // 🎯 [수정] 미국(usa) 여행도 국내(domestic)처럼 지역명을 우선하도록 변경
     if (isKo) {
-      if (type == 'domestic') {
-        destination = travel['region_name'] ?? '알 수 없는 지역';
+      // 한국어 설정일 때
+      if (type == 'domestic' || type == 'usa') {
+        // 국내 또는 미국 여행이면 지역명(region_name) 사용
+        destination =
+            travel['region_name'] ?? (type == 'usa' ? '미국 여행' : '알 수 없는 지역');
       } else {
+        // 그 외 해외 여행은 국가명 사용
         destination =
             travel['country_name_ko'] ??
             travel['display_country_name'] ??
             '해외 여행';
       }
     } else {
+      // 영어 설정일 때
       final String? savedEnName = travel['display_country_name'];
-      if (savedEnName != null && savedEnName.isNotEmpty) {
+
+      if (type == 'usa') {
+        // 미국 여행일 때 지역명(region_name)이나 미리 저장된 영어 이름 사용
+        destination = savedEnName ?? travel['region_name'] ?? 'USA';
+      } else if (savedEnName != null && savedEnName.isNotEmpty) {
         destination = savedEnName;
       } else if (type == 'domestic') {
         final String regKey = travel['region_key']?.toString() ?? '';
