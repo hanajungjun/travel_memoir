@@ -92,7 +92,8 @@ $diaryList
       final gemini = GeminiService();
       final highlight = await gemini.generateSummary(
         finalPrompt: prompt,
-        photos: const [],
+        photoBytes: const [], // 👈 여기를 photoBytes로 수정!
+        languageCode: languageCode,
       );
 
       return highlight.trim();
