@@ -29,13 +29,13 @@ class DetailedMapConfig {
 class GlobalMapPage extends StatefulWidget {
   final bool isReadOnly;
   final bool showLastTravelFocus;
-  final bool animateFocus; // 🎯 카메라 이동 애니메이션 여부 추가
+  final bool animateFocus;
 
   const GlobalMapPage({
     super.key,
     this.isReadOnly = false,
     this.showLastTravelFocus = false,
-    this.animateFocus = false, // 기본값은 '슥~' 하고 이동하는 애니메이션 적용
+    this.animateFocus = false,
   });
 
   @override
@@ -94,6 +94,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
   Future<void> _updateMapGestures() async {
     if (_map == null) return;
     try {
+      //debugPrint("🔍 [LOG] 업데이트 제스처 설정... isReadOnly: ${widget.isReadOnly}");
       await _map!.gestures.updateSettings(
         widget.isReadOnly
             ? GesturesSettings(
@@ -112,7 +113,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
                 pitchEnabled: true,
               ),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("⚠️ [ERROR] _updateMapGestures 실패: $e");
+    }
   }
 
   @override
@@ -125,6 +128,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
   Future<void> refreshData() async {
     if (_map == null) return;
+    //debugPrint("🔄 [LOG] 데이터 새로고침 시작...");
     await _drawAll();
   }
 
@@ -145,12 +149,15 @@ class GlobalMapPageState extends State<GlobalMapPage>
             zoom: 1.3,
           ),
           onMapCreated: (map) async {
+            //debugPrint("🗺️ [LOG] MapWidget Created");
             _map = map;
             try {
               await map.setBounds(
                 CameraBoundsOptions(minZoom: 0.8, maxZoom: 6.0),
               );
-            } catch (_) {}
+            } catch (e) {
+              debugPrint("⚠️ [ERROR] setBounds 실패: $e");
+            }
           },
           onStyleLoadedListener: _onStyleLoaded,
           onTapListener: widget.isReadOnly ? null : _onMapTap,
@@ -166,6 +173,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
   Future<void> _onStyleLoaded(StyleLoadedEventData _) async {
     if (_init || _map == null) return;
+    //debugPrint("🎨 [LOG] 스타일 로드 완료. 초기화 시작...");
     _init = true;
     await WidgetsBinding.instance.endOfFrame;
     await Future.delayed(const Duration(milliseconds: 500));
@@ -175,13 +183,15 @@ class GlobalMapPageState extends State<GlobalMapPage>
       await _map!.style.setProjection(
         StyleProjection(name: StyleProjectionName.mercator),
       );
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("⚠️ [ERROR] setProjection 실패: $e");
+    }
     await _localizeLabels();
     await _loadUserMapAccess();
     await _drawAll();
 
-    // 🎯 포커스 설정이 되어있을 때만 이동 로직 수행
     if (widget.showLastTravelFocus) {
+      //debugPrint("🎯 [LOG] 마지막 여행지로 포커스 이동 시도");
       await _focusOnLastTravel();
     }
     _safeSetState(() => _ready = true);
@@ -191,6 +201,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     try {
+      //debugPrint("🔑 [LOG] 유저 권한 정보(active_maps) 조회 중...");
       final res = await Supabase.instance.client
           .from('users')
           .select('active_maps')
@@ -202,7 +213,10 @@ class GlobalMapPageState extends State<GlobalMapPage>
             .map((e) => e.toString().toLowerCase())
             .toSet();
       });
-    } catch (_) {}
+      //debugPrint("✅ [LOG] 구매된 지도 목록: $_purchasedMapIds");
+    } catch (e) {
+      debugPrint("⚠️ [ERROR] _loadUserMapAccess 실패: $e");
+    }
   }
 
   Future<void> _drawAll() async {
@@ -210,6 +224,8 @@ class GlobalMapPageState extends State<GlobalMapPage>
     if (map == null || !mounted) return;
     final style = map.style;
     if (style == null) return;
+
+    //debugPrint("🖌️ [LOG] _drawAll: 월드맵 그리기 시작");
 
     final doneHex = _hex(AppColors.mapFill);
     final activeHex = _hex(AppColors.mapActiveFill);
@@ -242,48 +258,46 @@ class GlobalMapPageState extends State<GlobalMapPage>
         }
       }
 
+      //debugPrint("📍 [LOG] 방문 국가 수: ${visitedCountries.length}, 완료 국가 수: ${completedCountries.length}",);
+
       final worldJson = await rootBundle.loadString(_worldGeo);
       await _rm(style, _worldFill, _worldSource);
 
-      if (!(await style.styleSourceExists(_worldSource))) {
-        await style.addSource(GeoJsonSource(id: _worldSource, data: worldJson));
+      //debugPrint("🌍 [LOG] 월드 Source 추가 중...");
+      await style.addSource(GeoJsonSource(id: _worldSource, data: worldJson));
+
+      //debugPrint("🌍 [LOG] 월드 Layer 추가 중...");
+      await style.addLayer(FillLayer(id: _worldFill, sourceId: _worldSource));
+
+      final layers = await style.getStyleLayers();
+      String? topmostRoadId;
+      String? hillshadeId;
+      for (var l in layers) {
+        if (l == null) continue;
+        if (l.id.contains('road') || l.id.contains('admin'))
+          topmostRoadId = l.id;
+        if (l.id.contains('hillshade') || l.id.contains('terrain'))
+          hillshadeId = l.id;
       }
 
-      if (!(await style.styleLayerExists(_worldFill))) {
-        await style.addLayer(FillLayer(id: _worldFill, sourceId: _worldSource));
-
-        // 🎯 징그러운 도로 선은 가리고, 입체적인 굴곡(Hillshade)은 위로 올립니다.
-        final layers = await style.getStyleLayers();
-        String? topmostRoadId;
-        String? hillshadeId;
-        for (var l in layers) {
-          if (l == null) continue;
-          if (l.id.contains('road') || l.id.contains('admin'))
-            topmostRoadId = l.id;
-          if (l.id.contains('hillshade') || l.id.contains('terrain'))
-            hillshadeId = l.id;
-        }
-
-        if (topmostRoadId != null) {
-          await style.moveStyleLayer(
-            _worldFill,
-            LayerPosition(above: topmostRoadId),
-          );
-        }
-        if (hillshadeId != null) {
-          await style.moveStyleLayer(
-            hillshadeId,
-            LayerPosition(above: _worldFill),
-          );
-        }
-        if (await style.styleLayerExists('country-label')) {
-          await style.moveStyleLayer(
-            'country-label',
-            LayerPosition(above: hillshadeId ?? _worldFill),
-          );
-        }
+      if (topmostRoadId != null)
+        await style.moveStyleLayer(
+          _worldFill,
+          LayerPosition(above: topmostRoadId),
+        );
+      if (hillshadeId != null)
+        await style.moveStyleLayer(
+          hillshadeId,
+          LayerPosition(above: _worldFill),
+        );
+      if (await style.styleLayerExists('country-label')) {
+        await style.moveStyleLayer(
+          'country-label',
+          LayerPosition(above: hillshadeId ?? _worldFill),
+        );
       }
 
+      // 🎯 필터 설정 (여기가 위험 구간 1)
       final worldFilterExpr = [
         'any',
         [
@@ -302,8 +316,10 @@ class GlobalMapPageState extends State<GlobalMapPage>
           ['literal', visitedCountries.toList()],
         ],
       ];
+      //debugPrint("⚙️ [LOG] _worldFill 필터 설정: $worldFilterExpr");
       await style.setStyleLayerProperty(_worldFill, 'filter', worldFilterExpr);
 
+      // 🎯 색상 설정 (여기가 위험 구간 2)
       final List<dynamic> worldColorExpr = ['case'];
       final bool hasUsAccess = _hasAccess('US');
 
@@ -369,39 +385,46 @@ class GlobalMapPageState extends State<GlobalMapPage>
         activeHex,
       ]);
 
+      //debugPrint("🎨 [LOG] _worldFill 색상 설정: $worldColorExpr");
       await style.setStyleLayerProperty(
         _worldFill,
         'fill-color',
         worldColorExpr,
       );
 
-      final List<dynamic> worldOpacityExpr = ['case'];
-      if (hasUsAccess) {
-        worldOpacityExpr.add([
-          'any',
-          [
-            '==',
-            ['get', 'ISO_A2'],
-            'US',
-          ],
-          [
-            '==',
-            ['get', 'iso_a2'],
-            'US',
-          ],
-        ]);
-        worldOpacityExpr.add(0.25);
-      }
-      worldOpacityExpr.add(0.8);
+      // 🎯 투명도 설정
+      final dynamic worldOpacityExpr = hasUsAccess
+          ? [
+              'case',
+              [
+                'any',
+                [
+                  '==',
+                  ['get', 'ISO_A2'],
+                  'US',
+                ],
+                [
+                  '==',
+                  ['get', 'iso_a2'],
+                  'US',
+                ],
+              ],
+              0.25, // 미국용 투명도
+              0.7, // 기본 투명도
+            ]
+          : 0.7; // 미국 권한 없으면 case 없이 숫자만 전달
 
+      //debugPrint("🎨 [LOG] _worldFill 투명도 설정 (수정): $worldOpacityExpr");
       await style.setStyleLayerProperty(
         _worldFill,
         'fill-opacity',
         worldOpacityExpr,
       );
 
+      // 서브맵(상세 지도) 그리기
       for (var config in _supportedDetailedMaps) {
         if (_hasAccess(config.countryCode)) {
+          //debugPrint("🗺️ [LOG] 상세 지도 로드 시도: ${config.countryCode}");
           await Future.delayed(const Duration(milliseconds: 50));
           await _drawSubMap(
             style,
@@ -414,7 +437,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
         }
       }
     } catch (e) {
-      debugPrint("⚠️ _drawAll 에러: $e");
+      debugPrint("❌ [FATAL ERROR] _drawAll 에러 발생: $e");
     }
   }
 
@@ -427,47 +450,29 @@ class GlobalMapPageState extends State<GlobalMapPage>
     String activeHex,
   ) async {
     try {
+      //debugPrint("🖌️ [LOG] _drawSubMap 시작: ${config.countryCode}");
       final json = await rootBundle.loadString(config.geoJsonPath);
       await _rm(style, config.layerId, config.sourceId);
-      if (!(await style.styleSourceExists(config.sourceId))) {
-        await style.addSource(GeoJsonSource(id: config.sourceId, data: json));
-      }
-      if (!(await style.styleLayerExists(config.layerId))) {
-        await style.addLayer(
-          FillLayer(id: config.layerId, sourceId: config.sourceId),
-        );
-      }
 
-      final layers = await style.getStyleLayers();
-      String? topmostRoadId;
-      String? hillshadeId;
-      for (var l in layers) {
-        if (l != null && (l.id.contains('road') || l.id.contains('admin')))
-          topmostRoadId = l.id;
-        if (l != null &&
-            (l.id.contains('hillshade') || l.id.contains('terrain')))
-          hillshadeId = l.id;
-      }
-      if (topmostRoadId != null)
-        await style.moveStyleLayer(
-          config.layerId,
-          LayerPosition(above: topmostRoadId),
-        );
-      if (hillshadeId != null)
-        await style.moveStyleLayer(
-          hillshadeId,
-          LayerPosition(above: config.layerId),
-        );
+      await style.addSource(GeoJsonSource(id: config.sourceId, data: json));
+      await style.addLayer(
+        FillLayer(id: config.layerId, sourceId: config.sourceId),
+      );
 
-      await style.setStyleLayerProperty(config.layerId, 'filter', [
+      // 필터 설정 (위험 구간 3)
+      final subFilter = [
         'in',
         [
           'upcase',
           ['get', 'NAME'],
         ],
         ['literal', visited.toList()],
-      ]);
-      await style.setStyleLayerProperty(config.layerId, 'fill-color', [
+      ];
+      //debugPrint("⚙️ [LOG] ${config.layerId} 필터 설정: $subFilter");
+      await style.setStyleLayerProperty(config.layerId, 'filter', subFilter);
+
+      // 색상 설정 (위험 구간 4)
+      final subColor = [
         'case',
         [
           'in',
@@ -479,7 +484,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
         ],
         doneHex,
         activeHex,
-      ]);
+      ];
+      //debugPrint("🎨 [LOG] ${config.layerId} 색상 설정: $subColor");
+      await style.setStyleLayerProperty(config.layerId, 'fill-color', subColor);
 
       if (config.countryCode == 'US') {
         await style.setStyleLayerProperty(config.layerId, 'fill-opacity', [
@@ -492,20 +499,23 @@ class GlobalMapPageState extends State<GlobalMapPage>
             ],
             ['literal', completed.toList()],
           ],
-          0.8,
+          0.7,
           0.3,
         ]);
       } else {
-        await style.setStyleLayerProperty(config.layerId, 'fill-opacity', 0.8);
+        await style.setStyleLayerProperty(config.layerId, 'fill-opacity', 0.7);
       }
     } catch (e) {
-      debugPrint('❌ Error drawing ${config.countryCode}: $e');
+      debugPrint('❌ [ERROR] _drawSubMap ${config.countryCode} 실패: $e');
     }
   }
 
   Future<void> _onMapTap(MapContentGestureContext ctx) async {
     if (_map == null) return;
+    //debugPrint("🖱️ [LOG] Map Tap 감지: ${ctx.point.coordinates}");
     final screen = await _map!.pixelForCoordinate(ctx.point);
+
+    // 상세 지도 레이어 확인
     for (var config in _supportedDetailedMaps) {
       if (_hasAccess(config.countryCode)) {
         final features = await _map!.queryRenderedFeatures(
@@ -516,6 +526,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
           final props =
               features.first?.queriedFeature.feature['properties'] as Map?;
           final regionName = (props?['NAME'] ?? props?['name'])?.toString();
+          //debugPrint("📍 [LOG] 서브맵 히트: $regionName (${config.countryCode})");
           if (regionName != null) {
             _showPopup(
               countryCode: config.countryCode,
@@ -526,36 +537,38 @@ class GlobalMapPageState extends State<GlobalMapPage>
         }
       }
     }
+
+    // 월드맵 레이어 확인
     final world = await _map!.queryRenderedFeatures(
       RenderedQueryGeometry.fromScreenCoordinate(screen),
       RenderedQueryOptions(layerIds: [_worldFill]),
     );
-    if (world.isEmpty) return;
+    if (world.isEmpty) {
+      //debugPrint("ℹ️ [LOG] 빈 영역 클릭");
+      return;
+    }
+
     final props = world.first?.queriedFeature.feature['properties'] as Map?;
-    // 🎯 [핵심 수정] 코소보(Kosovo) 예외 처리 추가
-    // 맵박스 데이터에 따라 name에 'Kosovo'가 포함되어 있는지 먼저 확인
     final String? rawName =
         props?['name']?.toString() ?? props?['NAME']?.toString();
     String? code = (props?['ISO_A2'] ?? props?['iso_a2'] ?? props?['ISO_A2_EH'])
         ?.toString()
         .toUpperCase();
 
-    // 🚨 코드값이 없거나 RS(세르비아)로 잡히는데 이름이 코소보라면 XK로 강제 지정
     if (rawName != null && rawName.contains('Kosovo')) {
       code = 'XK';
     }
 
+    //debugPrint("📍 [LOG] 월드맵 히트: $rawName (Code: $code)");
     if (code != null) {
       final isKo = context.locale.languageCode == 'ko';
-      // 🎯 코소보일 경우 한글/영어 이름 직접 지정 (번역 파일 연동)
       String name =
           (isKo
                   ? (props?['NAME_KO'] ?? props?['NAME'] ?? '코소보')
                   : (props?['NAME'] ?? props?['NAME_KO'] ?? 'Kosovo'))
               .toString();
 
-      if (code == 'XK') name = 'kosovo'.tr(); // tr()에 'kosovo' 키가 있어야 함
-
+      if (code == 'XK') name = 'kosovo'.tr();
       _showPopup(countryCode: code, regionName: name);
     }
   }
@@ -564,8 +577,10 @@ class GlobalMapPageState extends State<GlobalMapPage>
     required String countryCode,
     required String regionName,
   }) async {
+    //debugPrint("🖼️ [LOG] 팝업 호출: $countryCode / $regionName");
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
     bool isDetailed = _hasAccess(countryCode);
     var query = Supabase.instance.client
         .from('travels')
@@ -574,18 +589,24 @@ class GlobalMapPageState extends State<GlobalMapPage>
         .eq('country_code', countryCode)
         .eq('is_completed', true);
     if (isDetailed) query = query.eq('region_name', regionName);
+
     final List<dynamic> results = await query
         .order('created_at', ascending: false)
         .limit(1);
-    if (results.isEmpty) return;
+    if (results.isEmpty) {
+      //debugPrint("ℹ️ [LOG] 표시할 데이터 없음");
+      return;
+    }
+
     final res = results.first;
-    // 🎯 [수정 부분] 별표(**) 제거 및 공백 정리 로직 추가
     final String rawSummary = (res['ai_cover_summary'] ?? '').toString();
     final String cleanedSummary = rawSummary.replaceAll('**', '').trim();
     final rawPath = res['map_image_url']?.toString() ?? '';
+
     String finalUrl = (countryCode == 'US' && _hasAccess('US'))
         ? StorageUrls.usaMapFromPath(rawPath)
         : StorageUrls.globalMapFromPath('${countryCode.toUpperCase()}.png');
+
     if (!mounted) return;
     showGeneralDialog(
       context: context,
@@ -612,6 +633,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
     final lang = context.locale.languageCode;
     final style = map.style;
     try {
+      //debugPrint("🗣️ [LOG] 라벨 로컬라이징 중... ($lang)");
       final layers = await style.getStyleLayers();
       for (var l in layers) {
         if (l != null && (l.id.contains('label') || l.id.contains('place'))) {
@@ -619,11 +641,12 @@ class GlobalMapPageState extends State<GlobalMapPage>
             'get',
             'name_$lang',
           ]);
-          // 🎯 지명이 배경에 묻히도록 투명도를 조절합니다.
           await style.setStyleLayerProperty(l.id, 'text-opacity', 0.4);
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("⚠️ [ERROR] _localizeLabels 실패: $e");
+    }
   }
 
   Future<void> _focusOnLastTravel() async {
@@ -635,7 +658,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
           .select('region_lat, region_lng, country_lat, country_lng')
           .eq('user_id', user.id)
           .order('end_date', ascending: false)
-          .order('created_at', ascending: false) // 🔥 이 줄을 추가하세요!
+          .order('created_at', ascending: false)
           .limit(1)
           .maybeSingle();
 
@@ -650,11 +673,11 @@ class GlobalMapPageState extends State<GlobalMapPage>
                 ?.toDouble();
 
         if (lat != null && lng != null) {
+          //debugPrint("📍 [LOG] 카메라 포커스 이동 타겟: $lat, $lng");
           double focusZoom = 3.5;
           if (lat < -60) focusZoom = 0.5;
 
           if (widget.animateFocus) {
-            // 🎯 [이동 연출] '슥~' 하고 부드럽게 활주하며 이동
             await _map!.flyTo(
               CameraOptions(
                 center: Point(coordinates: Position(lng, lat)),
@@ -663,7 +686,6 @@ class GlobalMapPageState extends State<GlobalMapPage>
               MapAnimationOptions(duration: 2500),
             );
           } else {
-            // 🎯 [순간 이동] 메인 화면 등에서 즉시 위치를 잡음
             await _map!.setCamera(
               CameraOptions(
                 center: Point(coordinates: Position(lng, lat)),
@@ -674,16 +696,22 @@ class GlobalMapPageState extends State<GlobalMapPage>
         }
       }
     } catch (e) {
-      debugPrint("⚠️ _focusOnLastTravel Error: $e");
+      debugPrint("⚠️ [ERROR] _focusOnLastTravel 실패: $e");
     }
   }
 
   Future<void> _rm(StyleManager s, String layer, String source) async {
     try {
-      if (await s.styleLayerExists(layer)) await s.removeStyleLayer(layer);
+      if (await s.styleLayerExists(layer)) {
+        //debugPrint("🗑️ [LOG] 기존 레이어 삭제: $layer");
+        await s.removeStyleLayer(layer);
+      }
     } catch (_) {}
     try {
-      if (await s.styleSourceExists(source)) await s.removeStyleSource(source);
+      if (await s.styleSourceExists(source)) {
+        //debugPrint("🗑️ [LOG] 기존 소스 삭제: $source");
+        await s.removeStyleSource(source);
+      }
     } catch (_) {}
   }
 }

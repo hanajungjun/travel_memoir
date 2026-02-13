@@ -28,17 +28,23 @@ class CountryService {
       final List<CountryModel> filteredCountries = decoded
           .map<CountryModel>((e) {
             final model = CountryModel.fromJson(e);
+            final String code = model.code.toUpperCase();
 
-            // 🎯 [북한 이름 예외 처리]
-            if (model.code.toUpperCase() == 'KP') {
-              // nameKo가 final이라서 수정을 못 하니,
-              // 아예 JSON 데이터 자체를 가공해서 다시 Model을 만들어버림
+            // 🎯 [특수 국가 이름 예외 처리]
+            if (code == 'KP' || code == 'TR') {
               final Map<String, dynamic> customJson = Map.from(e);
 
-              // API 원본의 한국어 번역 섹션을 강제로 덮어쓰기
               if (customJson['translations'] != null &&
                   customJson['translations']['kor'] != null) {
-                customJson['translations']['kor']['common'] = "북한(DPRK)";
+                if (code == 'KP') {
+                  customJson['translations']['kor']['common'] = "북한(DPRK)";
+                }
+                // 🇹🇷 터키 -> 튀르키예 강제 치환
+                else if (code == 'TR') {
+                  customJson['translations']['kor']['common'] = "튀르키예";
+                  // 필요하다면 영어 이름도 여기서 바꿀 수 있습니다.
+                  customJson['name']['common'] = "Türkiye";
+                }
               }
 
               return CountryModel.fromJson(customJson);

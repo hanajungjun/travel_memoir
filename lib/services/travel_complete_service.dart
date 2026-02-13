@@ -114,8 +114,15 @@ class TravelCompleteService {
 
       // 💡 미국 여행 강조 (GeminiService에 전달하기 전 맥락 보강)
       String finalPlaceForAi = placeName;
+      String regionName = travel['region_name'];
+
+      // debugPrint('[regionName] : $regionName');
+
       if (travelType == 'usa') {
         finalPlaceForAi = "$placeName, a state in the United States Of America";
+      } else if (travelType == 'domestic') {
+        //finalPlaceForAi = "$placeName, South Korea";
+        finalPlaceForAi = "$placeName($regionName), South Korea";
       }
 
       // 3️⃣ AI 커버 생성 + 업로드

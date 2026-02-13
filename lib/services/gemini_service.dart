@@ -167,6 +167,8 @@ class GeminiService {
     String placeName = getPlaceName;
     if (travelType == 'usa') {
       placeName = "$getPlaceName, a state in the United States Of America";
+    } else if (travelType == 'domestic') {
+      placeName = "$getPlaceName, South Korea";
     }
 
     // 1️⃣ 'Infographic' 단어 제거 -> 'Mural Illustration'으로 교체 (배너 방지)

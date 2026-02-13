@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
-// ✅ 기존 탭 임포트
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/domestic_summary_tab.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/overseas_summary_tab.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/usa_summary_tab.dart';
-
-// ✅ 지도 관리 페이지 임포트 (목록 갱신 테스트용)
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
 class MyTravelSummaryPage extends StatefulWidget {
@@ -30,15 +28,37 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
     super.initState();
     final currentUser = Supabase.instance.client.auth.currentUser;
     _userId = currentUser?.id;
-
-    // 🎯 초기 데이터 로드
     _loadActiveMaps();
   }
 
-  /// ✅ Supabase에서 구매한 지도 목록 가져오기
+  /// 🗺️ 현재 선택된 코드에 따른 아이콘 경로 반환
+  String _getAppBarIconPath() {
+    switch (_selectedCountryCode) {
+      case 'KOREA':
+        return 'assets/icons/ico_Local.svg';
+      case 'USA':
+        return 'assets/icons/ico_State.svg';
+      case 'WORLD':
+      default:
+        return 'assets/icons/ico_Abroad.svg';
+    }
+  }
+
+  /// 🎨 현재 선택된 코드에 따른 테마 색상 반환
+  Color _getAppBarIconColor() {
+    switch (_selectedCountryCode) {
+      case 'KOREA':
+        return const Color(0xFF3498DB); // Blue
+      case 'USA':
+        return const Color(0xFFE74C3C); // Red
+      case 'WORLD':
+      default:
+        return const Color(0xFF6C5CE7); // Purple
+    }
+  }
+
   Future<void> _loadActiveMaps() async {
     if (_userId == null) return;
-
     try {
       final res = await Supabase.instance.client
           .from('users')
@@ -58,7 +78,6 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
     }
   }
 
-  /// 🗺️ 통합 지도 선택 바텀 시트 (구매 필터링 적용)
   void _showCountryPicker() {
     showModalBottomSheet(
       context: context,
@@ -80,22 +99,40 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
               ),
               const SizedBox(height: 16),
               const Divider(height: 1),
-
-              // 🌍 기본 지도 (항상 노출)
-              _buildCountryItem('WORLD', 'world', Icons.public),
-              _buildCountryItem('KOREA', 'korea', Icons.map_outlined),
-
-              // 🎯 구매한 지도만 리스트에 추가
+              _buildCountryItem(
+                'WORLD',
+                'world',
+                'assets/icons/ico_Abroad.svg',
+                const Color(0xFF6C5CE7),
+              ),
+              _buildCountryItem(
+                'KOREA',
+                'korea',
+                'assets/icons/ico_Local.svg',
+                const Color(0xFF3498DB),
+              ),
               if (_activeMaps.contains('us'))
-                _buildCountryItem('USA', 'usa', Icons.map_outlined),
+                _buildCountryItem(
+                  'USA',
+                  'usa',
+                  'assets/icons/ico_State.svg',
+                  const Color(0xFFE74C3C),
+                ),
               if (_activeMaps.contains('jp'))
-                _buildCountryItem('JAPAN', 'japan', Icons.map_outlined),
+                _buildCountryItem(
+                  'JAPAN',
+                  'japan',
+                  'assets/icons/ico_Local.svg',
+                  Colors.teal,
+                ),
               if (_activeMaps.contains('it'))
-                _buildCountryItem('ITALY', 'italy', Icons.map_outlined),
-
+                _buildCountryItem(
+                  'ITALY',
+                  'italy',
+                  'assets/icons/ico_Local.svg',
+                  Colors.teal,
+                ),
               const SizedBox(height: 12),
-
-              // 💡 지도가 더 필요할 때 바로 갈 수 있는 버튼 (선택사항)
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
@@ -104,7 +141,7 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
                     MaterialPageRoute(
                       builder: (_) => const MapManagementPage(),
                     ),
-                  ).then((_) => _loadActiveMaps()); // 돌아오면 목록 새로고침
+                  ).then((_) => _loadActiveMaps());
                 },
                 child: Text(
                   'get_more_maps'.tr(),
@@ -118,16 +155,28 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
     );
   }
 
-  Widget _buildCountryItem(String code, String nameKey, IconData icon) {
+  Widget _buildCountryItem(
+    String code,
+    String nameKey,
+    String iconPath,
+    Color iconColor,
+  ) {
     final bool isSelected = _selectedCountryCode == code;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 24),
-      leading: Icon(icon, color: isSelected ? Colors.black : Colors.grey),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+      leading: SvgPicture.asset(
+        iconPath,
+        width: 24,
+        height: 24,
+        // ignore: deprecated_member_use
+        color: isSelected ? iconColor : Colors.grey.withOpacity(0.5),
+      ),
       title: Text(
         nameKey.tr(),
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           color: isSelected ? Colors.black : Colors.black87,
+          fontSize: 16,
         ),
       ),
       trailing: isSelected
@@ -165,7 +214,14 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.map_outlined, size: 26),
+            // 🎯 현재 선택된 지도에 맞춰 아이콘과 색상이 바뀝니다.
+            icon: SvgPicture.asset(
+              _getAppBarIconPath(),
+              width: 24,
+              height: 24,
+              // ignore: deprecated_member_use
+              color: _getAppBarIconColor(),
+            ),
             onPressed: _showCountryPicker,
             tooltip: 'change_map'.tr(),
           ),
