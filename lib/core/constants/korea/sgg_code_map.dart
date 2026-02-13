@@ -113,21 +113,21 @@ class SggCodeMap {
     // =====================
     // 🔹 전라북도 (JEONBUK)
     // =====================
-    'KR_JB_JEONJU': (type: 'city', sidoCd: '45', sggCd: '45110'),
-    'KR_JB_GUNSAN': (type: 'city', sidoCd: '45', sggCd: '45130'),
-    'KR_JB_IKSAN': (type: 'city', sidoCd: '45', sggCd: '45140'),
-    'KR_JB_JEONGEUP': (type: 'city', sidoCd: '45', sggCd: '45180'),
-    'KR_JB_NAMWON': (type: 'city', sidoCd: '45', sggCd: '45190'),
-    'KR_JB_GIMJE': (type: 'city', sidoCd: '45', sggCd: '45210'),
+    'KR_JB_JEONJU': (type: 'city', sidoCd: '52', sggCd: '52110'),
+    'KR_JB_GUNSAN': (type: 'city', sidoCd: '52', sggCd: '52130'),
+    'KR_JB_IKSAN': (type: 'city', sidoCd: '52', sggCd: '52140'),
+    'KR_JB_JEONGEUP': (type: 'city', sidoCd: '52', sggCd: '52180'),
+    'KR_JB_NAMWON': (type: 'city', sidoCd: '52', sggCd: '52190'),
+    'KR_JB_GIMJE': (type: 'city', sidoCd: '52', sggCd: '52210'),
 
-    'KR_JB_WANJU': (type: 'city', sidoCd: '45', sggCd: '45710'),
-    'KR_JB_JINAN': (type: 'city', sidoCd: '45', sggCd: '45720'),
-    'KR_JB_MUJU': (type: 'city', sidoCd: '45', sggCd: '45730'),
-    'KR_JB_JANGSU': (type: 'city', sidoCd: '45', sggCd: '45740'),
-    'KR_JB_IMSIL': (type: 'city', sidoCd: '45', sggCd: '45750'),
-    'KR_JB_SUNCHANG': (type: 'city', sidoCd: '45', sggCd: '45770'),
-    'KR_JB_GOCHANG': (type: 'city', sidoCd: '45', sggCd: '45790'),
-    'KR_JB_BUAN': (type: 'city', sidoCd: '45', sggCd: '45800'),
+    'KR_JB_WANJU': (type: 'city', sidoCd: '52', sggCd: '52710'),
+    'KR_JB_JINAN': (type: 'city', sidoCd: '52', sggCd: '52720'),
+    'KR_JB_MUJU': (type: 'city', sidoCd: '52', sggCd: '52730'),
+    'KR_JB_JANGSU': (type: 'city', sidoCd: '52', sggCd: '52740'),
+    'KR_JB_IMSIL': (type: 'city', sidoCd: '52', sggCd: '52750'),
+    'KR_JB_SUNCHANG': (type: 'city', sidoCd: '52', sggCd: '52770'),
+    'KR_JB_GOCHANG': (type: 'city', sidoCd: '52', sggCd: '52790'),
+    'KR_JB_BUAN': (type: 'city', sidoCd: '52', sggCd: '52800'),
 
     // =====================
     // 🔹 전라남도 (JEONNAM)

@@ -203,7 +203,10 @@ class DomesticMapPageState extends State<DomesticMapPage>
       for (final t in travels) {
         final regId = t['region_id']?.toString() ?? '';
         final codeInfo = SggCodeMap.fromRegionId(regId);
-
+        // 🔍 로그 추가: 변환된 SGG_CD 확인
+        debugPrint(
+          '⚙️ [MAP_DEBUG] region_id: $regId -> sggCd: ${codeInfo.sggCd}',
+        );
         if (codeInfo.sggCd != null) {
           final sgg = codeInfo.sggCd!;
           allSgg.add(sgg);
@@ -216,6 +219,10 @@ class DomesticMapPageState extends State<DomesticMapPage>
           }
         }
       }
+
+      // 🔍 로그 추가: 최종적으로 맵에 그릴 코드 목록 확인
+      debugPrint('🎨 [MAP_DEBUG] 최종 그릴 SGG 목록: $allSgg');
+      debugPrint('✅ [MAP_DEBUG] 완료된 SGG 목록: $completedSgg');
 
       final rawSig = await rootBundle.loadString(_sigGeoJson);
       await _rmLayer(style, _visitedSigLayer);
