@@ -17,9 +17,42 @@ class RecordTabPage extends StatefulWidget {
   State<RecordTabPage> createState() => _RecordTabPageState();
 }
 
-class _RecordTabPageState extends State<RecordTabPage> {
-  // 🎯 로직 유지: 컨트롤러는 필요에 따라 유지하거나 제거해도 무방합니다.
+class _RecordTabPageState extends State<RecordTabPage>
+    with WidgetsBindingObserver {
+  // 👈 추가
   final _supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> _lastKnownTravels = [];
+  Stream<List<Map<String, dynamic>>>? _stream; // 👈 추가
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this); // 👈 추가
+    _initStream(); // 👈 추가
+  }
+
+  void _initStream() {
+    _stream = _supabase
+        .from('travels')
+        .stream(primaryKey: ['id'])
+        .order('end_date', ascending: false);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 👇 포그라운드 복귀 시 스트림 재생성
+    if (state == AppLifecycleState.resumed) {
+      setState(() {
+        _initStream();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // 👈 추가
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,10 +73,7 @@ class _RecordTabPageState extends State<RecordTabPage> {
           bottom: false,
           child: StreamBuilder<List<Map<String, dynamic>>>(
             key: ValueKey(currentLocale),
-            stream: _supabase
-                .from('travels')
-                .stream(primaryKey: ['id'])
-                .order('end_date', ascending: false),
+            stream: _stream,
             builder: (context, snapshot) {
               // 1️⃣ [디버깅] 실제 스트림으로 들어오는 원본 데이터 개수를 확인해봐
               if (snapshot.hasData) {
@@ -57,11 +87,22 @@ class _RecordTabPageState extends State<RecordTabPage> {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // 1️⃣ [수정] 완료된 여행만 필터링
               final rawData = snapshot.data ?? [];
-              final travels = rawData
+              final freshTravels = rawData
                   .where((t) => t['is_completed'] == true)
                   .toList();
+
+              if (snapshot.hasData) {
+                if (freshTravels.isNotEmpty) {
+                  _lastKnownTravels = freshTravels;
+                } else {
+                  // 🎯 새 데이터가 들어왔는데 필터링 결과가 0개라면,
+                  // 로딩 중이 아니라 '진짜 0개'인 상태이므로 캐시를 비워줌
+                  _lastKnownTravels = [];
+                }
+              }
+
+              final travels = _lastKnownTravels;
 
               // 2️⃣ [핵심] 완료된 여행이 하나도 없다면 "기록 없음" 표시
               if (travels.isEmpty) {
@@ -527,9 +568,10 @@ class BottomLabel extends StatelessWidget {
               )
             : BoxDecoration(color: Colors.black.withOpacity(0.4)),
         child: Text(
-          text,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
+          // 🎯 별표(**)를 제거하여 깔끔한 텍스트만 노출
+          text.replaceAll('**', '').trim(),
+          maxLines: 1, // 🎯 3에서 1로 변경: 딱 한 줄만 나오게 함
+          overflow: TextOverflow.ellipsis, // 🎯 한 줄 넘어가면 자동으로 '...' 처리
           style: const TextStyle(
             color: Colors.white,
             fontSize: 14,

@@ -42,7 +42,7 @@ class TravelHighlightService {
 - 감정 위주로, 감성적인 문체 사용
 - 제목처럼 간결하게
 - 반드시 한국어로 답변하세요.
-
+- **와 같은 마크다운 강조 기호를 절대 사용하지 마세요. (순수 텍스트만 출력)
 여행지: $placeName
 일기 내용:
 $diaryList
@@ -56,10 +56,10 @@ $diaryList
 この旅行を代表하는「感情中心の一文」に要約してください。
 - 必ず日本語で回答してください。
 - 1文で作成すること。
-
+- [厳格] ** や # などのマークダウン記号、および特殊文字は一切「使用しない」こと。(純粋なテキストのみを出力)
 目的地: $placeName
 日記の内容:
-$diaryList
+$diaryList 
 ''';
         break;
 
@@ -75,7 +75,7 @@ Conditions:
 - Use a poetic or emotional tone.
 - Concise, like a title.
 - [IMPORTANT] Must respond in English.
-
+- [STRICT] Do not use any markdown formatting or special characters (e.g., **, #, _, *).
 Destination: $placeName
 Diaries:
 $diaryList

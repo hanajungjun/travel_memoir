@@ -108,6 +108,30 @@ class _MyPageState extends State<MyPage> with RouteAware {
     });
   }
 
+  // 1. 하드코딩된 테스트 팝업 메서드
+  void _showTestRewardPopup() {
+    // 🎯 디자인 수정을 위해 여기에 직접 문구와 수치를 넣으세요.
+    const String testTitle = "데일리 보상 도착!"; // title_ko 역할
+    const String testNormalAmount = "5";
+    const String testVipAmount = "10";
+
+    // 홈 화면의 desc 치환 로직을 미리 적용한 문구
+    String testDesc =
+        "오늘의 접속 보상으로 스탬프 $testNormalAmount개가 지급되었습니다.\nVIP 멤버십 혜택으로 $testVipAmount개가 추가되었습니다!";
+
+    AppDialogs.showDynamicIconAlert(
+      context: context,
+      title: testTitle,
+      message: testDesc,
+      icon: Icons.workspace_premium, // VIP 아이콘 테스트용
+      iconColor: Colors.amber, // 금색 테스트
+      barrierDismissible: true, // 닫기 편하게 설정
+      onClose: () {
+        debugPrint("팝업 닫힘");
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> _getProfileData() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -415,17 +439,20 @@ class _MyPageState extends State<MyPage> with RouteAware {
                           _refreshPage();
                         },
                       ),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFF0F0F0)),
-                        ),
-                        child: Center(
-                          child: Lottie.asset(
-                            'assets/lottie/Earth globe rotating with Seamless loop animation.json',
-                            fit: BoxFit.contain,
+                      GestureDetector(
+                        onTap: _showTestRewardPopup, // 🎯 이제 누를 때마다 즉시 뜹니다!
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: const Color(0xFFF0F0F0)),
+                          ),
+                          child: Center(
+                            child: Lottie.asset(
+                              'assets/lottie/Earth globe rotating with Seamless loop animation.json',
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
                       ),
