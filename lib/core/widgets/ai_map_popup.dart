@@ -53,7 +53,7 @@ class AiMapPopup extends StatelessWidget {
                 Text(
                   'travel_record_with_region'.tr(args: [regionName]),
                   style: const TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Color(0xFF6D4C41),
                     fontFamily: 'Cafe24',
@@ -64,7 +64,7 @@ class AiMapPopup extends StatelessWidget {
                   "\"$summary\"",
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontStyle: FontStyle.italic,
                     color: Color(0xFF8D6E63),
                     height: 1.4,
