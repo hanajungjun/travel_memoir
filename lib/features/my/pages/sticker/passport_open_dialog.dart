@@ -84,10 +84,15 @@ class _PassportOpeningDialogState extends State<PassportOpeningDialog>
 
   Widget _buildCoverFront() {
     return Container(
+      // 🎯 width/height를 지정하지 않아도 부모가 주는 크기를 꽉 채우도록 설정
+      width: double.infinity,
+      height: double.infinity,
       decoration: BoxDecoration(
         image: const DecorationImage(
           image: AssetImage('assets/images/passport_cover_front.png'),
-          fit: BoxFit.cover,
+          // 🎯 BoxFit.fill은 이미지 비율과 상관없이 컨테이너를 무조건 꽉 채웁니다.
+          // 만약 이미지가 잘려도 비율 유지가 중요하다면 BoxFit.cover를 유지하세요.
+          fit: BoxFit.fill,
         ),
         borderRadius: const BorderRadius.only(
           topRight: Radius.circular(15),

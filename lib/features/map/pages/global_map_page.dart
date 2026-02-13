@@ -579,6 +579,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
         .limit(1);
     if (results.isEmpty) return;
     final res = results.first;
+    // 🎯 [수정 부분] 별표(**) 제거 및 공백 정리 로직 추가
+    final String rawSummary = (res['ai_cover_summary'] ?? '').toString();
+    final String cleanedSummary = rawSummary.replaceAll('**', '').trim();
     final rawPath = res['map_image_url']?.toString() ?? '';
     String finalUrl = (countryCode == 'US' && _hasAccess('US'))
         ? StorageUrls.usaMapFromPath(rawPath)
@@ -595,7 +598,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
         child: AiMapPopup(
           imageUrl: finalUrl,
           regionName: regionName.tr(),
-          summary: res['ai_cover_summary'] ?? '',
+          summary: cleanedSummary.isEmpty
+              ? 'no_memories_recorded'.tr()
+              : cleanedSummary,
         ),
       ),
     );
