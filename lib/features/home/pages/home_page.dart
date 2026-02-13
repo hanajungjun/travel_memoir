@@ -173,7 +173,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
       body: Column(
         children: [
           HomeTravelStatusHeader(
-            key: ValueKey('header-$_refreshKey'), // 이건 이미 잘 넣으셨습니다!
+            // key: ValueKey('header-$_refreshKey'), // 이건 이미 잘 넣으셨습니다!
             onGoToTravel: () async {
               // 🎯 [수정] 이동할 때 await를 붙이고, 돌아오면 새로고침 함수를 호출합니다.
               await Navigator.push(

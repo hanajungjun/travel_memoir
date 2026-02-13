@@ -23,76 +23,48 @@ class HomeTravelStatusHeader extends StatefulWidget {
 }
 
 class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
-  // ✅ 여행 데이터와 스탬프 데이터를 동시에 관리하기 위해 Future 타입을 수정합니다.
-  late Future<List<dynamic>> _headerDataFuture;
   final StampService _stampService = StampService();
+
+  // 👇 핵심: 이전 데이터를 캐싱
+  Map<String, dynamic>? _cachedTravel;
+  Map<String, dynamic>? _cachedStampData;
+  bool _isFirstLoad = true; // 최초 로딩 여부
 
   @override
   void initState() {
     super.initState();
-    _headerDataFuture = _loadHeaderData();
+    _loadData();
   }
 
-  // ✅ 여행 정보와 스탬프 정보를 한 번에 가져오는 묶음 함수
-  Future<List<dynamic>> _loadHeaderData() async {
+  // 👇 key 변경 시(부모가 refresh 요청 시) 재호출되도록
+  @override
+  void didUpdateWidget(HomeTravelStatusHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
-    return Future.wait([
+    final results = await Future.wait([
       TravelService.getTodayTravel(),
       _stampService.getStampData(userId),
     ]);
+
+    if (!mounted) return;
+    setState(() {
+      _cachedTravel = results[0] as Map<String, dynamic>?;
+      _cachedStampData = results[1] as Map<String, dynamic>?;
+      _isFirstLoad = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<dynamic>>(
-      future: _loadHeaderData(), // 👈 여기서 직접 함수를 호출해서 새 Future를 만드세요!
-      builder: (context, snapshot) {
-        // 데이터 구조 분해
-        final travel = snapshot.data?[0] as Map<String, dynamic>?;
-        final stampData = snapshot.data?[1] as Map<String, dynamic>?;
-
-        // ✅ [VIP 로그 출력] 대표님 요청대로 vip_stamps를 로그로 찍습니다.
-        if (stampData != null) {
-          debugPrint(
-            "🎫 [Header Stamp Log] Daily: ${stampData['daily_stamps']}, VIP: ${stampData['vip_stamps']}, Paid: ${stampData['paid_stamps']}, IS_VIP: ${stampData['is_vip']}",
-          );
-        }
-
-        final isTraveling = travel != null;
-        final type = travel?['travel_type'] ?? '';
-
-        // ✅ [수정] 배경색 로직: 미국(usa) 케이스 명시적 추가
-        Color bgColor;
-        if (!isTraveling) {
-          bgColor = AppColors.travelReadyGray;
-        } else if (type == 'domestic') {
-          bgColor = AppColors.travelingBlue;
-        } else if (type == 'usa') {
-          // 미국 여행 시 사용할 배경색 (현재는 Purple 유지, 필요시 변경 가능)
-          bgColor = AppColors.travelingRed;
-        } else {
-          // 그 외 일반 해외 여행
-          bgColor = AppColors.travelingPurple;
-        }
-
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: _buildAnimatedContent(snapshot, travel, stampData, bgColor),
-        );
-      },
-    );
-  }
-
-  Widget _buildAnimatedContent(
-    AsyncSnapshot<List<dynamic>> snapshot,
-    Map<String, dynamic>? travel,
-    Map<String, dynamic>? stampData,
-    Color bgColor,
-  ) {
-    if (snapshot.connectionState == ConnectionState.waiting) {
+    // 👇 최초 로딩 시에만 스켈레톤, 이후엔 캐시 데이터로 바로 표시
+    if (_isFirstLoad) {
+      final String travelType = ''; // 아직 모르니까 gray
       return Container(
-        key: const ValueKey('header-skeleton-state'),
-        color: bgColor,
+        color: AppColors.travelReadyGray,
         child: const SafeArea(
           bottom: false,
           child: HomeTravelStatusHeaderSkeleton(),
@@ -100,24 +72,34 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
       );
     }
 
+    final travel = _cachedTravel;
+    final stampData = _cachedStampData;
+    final type = travel?['travel_type'] ?? '';
+
+    Color bgColor;
+    if (travel == null) {
+      bgColor = AppColors.travelReadyGray;
+    } else if (type == 'domestic') {
+      bgColor = AppColors.travelingBlue;
+    } else if (type == 'usa') {
+      bgColor = AppColors.travelingRed;
+    } else {
+      bgColor = AppColors.travelingPurple;
+    }
+
+    final String travelId = travel?['id']?.toString() ?? 'no-travel';
+
     return Container(
-      key: const ValueKey('header-ready-state'),
+      key: ValueKey('header-ready-$travelId'),
       color: bgColor,
       child: SafeArea(
         bottom: false,
         child: _HeaderContent(
           travel: travel,
-          stampData: stampData, // ✅ 스탬프 데이터 전달 (추후 UI 노출용)
+          stampData: stampData,
           onGoToTravel: widget.onGoToTravel,
           bgColor: bgColor,
-          // 🎯 여기서 부모의 setState와 데이터를 새로고침하는 함수를 넘깁니다.
-          onRefresh: () {
-            if (mounted) {
-              setState(() {
-                _headerDataFuture = _loadHeaderData();
-              });
-            }
-          },
+          onRefresh: _loadData, // 👈 직접 연결
         ),
       ),
     );
