@@ -12,7 +12,7 @@ import 'package:travel_memoir/features/my/pages/my_travels/my_travel_summary_pag
 import 'package:travel_memoir/features/my/pages/settings/my_settings_page.dart';
 import 'package:travel_memoir/features/my/pages/supports/my_support_page.dart';
 import 'package:travel_memoir/features/my/pages/user_details/user_details.dart';
-import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
+import 'package:travel_memoir/features/shop/page/shop_page.dart';
 import 'package:travel_memoir/features/my/pages/sticker/passport_open_dialog.dart';
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
@@ -176,7 +176,7 @@ class _MyPageState extends State<MyPage> with RouteAware {
         onAction: () async {
           await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CoinShopPage()),
+            MaterialPageRoute(builder: (_) => const ShopPage()),
           );
           _refreshPage();
         },

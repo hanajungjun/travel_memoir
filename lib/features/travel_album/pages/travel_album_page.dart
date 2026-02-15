@@ -17,7 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
-import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
+import 'package:travel_memoir/features/shop/page/shop_page.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
@@ -293,7 +293,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
       onAction: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CoinShopPage()),
+          MaterialPageRoute(builder: (_) => const ShopPage()),
         ).then((_) => _initSettings());
       },
     );

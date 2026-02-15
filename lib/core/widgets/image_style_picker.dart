@@ -7,7 +7,7 @@ import 'package:travel_memoir/models/image_style_model.dart';
 import 'package:travel_memoir/services/image_style_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
-import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
+import 'package:travel_memoir/features/shop/page/shop_page.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class ImageStylePicker extends StatefulWidget {
@@ -91,7 +91,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
       onAction: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const CoinShopPage()),
+          MaterialPageRoute(builder: (_) => const ShopPage()),
         ).then((_) => _checkUserStatus());
       },
     );

@@ -5,7 +5,7 @@ import 'package:travel_memoir/features/home/pages/home_page.dart';
 import 'package:travel_memoir/features/record/pages/record_tab_page.dart';
 import 'package:travel_memoir/features/travel_list/pages/travel_list_page.dart';
 import 'package:travel_memoir/features/my/pages/my_page.dart';
-import 'package:travel_memoir/features/my/pages/shop/coin_shop_page.dart';
+import 'package:travel_memoir/features/shop/page/shop_page.dart';
 import 'package:flutter_svg/flutter_svg.dart'; // SVG 아이콘을 사용하기 위해 추가
 
 /**
@@ -83,7 +83,7 @@ class _AppShellState extends State<AppShell> {
       const TravelListPage(),
       const RecordTabPage(),
       const MyPage(),
-      const CoinShopPage(),
+      const ShopPage(),
     ];
 
     return Scaffold(
