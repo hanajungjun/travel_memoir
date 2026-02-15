@@ -109,7 +109,7 @@ class _TravelDayPageState extends State<TravelDayPage>
   Uint8List? _generatedImage;
   String? _imageUrl;
   String? _summaryText;
-
+  bool _hasDiary = false;
   bool _loading = false;
   bool _isSharing = false;
   String _loadingMessage = "";
@@ -261,7 +261,6 @@ class _TravelDayPageState extends State<TravelDayPage>
   // _TravelDayPageState 클래스 상단 변수 선언부에 추가 (95번 줄 근처)
   String? _currentDiaryId;
 
-  // _loadDiary 함수 내부 수정 (220번 줄 근처)
   Future<void> _loadDiary() async {
     final diary =
         widget.initialDiary ??
@@ -302,17 +301,28 @@ class _TravelDayPageState extends State<TravelDayPage>
     } catch (e) {
       debugPrint('📸 사진 로드 실패: $e');
     }
-    if ((diary['ai_summary'] ?? '').toString().trim().isNotEmpty) {
+    if (diary['ai_summary'] != null &&
+        diary['ai_summary'].toString().trim().isNotEmpty) {
+      // 🎯 진짜 요약(Summary)이 있을 때만 이미지 URL을 생성함
       final String aiPath =
           'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/ai_generated.jpg';
       final String rawUrl = Supabase.instance.client.storage
           .from('travel_images')
           .getPublicUrl(aiPath);
-      setState(
-        () => _imageUrl =
-            "$rawUrl?v=${DateTime.now().millisecondsSinceEpoch}&width=800&quality=70",
-      );
+
+      setState(() {
+        _imageUrl =
+            "$rawUrl?v=${DateTime.now().millisecondsSinceEpoch}&width=800&quality=70";
+        _hasDiary = true; // 일기가 확실히 있음을 표시
+      });
+
       if (_imageUrl != null) _cardController.forward();
+    } else {
+      // 🎯 요약이 없으면 URL을 아예 생성하지 않음 (로그 발생 차단)
+      setState(() {
+        _imageUrl = null;
+        _hasDiary = false;
+      });
     }
   }
 
@@ -583,7 +593,14 @@ class _TravelDayPageState extends State<TravelDayPage>
       }
 
       if (stampType == 'daily') {
-        await Future.wait([_playAdParallel(), runAiTask()]);
+        if (Platform.isIOS) {
+          // ✅ iOS: 기존 그대로 병렬
+          await Future.wait([_playAdParallel(), runAiTask()]);
+        } else {
+          // ✅ Android: 광고 먼저 → AI 나중에 직렬
+          await _playAdSerial();
+          await runAiTask();
+        }
       } else {
         await runAiTask();
       }
@@ -652,6 +669,48 @@ class _TravelDayPageState extends State<TravelDayPage>
     }
 
     return completer.future;
+  }
+
+  Future<void> _playAdSerial() async {
+    final completer = Completer<void>();
+
+    // 타임아웃 (광고 안 뜨면 30초 후 강제 진행)
+    Timer(const Duration(seconds: 30), () {
+      if (!completer.isCompleted) {
+        _logger.warn("⏰ 광고 응답 타임아웃 - 강제 진행", tag: "AD_PROCESS");
+        completer.complete();
+      }
+    });
+
+    if (_rewardedAd != null && _isAdLoaded) {
+      _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+        onAdDismissedFullScreenContent: (ad) {
+          ad.dispose();
+          _loadAds(); // 다음 광고 미리 로드
+          if (!completer.isCompleted) completer.complete();
+        },
+        onAdFailedToShowFullScreenContent: (ad, err) {
+          _logger.error("❌ 광고 표시 실패: $err", tag: "AD_PROCESS");
+          ad.dispose();
+          _loadAds();
+          if (!completer.isCompleted) completer.complete();
+        },
+      );
+
+      await _rewardedAd!.show(
+        onUserEarnedReward: (_, reward) {
+          _logger.log("🎁 광고 보상 획득", tag: "AD_PROCESS");
+        },
+      );
+    } else {
+      _logger.warn("⚠️ 광고 미로드 상태 - 스킵", tag: "AD_PROCESS");
+      completer.complete();
+    }
+
+    await completer.future;
+
+    // ✅ Android lifecycle 안정화
+    await Future.delayed(const Duration(milliseconds: 300));
   }
 
   // ✅ [수정 완료] 기존 알럿 없이 바로 바텀 시트를 띄웁니다.
@@ -826,11 +885,11 @@ class _TravelDayPageState extends State<TravelDayPage>
                 rewardedAd: _rewardedAd,
                 usedPaidStamp: _usePaidStampMode,
                 isVip: _isVip,
-                processingTask: TravelCompleteService.tryCompleteTravel(
+                processingTask: () => TravelCompleteService.tryCompleteTravel(
                   travelId: _cleanTravelId,
                   startDate: widget.startDate,
                   endDate: widget.endDate,
-                  languageCode: _languageCode, // ✅ 클래스 변수 사용
+                  languageCode: _languageCode,
                 ),
               ),
             ),
@@ -891,6 +950,8 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('📏 padding.bottom: ${MediaQuery.of(context).padding.bottom}');
+
     final bool hasAiImage = _imageUrl != null || _generatedImage != null;
     final Color generateButtonColor = !_isTripTypeLoaded
         ? const Color(0xFFC2C2C2)
@@ -931,8 +992,14 @@ class _TravelDayPageState extends State<TravelDayPage>
                     ),
                   ),
 
-                  // ✅ [해결] 저장 버튼에 가려지는 영역만큼 물리적 여백 추가
-                  const SizedBox(height: 58),
+                  // ✅ iOS는 58만, Android는 58 + 네비바
+                  SizedBox(
+                    height:
+                        58 +
+                        (Platform.isIOS
+                            ? 0
+                            : MediaQuery.of(context).padding.bottom),
+                  ),
                 ],
               ),
 
@@ -1370,36 +1437,54 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Widget _buildFixedBottomSaveBar() {
+    // ✅ iOS는 홈인디케이터 무시, Android만 시스템 바 반영
+    final double bottomPadding = Platform.isIOS
+        ? 0 // iOS: SafeArea가 알아서 처리
+        : MediaQuery.of(context).padding.bottom; // Android만 적용
+
     return Align(
       alignment: Alignment.bottomCenter,
-      child: GestureDetector(
-        onTap: () {
-          if (!_loading) _saveDiary();
-        },
-        child: Container(
-          width: double.infinity,
-          height: 58,
-          color: _loading ? Colors.grey : const Color(0xFF454B54),
-          child: Center(
-            child: _loading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  )
-                : Text(
-                    _saveDiaryButtonText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () {
+              if (!_loading) _saveDiary();
+            },
+            child: Container(
+              width: double.infinity,
+              color: _loading ? Colors.grey : const Color(0xFF454B54),
+              child: SizedBox(
+                height: 58,
+                child: Center(
+                  child: _loading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          _saveDiaryButtonText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+            ),
           ),
-        ),
+          // Android 제스처 네비바 영역만 채움 (iOS는 0)
+          Container(
+            width: double.infinity,
+            height: bottomPadding,
+            color: _loading ? Colors.grey : const Color(0xFF454B54),
+          ),
+        ],
       ),
     );
   }

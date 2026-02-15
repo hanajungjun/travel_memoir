@@ -119,10 +119,14 @@ flutter_launcher_icons:
   image_path: "assets/icons/app_icon.png"
 
 flutter_native_splash:
-  color: "#FFFFFF" # 앱의 메인 배경색
-  image: assets/images/splash.png # 아주 가벼운 로고 하나
+  color: "#FFFFFF"
+  image: assets/images/splash.png
+  # 🎯 이 설정들이 안드로이드 찌그러짐을 방지해!
+  android_gravity: center 
+  fullscreen: false 
+
   android_12:
     image: assets/images/splash.png
-    color: "#FFFFFF"
-
-
+    icon_background_color: "#FFFFFF"
+    # 안드로이드 12는 이 설정을 특히 중요하게 봐
+    image_dark: assets/images/splash.png

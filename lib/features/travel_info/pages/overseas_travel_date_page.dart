@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -188,26 +189,34 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
           GestureDetector(
             onTap: _canCreate ? _createTravel : null,
             child: // 🏁 하단 저장 버튼 영역 (해외 여행용 보라색 테마)
-            Container(
-              width: double.infinity,
-              // 보라색 배경을 바닥 끝까지 채우기
-              color: _canCreate ? themeColor : const Color(0xFFCACBCC),
-              child: SafeArea(
-                top: false, // 상단 여백 무시
-                child: GestureDetector(
-                  onTap: _canCreate ? _createTravel : null,
-                  child: Container(
-                    height: 50, // 텍스트가 정중앙에 오기 가장 예쁜 높이
-                    alignment: Alignment.center, // 🎯 수직/수평 정중앙 박제
-                    child: Text(
-                      'save_as_memory'.tr(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
+            GestureDetector(
+              onTap: _canCreate ? _createTravel : null,
+              child: Container(
+                width: double.infinity,
+                color: _canCreate ? themeColor : const Color(0xFFCACBCC),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 버튼은 항상 58px 고정
+                    Container(
+                      height: 58,
+                      alignment: Alignment.center,
+                      child: Text(
+                        'save_as_memory'.tr(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
+                    // iOS는 0, Android는 시스템 네비바 높이만큼
+                    SizedBox(
+                      height: Platform.isIOS
+                          ? 0
+                          : MediaQuery.of(context).padding.bottom,
+                    ),
+                  ],
                 ),
               ),
             ),

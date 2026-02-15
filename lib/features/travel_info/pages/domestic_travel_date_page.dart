@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -235,28 +236,34 @@ class _DomesticTravelDatePageState extends State<DomesticTravelDatePage> {
           GestureDetector(
             onTap: _canNext ? _createTravel : null,
             child:
-                // 🏁 하단 저장 버튼 영역0215
-                Container(
-                  width: double.infinity,
-                  // 배경색은 바닥까지 꽉 채우기
-                  color: _canNext ? themeColor : const Color(0xFFCACBCC),
-                  child: SafeArea(
-                    top: false, // 위쪽 여백 무시
-                    child: GestureDetector(
-                      onTap: _canNext ? _createTravel : null,
-                      child: Container(
-                        // 30은 너무 얇으니 48~50 정도로 타협하자 형, 그래야 글자가 중앙에 예쁘게 박혀!
-                        height: 50,
-                        alignment: Alignment.center, // 🎯 수직/수평 정중앙 정렬
-                        child: Text(
-                          'save_as_memory'.tr(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                // ❌ 기존 하단 버튼 부분 교체
+                GestureDetector(
+                  onTap: _canNext ? _createTravel : null,
+                  child: Container(
+                    width: double.infinity,
+                    color: _canNext ? themeColor : const Color(0xFFCACBCC),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          height: 58,
+                          alignment: Alignment.center,
+                          child: Text(
+                            'save_as_memory'.tr(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
+                        // ✅ iOS는 0, Android만 시스템 네비바 높이 적용
+                        SizedBox(
+                          height: Platform.isIOS
+                              ? 0
+                              : MediaQuery.of(context).padding.bottom,
+                        ),
+                      ],
                     ),
                   ),
                 ),

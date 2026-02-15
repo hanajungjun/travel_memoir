@@ -108,7 +108,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
     });
 
     final groupedData = await _groupedFuture;
-    _extractAndShuffleStickers(groupedData);
+    //_extractAndShuffleStickers(groupedData);
 
     final res = await client
         .from('travels')

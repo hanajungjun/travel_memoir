@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -20,20 +21,39 @@ import 'package:easy_localization/easy_localization.dart';
  * ├── Text [완료 처리 중 문구]
  * └── CircularProgressIndicator [진행 상태 인디케이터]
  * ----------------------------------------------------------
- */
+iOS 병렬 흐름
+ ├── _showAd() ──────────────────────────┐
+ │   (광고 보는 동안)                      │
+ └── processingTask() ──────────────────┤
+     (AI 커버 생성 동시에)                  │
+                                    둘 다 끝나면
+                                         ↓
+                                  /travel_info 이동
+
+ Android 직렬 흐름   
+ 시작
+ ↓
+_showAd() (광고 완전히 끝남)
+ ↓
+300ms 대기 (lifecycle 안정화)
+ ↓
+processingTask() (AI 커버 생성)
+ ↓
+/travel_info 이동                              
+*/
 
 class TravelCompletionPage extends StatefulWidget {
-  final Future<void> processingTask;
+  final Future<void> Function() processingTask; // ✅ Function()으로 변
   final RewardedAd? rewardedAd;
   final bool usedPaidStamp;
-  final bool isVip; // ✅ [추가] VIP 여부 파라미터
+  final bool isVip;
 
   const TravelCompletionPage({
     super.key,
     required this.processingTask,
     this.rewardedAd,
     required this.usedPaidStamp,
-    required this.isVip, // ✅ 필수 값으로 추가
+    required this.isVip,
   });
 
   @override
@@ -44,47 +64,62 @@ class _TravelCompletionPageState extends State<TravelCompletionPage> {
   @override
   void initState() {
     super.initState();
-    _startParallelProcess();
+    _startProcess();
   }
 
-  Future<void> _startParallelProcess() async {
+  Future<void> _startProcess() async {
     try {
-      final Future<void> backgroundTask = widget.processingTask;
-      await Future.delayed(const Duration(milliseconds: 100));
-
-      // ✅ [핵심 로직 수정]
-      // 1. VIP가 아니고 (!isVip)
-      // 2. 유료 코인을 쓰지 않았고 (!usedPaidStamp)
-      // 3. 광고가 준비되어 있다면
-      // -> 이때만 광고를 보여줍니다. 즉, VIP는 무조건 PASS!
       if (!widget.isVip && !widget.usedPaidStamp && widget.rewardedAd != null) {
-        final adCompleter = Completer<void>();
-
-        widget.rewardedAd!.fullScreenContentCallback =
-            FullScreenContentCallback(
-              onAdDismissedFullScreenContent: (ad) {
-                ad.dispose();
-                if (!adCompleter.isCompleted) adCompleter.complete();
-              },
-              onAdFailedToShowFullScreenContent: (ad, error) {
-                ad.dispose();
-                if (!adCompleter.isCompleted) adCompleter.complete();
-              },
-            );
-
-        await widget.rewardedAd!.show(onUserEarnedReward: (_, __) {});
-
-        await adCompleter.future;
+        if (Platform.isIOS) {
+          // ✅ iOS: 광고 + task 병렬
+          await Future.wait([_showAd(), widget.processingTask()]);
+        } else {
+          // ✅ Android: 광고 먼저 → task 직렬
+          await _showAd();
+          await Future.delayed(const Duration(milliseconds: 300));
+          await widget.processingTask();
+        }
+      } else {
+        // VIP or 유료코인: 광고 없이 바로 task
+        await widget.processingTask();
       }
-
-      await backgroundTask;
+    } catch (e) {
+      debugPrint('❌ [TravelCompletionPage] 에러: $e');
     } finally {
       if (mounted) {
         Navigator.of(
           context,
         ).pushNamedAndRemoveUntil('/travel_info', (_) => false);
+      } else {
+        debugPrint('💀 [TravelCompletionPage] mounted=false → 네비게이션 스킵');
       }
     }
+  }
+
+  Future<void> _showAd() async {
+    final completer = Completer<void>();
+
+    // 30초 타임아웃 (광고 무응답 방어)
+    Timer(const Duration(seconds: 30), () {
+      if (!completer.isCompleted) {
+        debugPrint('⏰ [TravelCompletionPage] 광고 타임아웃 - 강제 진행');
+        completer.complete();
+      }
+    });
+
+    widget.rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        if (!completer.isCompleted) completer.complete();
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        debugPrint('❌ [TravelCompletionPage] 광고 표시 실패: $error');
+        ad.dispose();
+        if (!completer.isCompleted) completer.complete();
+      },
+    );
+    await widget.rewardedAd!.show(onUserEarnedReward: (_, __) {});
+    await completer.future;
   }
 
   @override
