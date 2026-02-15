@@ -67,6 +67,7 @@ class TravelDayPage extends StatefulWidget {
   final DateTime endDate;
   final DateTime date;
   final Map<String, dynamic>? initialDiary;
+  final bool isReordering; // 🎯 1. 이거 추가
 
   const TravelDayPage({
     super.key,
@@ -76,6 +77,7 @@ class TravelDayPage extends StatefulWidget {
     required this.endDate,
     required this.date,
     this.initialDiary,
+    this.isReordering = false, // 🎯 2. 이거 추가
   });
 
   @override
@@ -256,17 +258,26 @@ class _TravelDayPageState extends State<TravelDayPage>
     });
   }
 
+  // _TravelDayPageState 클래스 상단 변수 선언부에 추가 (95번 줄 근처)
+  String? _currentDiaryId;
+
+  // _loadDiary 함수 내부 수정 (220번 줄 근처)
   Future<void> _loadDiary() async {
-    final diary = await TravelDayService.getDiaryByDate(
-      travelId: _cleanTravelId,
-      date: widget.date,
-    );
+    final diary =
+        widget.initialDiary ??
+        await TravelDayService.getDiaryByDate(
+          travelId: _cleanTravelId,
+          date: widget.date,
+        );
     if (!mounted || diary == null) return;
+
     final String diaryId = diary['id'].toString().replaceAll(
       RegExp(r'[\s\n\r\t]+'),
       '',
     );
+
     setState(() {
+      _currentDiaryId = diaryId; // 🎯 [추가] 고유 ID를 변수에 저장!
       _contentController.text = diary['text'] ?? '';
       _summaryText = diary['ai_summary'];
       _existingAiStyleId = diary['ai_style'];
@@ -682,13 +693,16 @@ class _TravelDayPageState extends State<TravelDayPage>
         currentDate: widget.date,
       );
 
+      // 🎯 [핵심] 아까 저장해둔 고유 ID를 upsertDiary에 전달!
       final diaryData = await TravelDayService.upsertDiary(
         travelId: _cleanTravelId,
         dayIndex: currentDayIndex,
         date: widget.date,
         text: _contentController.text.trim(),
-        aiSummary: _summaryText,
+        aiSummary: _summaryText ?? widget.initialDiary?['ai_summary'],
         aiStyle: _selectedStyle?.id ?? _existingAiStyleId ?? 'default',
+        existingId: _currentDiaryId, // 👈 이거 없어서 에러 났던 거야 형!
+        skipDateUpdate: widget.isReordering,
       );
 
       final String diaryId = diaryData['id'].toString().replaceAll(

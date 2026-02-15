@@ -46,7 +46,7 @@ class TravelDayService {
   }
 
   // =====================================================
-  // 💾 일기 저장
+  // 💾 일기 저장 (수정본)
   // =====================================================
   static Future<Map<String, dynamic>> upsertDiary({
     required String travelId,
@@ -55,17 +55,26 @@ class TravelDayService {
     required String text,
     String? aiSummary,
     String? aiStyle,
+    String? existingId, // 🎯 [추가] 기존 일기 ID가 있으면 받습니다.
+    bool skipDateUpdate = false, // 🎯 [추가] 순서 변경 중일 땐 날짜 업데이트 스킵용
   }) async {
+    final Map<String, dynamic> saveData = {
+      'travel_id': _clean(travelId),
+      'day_index': dayIndex,
+      'date': _dateOnly(date),
+      'text': text.trim(),
+      'ai_summary': aiSummary?.trim(),
+      'ai_style': _clean(aiStyle) != '' ? _clean(aiStyle) : 'default',
+    };
+
+    // 🎯 [핵심] 만약 기존 ID가 있다면, 날짜 충돌 걱정 없이 해당 ID 레코드를 업데이트합니다.
+    if (existingId != null && existingId.isNotEmpty) {
+      saveData['id'] = existingId;
+    }
+
     final res = await _supabase
         .from('travel_days')
-        .upsert({
-          'travel_id': _clean(travelId),
-          'day_index': dayIndex,
-          'date': _dateOnly(date),
-          'text': text.trim(),
-          'ai_summary': aiSummary?.trim(),
-          'ai_style': _clean(aiStyle) != '' ? _clean(aiStyle) : 'default',
-        }, onConflict: 'travel_id,date')
+        .upsert(saveData, onConflict: 'id') // 🎯 [변경] ID 충돌로 처리하여 기존 데이터 보호
         .select()
         .single();
 

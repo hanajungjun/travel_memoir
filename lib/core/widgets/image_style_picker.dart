@@ -25,6 +25,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
 
   bool _isPremiumUser = false;
   bool _isVipUser = false; // ✅ [추가] VIP 여부 상태
+  bool _isBoss = false;
   bool _isLoadingStatus = true;
 
   @override
@@ -45,7 +46,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
         // ✅ [수정] is_premium과 is_vip를 동시에 조회
         final res = await Supabase.instance.client
             .from('users')
-            .select('is_premium, is_vip')
+            .select('is_premium, is_vip,role')
             .eq('auth_uid', user.id)
             .maybeSingle();
 
@@ -53,6 +54,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
           setState(() {
             _isPremiumUser = res?['is_premium'] ?? false;
             _isVipUser = res?['is_vip'] ?? false; // ✅ VIP 정보 업데이트
+            _isBoss = res?['role'] == 'boss'; // ✅ Boss 체크
             _isLoadingStatus = false;
           });
         }
@@ -63,7 +65,15 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
   }
 
   Future<void> _loadStyles() async {
-    final styles = await ImageStyleService.fetchEnabled();
+    // 🎯 [핵심 수정] Boss라면 fetchAll (미사용 포함), 아니면 fetchEnabled (사용 중인 것만)
+    List<ImageStyleModel> styles;
+    if (_isBoss) {
+      // ImageStyleService에 모든 스타일을 가져오는 메서드가 있다고 가정 (없으면 fetchEnabled 수정 필요)
+      styles = await ImageStyleService.fetchAllForAdmin();
+    } else {
+      styles = await ImageStyleService.fetchEnabled();
+    }
+
     if (!mounted) return;
     setState(() => _styles = styles);
   }

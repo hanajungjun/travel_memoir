@@ -187,17 +187,26 @@ class _OverseasTravelDatePageState extends State<OverseasTravelDatePage> {
 
           GestureDetector(
             onTap: _canCreate ? _createTravel : null,
-            child: Container(
+            child: // 🏁 하단 저장 버튼 영역 (해외 여행용 보라색 테마)
+            Container(
               width: double.infinity,
-              height: 58,
+              // 보라색 배경을 바닥 끝까지 채우기
               color: _canCreate ? themeColor : const Color(0xFFCACBCC),
-              child: Center(
-                child: Text(
-                  'save_as_memory'.tr(), // ✅ 번역 적용
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+              child: SafeArea(
+                top: false, // 상단 여백 무시
+                child: GestureDetector(
+                  onTap: _canCreate ? _createTravel : null,
+                  child: Container(
+                    height: 50, // 텍스트가 정중앙에 오기 가장 예쁜 높이
+                    alignment: Alignment.center, // 🎯 수직/수평 정중앙 박제
+                    child: Text(
+                      'save_as_memory'.tr(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
               ),

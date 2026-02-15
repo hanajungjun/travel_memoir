@@ -17,6 +17,21 @@ class ImageStyleService {
     return (res as List).map((e) => ImageStyleModel.fromMap(e)).toList();
   }
 
+  static Future<List<ImageStyleModel>> fetchAllForAdmin() async {
+    try {
+      // 🎯 [핵심] .eq('enabled', true) 조건을 아예 빼버림
+      final res = await Supabase.instance.client
+          .from('ai_image_styles')
+          .select()
+          .order('sort_order', ascending: true);
+
+      return (res as List).map((e) => ImageStyleModel.fromMap(e)).toList();
+    } catch (e) {
+      debugPrint('❌ [fetchAllForAdmin Error]: $e');
+      return [];
+    }
+  }
+
   /// 🔥 언어별 제목 반환 (위젯에서 직접 로직 짜지 않게 헬퍼로 분리)
   static String getLocalizedTitle(ImageStyleModel style, BuildContext context) {
     final String currentLang = context.locale.languageCode;

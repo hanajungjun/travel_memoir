@@ -62,9 +62,12 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
     _imageTimestamp = DateTime.now().millisecondsSinceEpoch.toString();
   }
 
-  Future<void> _loadAllDiaries() async {
+  Future<void> _loadAllDiaries({bool silent = false}) async {
     if (!mounted) return;
-    setState(() => _loading = true);
+
+    // 🎯 silent가 아닐 때만 로딩 스켈레톤을 보여줌
+    if (!silent) setState(() => _loading = true);
+
     try {
       final response = await Supabase.instance.client
           .from('travel_days')
@@ -90,8 +93,55 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       if (newIndex > oldIndex) newIndex -= 1;
       final item = _diaries.removeAt(oldIndex);
       _diaries.insert(newIndex, item);
+      // 이제 _isChanged가 true가 되어도 UI에 버튼은 안 띄울 거야
       _isChanged = true;
     });
+    // 🎯 드래그 끝나자마자 로딩 없이 뒤에서 저장
+    _saveChanges(silent: true);
+  }
+
+  Future<void> _saveChanges({bool silent = false}) async {
+    if (!silent) setState(() => _loading = true);
+
+    try {
+      final startDate = DateTime.parse(_travel['start_date']);
+
+      // 1단계: 겹치지 않게 임시 날짜와 인덱스로 싹 밀어내기 (미래로 보내버려!)
+      for (int i = 0; i < _diaries.length; i++) {
+        // 오늘로부터 약 13년 뒤 날짜로 설정해서 기존 날짜와 충돌 방지
+        final tempDate = startDate.add(Duration(days: i + 5000));
+
+        await Supabase.instance.client
+            .from('travel_days')
+            .update({
+              'day_index': -(i + 1000),
+              'date': DateUtilsHelper.formatYMD(tempDate),
+            })
+            .eq('id', _diaries[i]['id']);
+      }
+
+      // 2단계: 이제 깨끗해진 자리에 실제 순서와 날짜로 확정하기
+      for (int i = 0; i < _diaries.length; i++) {
+        final newDate = startDate.add(Duration(days: i));
+        await Supabase.instance.client
+            .from('travel_days')
+            .update({
+              'day_index': i + 1,
+              'date': DateUtilsHelper.formatYMD(newDate),
+            })
+            .eq('id', _diaries[i]['id']);
+      }
+
+      if (!mounted) return;
+      if (!silent) AppToast.show(context, 'save_reorder_success'.tr());
+
+      await _loadAllDiaries(silent: true);
+    } catch (e) {
+      debugPrint('❌ 재정렬 최종 실패: $e');
+      if (mounted && !silent) AppToast.error(context, 'reorder_failed'.tr());
+    } finally {
+      if (mounted && !silent) setState(() => _loading = false);
+    }
   }
 
   // ✅ 드래그 시 카드와 그림자만 깔끔하게 보이도록 설정
@@ -107,52 +157,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
       },
       child: child,
     );
-  }
-
-  Future<void> _saveChanges() async {
-    setState(() => _loading = true);
-    //final messenger = ScaffoldMessenger.of(context);
-    // 🎯 context가 살아있을 때 필요한 정보를 미리 뽑아둠
-    final navigator = Navigator.of(context);
-    final String successMsg = 'save_reorder_success'.tr();
-    final String errorMsgBase = 'save_reorder_error'.tr();
-
-    try {
-      final startDate = DateTime.parse(_travel['start_date']);
-
-      for (int i = 0; i < _diaries.length; i++) {
-        final tempDate = startDate.add(Duration(days: i + 5000));
-        await Supabase.instance.client
-            .from('travel_days')
-            .update({
-              'day_index': -(i + 1000),
-              'date': DateUtilsHelper.formatYMD(tempDate),
-            })
-            .eq('id', _diaries[i]['id']);
-      }
-
-      for (int i = 0; i < _diaries.length; i++) {
-        final newDate = startDate.add(Duration(days: i));
-        await Supabase.instance.client
-            .from('travel_days')
-            .update({
-              'day_index': i + 1,
-              'date': DateUtilsHelper.formatYMD(newDate),
-            })
-            .eq('id', _diaries[i]['id']);
-      }
-      // ✅ [방어 코드 추가] 모든 비동기 작업이 끝난 후 체크
-      if (!mounted) return;
-
-      AppToast.show(context, successMsg);
-      await _loadAllDiaries();
-    } catch (e) {
-      // 에러 발생 시에도 화면이 살아있을 때만 토스트 노출
-      if (!mounted) return;
-      AppToast.error(context, '$errorMsgBase: $e');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
   }
 
   @override
@@ -220,6 +224,7 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                           proxyDecorator:
                               _proxyDecorator, // 👈 이 줄을 꼭 추가해야 작동합니다!
                           itemBuilder: (context, index) {
+                            // 🎯 [중요] 여기 있는 diary 변수는 '화면을 그릴 때'만 참고하는 용도야!
                             final diary = _diaries[index];
                             final displayDate = startDate.add(
                               Duration(days: index),
@@ -243,24 +248,21 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                   diaryId: diaryId,
                                 );
                                 if (rawUrl != null && rawUrl.isNotEmpty) {
-                                  // ✅ [해결 1] 서버 측 리사이징 적용 (width=100)
                                   imageUrl =
                                       '$rawUrl?t=$_imageTimestamp&width=100&quality=20';
                                 }
                               }
                             }
-
                             return Slidable(
                               key: ValueKey(diary['id']),
+                              // 🎯 [여기서부터 추가] 밀었을 때 나올 삭제 버튼 설정
                               endActionPane: ActionPane(
                                 motion: const BehindMotion(),
-                                extentRatio: 0.22,
+                                extentRatio: 0.22, // 버튼이 차지할 넓이
                                 children: [
                                   CustomSlidableAction(
                                     onPressed: (_) async {
-                                      final messenger = ScaffoldMessenger.of(
-                                        context,
-                                      );
+                                      // 삭제 로직 실행
                                       await TravelDayService.clearDiaryRecord(
                                         userId: _travel['user_id'],
                                         travelId: _travel['id'],
@@ -269,19 +271,17 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                           diary['photo_urls'] ?? [],
                                         ),
                                       );
-                                      // 🎯 [핵심 수정] 삭제 작업이 끝난 후 화면이 아직 살아있는지 확인합니다.
                                       if (!mounted) return;
-
                                       AppToast.show(
                                         context,
                                         'diary_clear_success'.tr(),
                                       );
-                                      await _loadAllDiaries();
+                                      await _loadAllDiaries(silent: true);
                                     },
                                     backgroundColor: Colors.transparent,
                                     padding: const EdgeInsets.only(
                                       left: 6,
-                                      bottom: 15,
+                                      bottom: 13,
                                     ),
                                     child: Center(
                                       child: Container(
@@ -305,36 +305,35 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
                                   ),
                                 ],
                               ),
+                              // 🎯 [여기까지가 추가된 ActionPane]
                               child: GestureDetector(
                                 onTap: () async {
-                                  final changed = await Navigator.push<bool>(
+                                  final currentDiary = _diaries[index];
+                                  final updatedDiary = {
+                                    ...currentDiary,
+                                    'day_index': index + 1,
+                                    'date': DateUtilsHelper.formatYMD(
+                                      displayDate,
+                                    ),
+                                  };
+
+                                  await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => TravelDayPage(
                                         travelId: _travel['id'],
-                                        // ✅ 수정: placeName: displayTitle
                                         placeName: title,
                                         startDate: startDate,
                                         endDate: startDate.add(
                                           Duration(days: _diaries.length - 1),
                                         ),
                                         date: displayDate,
-                                        initialDiary: diary,
+                                        initialDiary: updatedDiary,
                                       ),
                                     ),
                                   );
-                                  if (changed == true && mounted) {
-                                    await _loadAllDiaries();
-                                    // ✅ [해결 2] 돌아오자마자 여행 완료 여부 체크!
-                                    await TravelCompleteService.tryCompleteTravel(
-                                      travelId: _travel['id'],
-                                      startDate: startDate,
-                                      endDate: startDate.add(
-                                        Duration(days: _diaries.length - 1),
-                                      ),
-                                      languageCode: currentLanguageCode,
-                                    );
-                                  }
+
+                                  _loadAllDiaries(silent: true);
                                 },
                                 child: _buildListItem(
                                   diary,
@@ -353,32 +352,6 @@ class _TravelDiaryListPageState extends State<TravelDiaryListPage> {
               ),
             ],
           ),
-          if (_isChanged)
-            Positioned(
-              bottom: 27, // ✅ 하단에서 27px 띄움
-              right: 27, // ✅ 우측 패딩과 동일하게 맞춤
-              child: Material(
-                color: Colors.transparent,
-                elevation: 14, // ✅ 동일한 그림자 높이
-                shadowColor: Colors.black.withOpacity(0.25), // ✅ 동일한 그림자 색상
-                shape: const CircleBorder(),
-                child: FloatingActionButton(
-                  elevation: 0, // Material 위젯에서 그림자를 제어하므로 0으로 설정
-                  backgroundColor: isDomestic
-                      ? AppColors.travelingBlue
-                      : isUSA
-                      ? AppColors.travelingRed
-                      : AppColors.travelingPurple,
-                  onPressed: _saveChanges,
-                  // ✅ 동일한 라운딩 값 (50)
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  // ✅ 동일한 아이콘 사이즈 (30)
-                  child: const Icon(Icons.check, color: Colors.white, size: 30),
-                ),
-              ),
-            ),
         ],
       ),
     );

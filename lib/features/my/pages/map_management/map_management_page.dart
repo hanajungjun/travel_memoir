@@ -61,17 +61,17 @@ class _MapManagementPageState extends State<MapManagementPage> {
         'isAvailable': true,
       },
       {
-        'id': 'ko', // ✅ 2번째 순서: 한국
+        'id': 'ko',
         'name': 'korea_map',
         'icon': '🇰🇷',
         'isFixed': false,
         'isAvailable': true,
       },
       {
-        'id': 'us', // ✅ 3번째 순서: 미국
+        'id': 'us',
         'name': 'usa_map',
         'icon': '🇺🇸',
-        'isFixed': true,
+        'isFixed': false, // ✅ 수정: true → false
         'isAvailable': true,
       },
       {
@@ -117,20 +117,31 @@ class _MapManagementPageState extends State<MapManagementPage> {
   }
 
   Future<void> _handleMapPurchase(String mapId) async {
+    //print('🗺️ 구매 시도: $mapId');
+    print(
+      '📦 패키지 목록: ${_mapPackages.map((p) => p.storeProduct.identifier).toList()}',
+    );
+
     try {
-      if (_mapPackages.isEmpty) return;
+      if (_mapPackages.isEmpty) {
+        //print('❌ 패키지 없음!');
+        return;
+      }
 
       String targetIdSnippet = mapId == 'us' ? 'usa' : mapId;
+      //print('🔍 찾는 키워드: $targetIdSnippet');
+
       final package = _mapPackages.firstWhere(
         (p) =>
             p.storeProduct.identifier.toLowerCase().contains(targetIdSnippet),
       );
 
+      //print('✅ 매칭된 패키지: ${package.storeProduct.identifier}');
+
       final success = await PaymentService.purchasePackage(package);
-      if (success) {
-        _refresh(); // 구매 성공 시 리스트 즉시 갱신
-      }
+      if (success) _refresh();
     } catch (e) {
+      //print('💥 에러: $e');
       AppToast.error(context, 'no_products'.tr(args: [mapId]));
     }
   }

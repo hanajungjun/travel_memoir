@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'dart:io'; // 👈 플랫폼 체크를 위해 추가
+import 'dart:io';
+import 'package:travel_memoir/env.dart';
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -124,8 +125,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _loginWithGoogle() async {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId:
-            '277385353976-5807hspd33fcvloonsr814ra0559bsbe.apps.googleusercontent.com',
+        serverClientId: AppEnv.serverClientId,
       );
       final googleUser = await googleSignIn.signIn();
       if (googleUser != null) {

@@ -225,19 +225,24 @@ class _USTravelDatePageState extends State<USTravelDatePage> {
   }
 
   Widget _buildSubmitButton(Color color) {
-    return GestureDetector(
-      onTap: _canCreate ? _createTravel : null,
-      child: Container(
-        width: double.infinity,
-        height: 58,
-        color: _canCreate ? color : const Color(0xFFCACBCC),
-        child: Center(
-          child: Text(
-            'save_as_memory'.tr(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+    return Container(
+      width: double.infinity,
+      // 배경색은 바닥 끝까지 꽉 채우기
+      color: _canCreate ? color : const Color(0xFFCACBCC),
+      child: SafeArea(
+        top: false, // 위쪽 여백은 필요 없음
+        child: GestureDetector(
+          onTap: _canCreate ? _createTravel : null,
+          child: Container(
+            height: 50, // 텍스트가 정중앙에 오기 가장 예쁜 높이
+            alignment: Alignment.center, // 🎯 수직/수평 정중앙 정렬
+            child: Text(
+              'save_as_memory'.tr(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
