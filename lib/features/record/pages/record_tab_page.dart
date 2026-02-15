@@ -19,16 +19,17 @@ class RecordTabPage extends StatefulWidget {
 
 class _RecordTabPageState extends State<RecordTabPage>
     with WidgetsBindingObserver {
-  // 👈 추가
   final _supabase = Supabase.instance.client;
+  final ScrollController _scrollController =
+      ScrollController(); // 🎯 1. 컨트롤러 추가
   List<Map<String, dynamic>> _lastKnownTravels = [];
-  Stream<List<Map<String, dynamic>>>? _stream; // 👈 추가
+  Stream<List<Map<String, dynamic>>>? _stream;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this); // 👈 추가
-    _initStream(); // 👈 추가
+    WidgetsBinding.instance.addObserver(this);
+    _initStream();
   }
 
   void _initStream() {
@@ -116,46 +117,86 @@ class _RecordTabPageState extends State<RecordTabPage>
                 );
               }
 
-              // 🎯 MediaQuery 대신 LayoutBuilder를 사용하여 실제 가용 높이에 맞춥니다.
               return LayoutBuilder(
                 builder: (context, constraints) {
-                  final availableHeight = constraints.maxHeight;
+                  final double screenHeight = MediaQuery.of(
+                    context,
+                  ).size.height;
 
-                  // 🎯 디자인 최종 수정: 첫 페이지 100% + 이후 70% 카드들이 '딱딱' 붙게 구현
-                  // 🎯 마지막 카드도 70%를 유지하되 메뉴바 위로 올리기 위해 CustomScrollView 구조를 조정합니다.
-                  return CustomScrollView(
-                    physics: const PageScrollPhysics(), // 🎯 스냅 효과 유지
-                    slivers: [
-                      // 1. 첫 번째 페이지: 디바이스 높이 100% (메뉴바 포함 전체 기준)
-                      SliverToBoxAdapter(
-                        child: SizedBox(
-                          height: MediaQuery.of(context).size.height,
-                          child: SummaryHeroCard(
-                            totalCount: travels.length,
-                            travels: travels,
+                  // 🎯 2. 자석 스냅 로직 (스크롤이 멈출 때 가장 가까운 카드로 착 붙임)
+                  return NotificationListener<ScrollEndNotification>(
+                    onNotification: (notification) {
+                      // 🎯 [핵심 추가] 스크롤이 맨 위(0.0)나 맨 아래(maxScrollExtent)에 닿으면 자석 스냅 중지!
+                      if (_scrollController.position.atEdge) return true;
+                      final double currentOffset = _scrollController.offset;
+                      // 첫 카드는 1.0, 이후는 0.8 높이
+                      final List<double> snapPoints = [0.0];
+                      double cumulative = screenHeight;
+                      snapPoints.add(cumulative);
+                      for (int i = 0; i < travels.length - 1; i++) {
+                        cumulative += screenHeight * 0.8;
+                        snapPoints.add(cumulative);
+                      }
+
+                      // 가장 가까운 스냅 지점 찾기
+                      final double closest = snapPoints.reduce(
+                        (a, b) =>
+                            (a - currentOffset).abs() <
+                                (b - currentOffset).abs()
+                            ? a
+                            : b,
+                      );
+
+                      if (currentOffset != closest) {
+                        Future.microtask(
+                          () => _scrollController.animateTo(
+                            closest,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOut,
+                          ),
+                        );
+                      }
+                      return true;
+                    },
+                    child: CustomScrollView(
+                      controller: _scrollController, // 🎯 컨트롤러 연결
+                      physics:
+                          const BouncingScrollPhysics(), // 🎯 Physics는 부드럽게 변경
+                      slivers: [
+                        // 1. 첫 번째 히어로 카드 (100% 높이)
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: screenHeight,
+                            child: SummaryHeroCard(
+                              totalCount: travels.length,
+                              travels: travels,
+                            ),
                           ),
                         ),
-                      ),
-                      // 2. 이후 여행 카드 리스트 (70% 높이 유지)
-                      SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          return SizedBox(
-                            height: MediaQuery.of(context).size.height * 0.7,
-                            child: TravelRecordCard(
-                              key: ValueKey(travels[index]['id']),
-                              travel: travels[index],
-                            ),
-                          );
-                        }, childCount: travels.length),
-                      ),
-                      // 🎯 핵심 수정: 마지막 카드 뒤에 메뉴바 높이만큼의 여백(Sliver)을 추가합니다.
-                      // 이렇게 하면 마지막 70% 카드가 메뉴바 위로 밀려 올라오게 됩니다.
-                      SliverToBoxAdapter(
-                        child: SizedBox(
-                          height: MediaQuery.of(context).padding.bottom,
+                        // 2. 이후 여행 카드 리스트 (봉투 크기를 80%로 줄여서 '피킹' 구현)
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            // 🎯 봉투 자체를 0.8로 잡아야 다음 슬라이버가 위로 올라옴!
+                            return SizedBox(
+                              height: screenHeight * 0.8,
+                              child: TravelRecordCard(
+                                key: ValueKey(travels[index]['id']),
+                                travel: travels[index],
+                              ),
+                            );
+                          }, childCount: travels.length),
                         ),
-                      ),
-                    ],
+                        // 하단 메뉴바 여백
+                        SliverToBoxAdapter(
+                          child: SizedBox(
+                            height: MediaQuery.of(context).padding.bottom,
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
               );
