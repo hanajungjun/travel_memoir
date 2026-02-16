@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
+import 'dart:io';
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/domestic_summary_tab.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/overseas_summary_tab.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/tabs/usa_summary_tab.dart';
@@ -84,6 +84,8 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
       ),
+      // ✅ 추가: SafeArea 영역까지 포함
+      isScrollControlled: true,
       builder: (context) {
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 24),
@@ -147,6 +149,12 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
                   'get_more_maps'.tr(),
                   style: const TextStyle(color: Colors.grey),
                 ),
+              ),
+              // ✅ 기존 패턴 그대로!
+              SizedBox(
+                height: Platform.isIOS
+                    ? 0
+                    : MediaQuery.of(context).padding.bottom,
               ),
             ],
           ),

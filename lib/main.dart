@@ -129,7 +129,7 @@ Future<void> _initRevenueCat() async {
   if (Platform.isAndroid) {
     configuration = PurchasesConfiguration(AppEnv.revenueCatGoogleKey);
   } else if (Platform.isIOS) {
-    configuration = PurchasesConfiguration("appl_GOvqLsLAoeTPEMVnmhUHjGJFGCY");
+    configuration = PurchasesConfiguration(AppEnv.revenueCatAppleKey);
   } else {
     return;
   }

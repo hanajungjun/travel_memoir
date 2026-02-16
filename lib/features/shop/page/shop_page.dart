@@ -316,7 +316,7 @@ class _ShopPageState extends State<ShopPage> {
           _isProductsLoading
               ? const Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 20, 10),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -331,12 +331,12 @@ class _ShopPageState extends State<ShopPage> {
                         _buildSubscribedCard()
                       else
                         _buildSubscriptionSection(),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 10),
                       Text(
                         'charge_coins'.tr(),
                         style: AppTextStyles.sectionTitle,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       _buildCoinGrid(),
                       Center(
                         child: Padding(
@@ -411,7 +411,7 @@ class _ShopPageState extends State<ShopPage> {
 
   Widget _buildSubscriptionSection() {
     return SizedBox(
-      height: 185,
+      height: 210,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _subscriptionPackages.length,
@@ -530,7 +530,7 @@ class _ShopPageState extends State<ShopPage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -651,19 +651,24 @@ class _ShopPageState extends State<ShopPage> {
 
   Widget _buildFooterNotice() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
       child: Column(
         children: [
-          Text(
-            'subscription_notice'.tr(),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[500],
-              height: 1.3,
+          // 🎯 iOS일 때만 구독 관련 상세 공지사항을 노출합니다.
+          if (Platform.isIOS) ...[
+            Text(
+              'subscription_notice'.tr(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                color: Colors.grey[500],
+                height: 1.3,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 12),
+          ],
+
+          // 🎯 이용약관 및 개인정보처리방침 링크 (안드로이드/iOS 공통)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -683,7 +688,7 @@ class _ShopPageState extends State<ShopPage> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             '© 2026 Travel Memoir.',
             style: TextStyle(fontSize: 9, color: Colors.grey[400]),

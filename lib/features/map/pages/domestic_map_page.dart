@@ -328,7 +328,11 @@ class DomesticMapPageState extends State<DomesticMapPage>
           // 한국어: "경상북도 봉화"
           displayRegionName = "${res['province']} ${res['region_name']}";
         }
+
+        final String rawSummary = (res['ai_cover_summary'] ?? '').toString();
+        final String cleanedSummary = rawSummary.replaceAll('**', '').trim();
         final rawPath = res['map_image_url']?.toString();
+
         String imageUrl = '';
 
         if (rawPath != null && rawPath.isNotEmpty) {
@@ -348,7 +352,10 @@ class DomesticMapPageState extends State<DomesticMapPage>
               imageUrl: imageUrl,
               //  regionName:"${res['province'].toString().tr()} ${res['region_name'].toString().tr()}",
               regionName: displayRegionName,
-              summary: res['ai_cover_summary'] ?? "no_memories_recorded".tr(),
+              //summary: res['ai_cover_summary'] ?? "no_memories_recorded".tr(),
+              summary: cleanedSummary.isEmpty
+                  ? 'no_memories_recorded'.tr()
+                  : cleanedSummary,
             ),
           ),
         );
