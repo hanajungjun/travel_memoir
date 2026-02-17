@@ -69,16 +69,21 @@ class _HomePageState extends State<HomePage> with RouteAware {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final String today = DateTime.now().toString().split(' ')[0];
-    final String storageKey = 'last_reward_popup_${user.id}';
+    final String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final String cleanUserId = user.id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    final String storageKey = 'last_reward_popup_$cleanUserId';
+
+  debugPrint("❌ [today]: $today");
+  debugPrint("❌ [cleanUserId]: $cleanUserId");
+  debugPrint("❌ [storageKey]: $storageKey");
 
     if (prefs.getString(storageKey) == today) {
       debugPrint("✅ [Reward] 오늘 이미 팝업을 본 유저입니다.");
       return;
     }
 
-    // 1️⃣ [DB 실시간 조회] 일반 보상(daily_login) 수량을 DB에서 직접 가져옵니다.
-    int normalRewardAmount = 5; // 로드 실패 시 사용할 기본값
+    // 1️⃣ 일반 보상 수량 DB 조회
+    int normalRewardAmount = 5;
     try {
       final normalData = await Supabase.instance.client
           .from('reward_config')
@@ -92,20 +97,33 @@ class _HomePageState extends State<HomePage> with RouteAware {
       debugPrint("⚠️ [Reward] 일반 보상 설정 로드 실패: $e");
     }
 
-    // 2️⃣ 서버에서 보상 지급 처리 (StampService 호출)
+    // 2️⃣ 신규 가입자 여부 체크 (가입 24시간 이내)
+    bool isNewUser = false;
+    try {
+      final userData = await Supabase.instance.client
+          .from('users')
+          .select('created_at')
+          .eq('auth_uid', user.id)
+          .maybeSingle();
+      if (userData != null) {
+        final createdAt = DateTime.parse(userData['created_at']).toLocal();
+        isNewUser = DateTime.now().difference(createdAt).inHours < 24;
+      }
+    } catch (e) {
+      debugPrint("⚠️ [Reward] 신규 유저 체크 실패: $e");
+    }
+
+    // 3️⃣ 서버에서 보상 지급 처리
     final reward = await _stampService.checkAndGrantDailyReward(user.id);
 
     if (reward != null && mounted) {
-      // 3️⃣ [데이터 합성] 지급된 보상 데이터에 DB에서 읽어온 normal_amount를 추가합니다.
       final Map<String, dynamic> rewardWithNormal = Map.from(reward);
       rewardWithNormal['normal_amount'] = normalRewardAmount;
+      rewardWithNormal['is_new_user'] = isNewUser; // 👈 신규 여부 추가
 
       debugPrint("🎁 [Reward Log] Data with Normal: $rewardWithNormal");
 
-      // 4️⃣ 팝업 표시
       _showRewardPopup(rewardWithNormal);
-
-      // 5️⃣ 로컬 저장 (오늘 다시 안 뜨게)
       await prefs.setString(storageKey, today);
     }
   }
@@ -116,31 +134,37 @@ class _HomePageState extends State<HomePage> with RouteAware {
   void _showRewardPopup(Map<String, dynamic> reward) {
     final locale = context.locale.languageCode;
     final bool isVip = reward['is_vip'] ?? false;
+    final bool isNewUser = reward['is_new_user'] ?? false; // 👈 추가
 
     final title = reward['title_$locale'] ?? reward['title_ko'] ?? 'Reward';
     String desc =
         reward['description_$locale'] ?? reward['description_ko'] ?? '';
-
     desc = desc.replaceAll(r'\n', '\n');
 
-    // 🎯 [핵심] DB에서 넘어온 값을 그대로 사용 (하드코딩 제거 완료)
-    final String normalAmount = (reward['normal_amount'] ?? "5").toString();
-    final String vipAmount = (reward['reward_amount'] ?? "0").toString();
-
-    // {amount}와 {reward_amount}를 각각 실제 숫자로 치환
-    if (desc.contains('{amount}')) {
-      desc = desc.replaceAll('{amount}', normalAmount);
-    }
-    if (desc.contains('{reward_amount}')) {
-      desc = desc.replaceAll('{reward_amount}', vipAmount);
+    // 🎯 신규 가입자면 메시지 덮어쓰기
+    if (isNewUser) {
+      desc = locale == 'ko'
+          ? '🎉 가입을 환영합니다!\n신규 가입 선물로 20개의 스탬프를 드렸어요!'
+          : '🎉 Welcome!\nWe gave you 20 stamps as a new member gift!';
+    } else {
+      final String normalAmount = (reward['normal_amount'] ?? "5").toString();
+      final String vipAmount = (reward['reward_amount'] ?? "0").toString();
+      if (desc.contains('{amount}'))
+        desc = desc.replaceAll('{amount}', normalAmount);
+      if (desc.contains('{reward_amount}'))
+        desc = desc.replaceAll('{reward_amount}', vipAmount);
     }
 
     AppDialogs.showDynamicIconAlert(
       context: context,
       title: title,
       message: desc,
-      icon: isVip ? Icons.workspace_premium : Icons.stars,
-      iconColor: isVip ? Colors.amber : Colors.orangeAccent,
+      icon: isNewUser
+          ? Icons.card_giftcard
+          : (isVip ? Icons.workspace_premium : Icons.stars),
+      iconColor: isNewUser
+          ? Colors.green
+          : (isVip ? Colors.amber : Colors.orangeAccent),
       barrierDismissible: false,
       onClose: () => _triggerRefresh(),
     );

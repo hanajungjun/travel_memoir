@@ -13,7 +13,6 @@ import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
-import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
 class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
@@ -178,19 +177,39 @@ class _ShopPageState extends State<ShopPage> {
   Future<void> _handleWatchAdReward() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
+    // 1. 일일 한도 초과
     if (_adUsedToday >= _adDailyLimit) {
       AppToast.error(context, 'ad_limit_reached'.tr());
       return;
     }
+
+    // 2. 광고 아직 로드 중
     if (!_isAdLoaded || _rewardedAd == null) {
-      _showNoAdDialog();
-      _loadAds();
+      AppToast.show(context, 'ad_not_ready_desc'.tr()); // 👈 다이얼로그 대신 토스트로
+      _loadAds(); // 다시 로드 시도
       return;
     }
+
+    // 3. 광고 표시
+    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _isAdLoaded = false;
+        _loadAds(); // 다음 광고 미리 로드
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        _isAdLoaded = false;
+        _loadAds();
+        AppToast.error(context, 'ad_not_ready_desc'.tr());
+      },
+    );
+
     _rewardedAd!.show(
       onUserEarnedReward: (_, __) async {
         final result = await _stampService.grantAdReward(user.id);
-        if (result != null) {
+        if (result != null && mounted) {
           await _loadAllConfigs();
           setState(() {
             _balanceFuture = _fetchCoinBalances();
@@ -202,14 +221,6 @@ class _ShopPageState extends State<ShopPage> {
           AppToast.show(context, successMsg);
         }
       },
-    );
-  }
-
-  void _showNoAdDialog() {
-    AppDialogs.showAlert(
-      context: context,
-      title: 'ad_not_ready_title'.tr(),
-      message: 'ad_not_ready_desc'.tr(),
     );
   }
 

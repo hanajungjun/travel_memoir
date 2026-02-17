@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:image_picker/image_picker.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
@@ -88,6 +89,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     with SingleTickerProviderStateMixin {
   final StampService _stampService = StampService();
   final TextEditingController _contentController = TextEditingController();
+  //final ImagePicker _picker = ImagePicker();
   final _logger = LoggerService(); // ✅ 로거 인스턴스
 
   // ✅ 모든 번역 문자열을 클래스 변수로 선언
@@ -1144,11 +1146,11 @@ class _TravelDayPageState extends State<TravelDayPage>
             height: 101,
           ),
           const SizedBox(height: 5),
-          const Text(
+          Text(
             '오늘의 하루를\n그림으로 남겨보세요',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Color(0xFFB3B3B3),
+              color: const Color(0xFFB3B3B3),
               fontSize: 15,
               height: 1.2,
               fontWeight: FontWeight.w600,

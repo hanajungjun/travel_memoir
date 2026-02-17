@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
-
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
@@ -17,7 +17,6 @@ class ProfileEditPage extends StatefulWidget {
 
 class _ProfileEditPageState extends State<ProfileEditPage> {
   final supabase = Supabase.instance.client;
-  final picker = ImagePicker();
 
   final nicknameController = TextEditingController();
   final bioController = TextEditingController();
@@ -52,12 +51,20 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   Future<void> _pickImage() async {
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 90,
+    final List<AssetEntity>? result = await AssetPicker.pickAssets(
+      context,
+      pickerConfig: const AssetPickerConfig(
+        maxAssets: 1,
+        requestType: RequestType.image,
+      ),
     );
-    if (picked == null) return;
-    setState(() => _pickedImage = File(picked.path));
+
+    if (result == null || result.isEmpty) return;
+
+    final File? file = await result.first.file;
+    if (file != null && mounted) {
+      setState(() => _pickedImage = file);
+    }
   }
 
   Future<String> _uploadImage(File file) async {

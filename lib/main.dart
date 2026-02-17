@@ -12,7 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-
+import 'package:permission_handler/permission_handler.dart';
 import 'package:travel_memoir/app/route_observer.dart';
 import 'services/network_service.dart';
 import 'firebase_options.dart';
@@ -23,6 +23,36 @@ import 'app/app.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
+Future<void> _initMediaStorePermission() async {
+  if (Platform.isAndroid) {
+    // 안드로이드 13 (SDK 33) 이상인지 확인하기 위해 device_info_plus를 쓰는 게 좋지만,
+    // 일단은 가장 안전하게 모든 미디어 권한을 요청하는 방식입니다.
+
+    // 1. 권한 목록 준비
+    List<Permission> permissions = [];
+
+    // 실제로는 기기 버전을 체크해서 넣는 게 베스트입니다.
+    // 여기서는 일단 모든 케이스를 대응하도록 구성합니다.
+    permissions.add(Permission.photos); // Android 13+ 이미지
+    permissions.add(Permission.videos); // Android 13+ 영상
+    permissions.add(Permission.storage); // Android 12 이하 공용 저장소
+
+    // 2. 한꺼번에 요청
+    Map<Permission, PermissionStatus> statuses = await permissions.request();
+
+    // 3. 결과 확인 (하나라도 승인되면 일단 진행)
+    bool isGranted =
+        statuses[Permission.photos]?.isGranted == true ||
+        statuses[Permission.storage]?.isGranted == true;
+
+    if (isGranted) {
+      debugPrint('📸 갤러리 접근 권한 확보 성공');
+    } else {
+      debugPrint('❌ 권한 거절됨');
+    }
+  }
 }
 
 Future<void> main() async {
@@ -157,8 +187,8 @@ class _TravelMemoirAppWrapperState extends State<_TravelMemoirAppWrapper> {
   void initState() {
     super.initState();
 
-    // 🔔 안드로이드 13+ 알림 권한 시스템 팝업 요청
-    _initNotificationPermission();
+    _initNotificationPermission(); // 🔔 안드로이드 13+ 알림 권한 시스템 팝업 요청
+    _initMediaStorePermission(); // ✅ [추가] 갤러리 접근 권한 요청
 
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _isLoadingComplete = true);
