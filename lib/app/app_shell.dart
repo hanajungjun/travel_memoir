@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/features/home/pages/home_page.dart';
-import 'package:travel_memoir/features/record/pages/record_tab_page.dart';
+import 'package:travel_memoir/features/log/pages/record_tab_page.dart';
 import 'package:travel_memoir/features/travel_list/pages/travel_list_page.dart';
 import 'package:travel_memoir/features/my/pages/my_page.dart';
 import 'package:travel_memoir/features/shop/page/shop_page.dart';

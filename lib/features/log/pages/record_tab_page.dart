@@ -7,7 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/utils/date_utils.dart';
-import 'package:travel_memoir/features/travel_album/pages/travel_album_page.dart';
+import 'package:travel_memoir/features/log/pages/travel_album_page.dart';
 import 'package:travel_memoir/storage_urls.dart';
 
 class RecordTabPage extends StatefulWidget {

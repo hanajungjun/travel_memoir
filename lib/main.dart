@@ -156,9 +156,34 @@ class _TravelMemoirAppWrapperState extends State<_TravelMemoirAppWrapper> {
   @override
   void initState() {
     super.initState();
+
+    // 🔔 안드로이드 13+ 알림 권한 시스템 팝업 요청
+    _initNotificationPermission();
+
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _isLoadingComplete = true);
     });
+  }
+
+  // 🎯 배포 버전에서 알림 팝업을 확실히 띄우기 위한 함수
+  Future<void> _initNotificationPermission() async {
+    if (Platform.isAndroid) {
+      FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+      // 안드로이드 시스템에 알림 권한을 정식으로 요청합니다.
+      // 이 시점에 안드로이드 13 이상 기기에서 "알림 허용" 팝업이 뜹니다.
+      NotificationSettings settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        debugPrint('🔔 사용자가 알림 권한을 승인함');
+      } else {
+        debugPrint('🔕 사용자가 알림 권한을 거절함');
+      }
+    }
   }
 
   @override

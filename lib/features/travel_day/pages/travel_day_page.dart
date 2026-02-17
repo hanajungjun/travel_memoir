@@ -950,9 +950,9 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('📏 padding.bottom: ${MediaQuery.of(context).padding.bottom}');
-
     final bool hasAiImage = _imageUrl != null || _generatedImage != null;
+    final bool isAndroid = Platform.isAndroid;
+
     final Color generateButtonColor = !_isTripTypeLoaded
         ? const Color(0xFFC2C2C2)
         : _travelType == 'domestic'
@@ -965,52 +965,124 @@ class _TravelDayPageState extends State<TravelDayPage>
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
       child: Scaffold(
         backgroundColor: const Color(0xFFF6F6F6),
-        resizeToAvoidBottomInset: false, // ✅ 하단 버튼 철벽 고정
+        resizeToAvoidBottomInset: false,
         body: SafeArea(
           bottom: false,
           child: Stack(
             children: [
-              Column(
-                children: [
-                  // ✅ [필살기] 상단 카드만 스크롤 가능하게 분리하여 이미지 제스처 방해 금지
-                  SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    child: _buildTopInputCard(generateButtonColor),
-                  ),
-
-                  // ✅ [해결] 이미지 영역을 Expanded로 잡아 남은 화면을 꽉 채웁니다.
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(top: 22),
-                      color: hasAiImage
-                          ? Colors.transparent
-                          : const Color(0xFFE6E6E6),
-                      child: hasAiImage
-                          ? _buildAiImageContent()
-                          : _buildEmptyImageContent(),
-                    ),
-                  ),
-
-                  // ✅ iOS는 58만, Android는 58 + 네비바
-                  SizedBox(
-                    height:
-                        58 +
-                        (Platform.isIOS
-                            ? 0
-                            : MediaQuery.of(context).padding.bottom),
-                  ),
-                ],
-              ),
-
-              // 저장 버튼을 Stack의 맨 바닥에 고정
-              _buildFixedBottomSaveBar(),
+              isAndroid
+                  ? _buildAndroidLayout(generateButtonColor, hasAiImage)
+                  : _buildIosLayout(generateButtonColor, hasAiImage),
 
               if (_loading) _buildLoadingOverlay(),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildIosLayout(Color generateButtonColor, bool hasAiImage) {
+    return Stack(
+      // ✅ Column → Stack으로 변경
+      children: [
+        Column(
+          children: [
+            SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: _buildTopInputCard(generateButtonColor),
+            ),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 22),
+                color: hasAiImage
+                    ? Colors.transparent
+                    : const Color(0xFFE6E6E6),
+                child: hasAiImage
+                    ? _buildAiImageContent()
+                    : _buildEmptyImageContent(),
+              ),
+            ),
+            const SizedBox(height: 58), // 저장버튼 높이만큼 공간 예약
+          ],
+        ),
+        _buildFixedBottomSaveBar(), // ✅ 이게 빠져있었던 것!
+      ],
+    );
+  }
+
+  // ✅ Android: AI 이미지 아래 저장버튼이 바로 붙는 구조
+  Widget _buildAndroidLayout(Color generateButtonColor, bool hasAiImage) {
+    final double bottomPadding = MediaQuery.of(context).padding.bottom;
+    final double screenHeight = MediaQuery.of(context).size.height;
+
+    return Column(
+      children: [
+        // ✅ 상단 카드 최대 높이 제한 (화면의 55%까지만)
+        ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: screenHeight * 0.55),
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: _buildTopInputCard(generateButtonColor),
+          ),
+        ),
+
+        // AI 이미지 영역: 나머지 공간 전부 차지
+        Expanded(
+          child: Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 22),
+            color: hasAiImage ? Colors.transparent : const Color(0xFFE6E6E6),
+            child: hasAiImage
+                ? _buildAiImageContent()
+                : _buildEmptyImageContent(),
+          ),
+        ),
+
+        // 저장버튼
+        GestureDetector(
+          onTap: () {
+            if (!_loading) _saveDiary();
+          },
+          child: Container(
+            width: double.infinity,
+            color: _loading ? Colors.grey : const Color(0xFF454B54),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 58,
+                  child: Center(
+                    child: _loading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            _saveDiaryButtonText,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                Container(
+                  width: double.infinity,
+                  height: bottomPadding,
+                  color: _loading ? Colors.grey : const Color(0xFF454B54),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
