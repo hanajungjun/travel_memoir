@@ -76,6 +76,7 @@ class MySupportPage extends StatelessWidget {
               ),
             ),
             const _Divider(),
+            /*
             // ✨ 새롭게 추가된 [사용법] 메뉴
             _SupportTile(
               title: 'how_to_use'.tr(), // "사용법" 또는 "가이드"
@@ -88,7 +89,7 @@ class MySupportPage extends StatelessWidget {
                 'https://www.notion.so/2fa8fcc97af880ac968dfc493fbd0fcf?source=copy_link',
               ), // ✅ 노션 주소 입력
             ),
-
+             */
             const SizedBox(height: 32),
 
             // 2️⃣ 개발자 정보 (심사 안전 지대)
