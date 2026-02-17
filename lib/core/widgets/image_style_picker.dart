@@ -109,16 +109,15 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
     final String currentLang = context.locale.languageCode;
 
     return SizedBox(
-      height: 100,
+      height: 105, // 텍스트 높이 고려하여 소폭 조정
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _styles.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
           final style = _styles[i];
           final selected = i == _selectedIndex;
-
-          // ✅ [핵심 변경] locked 조건에 VIP 권한 합산
           final bool locked = style.isPremium && !_hasProAccess;
 
           final String displayTitle =
@@ -129,7 +128,6 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
           return GestureDetector(
             onTap: () {
               FocusManager.instance.primaryFocus?.unfocus();
-
               if (locked) {
                 _showPremiumRequiredDialog();
               } else {
@@ -142,18 +140,19 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
               children: [
                 Stack(
                   children: [
+                    // 1. 이미지 썸네일
                     Container(
                       width: 72,
                       height: 72,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(5),
+                        borderRadius: BorderRadius.circular(6),
                         color: Colors.white,
                         border: selected
                             ? Border.all(
                                 color: AppColors.travelingBlue,
                                 width: 2,
                               )
-                            : null,
+                            : Border.all(color: Colors.grey.shade200, width: 1),
                       ),
                       clipBehavior: Clip.hardEdge,
                       child: ClipRRect(
@@ -161,100 +160,83 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                         child:
                             style.thumbnailUrl != null &&
                                 style.thumbnailUrl!.isNotEmpty
-                            ? (locked
-                                  ? ColorFiltered(
-                                      colorFilter: const ColorFilter.mode(
-                                        Colors.grey,
-                                        BlendMode.saturation,
-                                      ),
-                                      child: CachedNetworkImage(
-                                        imageUrl: Uri.encodeFull(
-                                          style.thumbnailUrl!,
-                                        ),
-                                        width: 72, // 이미지 크기
-                                        height: 72, // 이미지 크기
-                                        fit: BoxFit.cover,
-                                      ),
-                                    )
-                                  : CachedNetworkImage(
-                                      imageUrl: Uri.encodeFull(
-                                        style.thumbnailUrl!,
-                                      ),
-                                      width: 72, // 이미지 크기
-                                      height: 72, // 이미지 크기
-                                      fit: BoxFit.cover,
-                                    ))
+                            ? ColorFiltered(
+                                colorFilter: ColorFilter.mode(
+                                  locked ? Colors.grey : Colors.transparent,
+                                  BlendMode.saturation,
+                                ),
+                                child: CachedNetworkImage(
+                                  imageUrl: Uri.encodeFull(style.thumbnailUrl!),
+                                  fit: BoxFit.cover,
+                                ),
+                              )
                             : const Icon(Icons.image, color: Colors.grey),
                       ),
                     ),
+
+                    // 2. [변경됨] 이미지 구석의 별표 아이콘 (PRO 글씨 대신)
+                    if (style.isPremium)
+                      const Positioned(
+                        left: 4,
+                        top: 4,
+                        child: Icon(
+                          Icons.stars_rounded, // 동그라미 안의 별 모양
+                          color: Colors.amber,
+                          size: 18,
+                        ),
+                      ),
+
+                    // 3. 선택 시 체크 표시
                     if (selected)
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: AppColors.travelingBlue.withOpacity(0.45),
-                            borderRadius: BorderRadius.circular(5),
+                            color: AppColors.travelingBlue.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Center(
                             child: Icon(
                               Icons.check_rounded,
                               color: Colors.white,
-                              size: 32,
+                              size: 30,
                             ),
                           ),
                         ),
                       ),
+
+                    // 4. 잠금 표시 (권한 없을 때)
                     if (locked)
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(5),
+                            color: Colors.black.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Center(
                             child: Icon(
                               Icons.lock_rounded,
                               color: Colors.white,
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                      ),
-                    if (style.isPremium)
-                      Positioned(
-                        right: 4,
-                        top: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.amber,
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: const Text(
-                            'PRO',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                              size: 20,
                             ),
                           ),
                         ),
                       ),
                   ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 5),
+                // 5. 스타일 이름 (별표 없이 텍스트만)
                 SizedBox(
-                  width: 70,
+                  width: 72,
                   child: Text(
                     displayTitle,
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.bodyMuted.copyWith(
-                      fontSize: 12,
-                      color: AppColors.textColor01,
+                      fontSize: 11,
+                      color: selected
+                          ? AppColors.travelingBlue
+                          : AppColors.textColor01,
                       fontWeight: selected
                           ? FontWeight.bold
                           : FontWeight.normal,

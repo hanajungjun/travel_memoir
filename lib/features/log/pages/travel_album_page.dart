@@ -702,12 +702,12 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
               for (var entry in groupedData.entries) ...[
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(
+                    padding: const EdgeInsets.fromLTRB(
                       20,
-                      0,
+                      16,
                       20,
-                      MediaQuery.of(context).padding.bottom + 100,
-                    ),
+                      8,
+                    ), // bottom 패딩 제거
                     child: Row(
                       children: [
                         Text(
