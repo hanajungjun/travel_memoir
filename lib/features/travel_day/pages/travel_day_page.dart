@@ -1136,11 +1136,11 @@ class _TravelDayPageState extends State<TravelDayPage>
             height: 101,
           ),
           const SizedBox(height: 5),
-          Text(
+          const Text(
             '오늘의 하루를\n그림으로 남겨보세요',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: const Color(0xFFB3B3B3),
+              color: Color(0xFFB3B3B3),
               fontSize: 15,
               height: 1.2,
               fontWeight: FontWeight.w600,

@@ -231,7 +231,7 @@ class SummaryHeroCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(45, 120, 45, 0),
+              padding: const EdgeInsets.fromLTRB(45, 115, 45, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -239,7 +239,7 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_title'.tr(),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 30,
+                      fontSize: 31,
                       fontWeight: FontWeight.w500,
                       height: 1.4,
                       letterSpacing: -0.5,
@@ -249,7 +249,7 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_label'.tr(),
                     style: const TextStyle(
                       color: Color(0xFFFFC669),
-                      fontSize: 30,
+                      fontSize: 31,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
                       letterSpacing: -0.5,
@@ -259,7 +259,7 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_subtitle'.tr(),
                     style: const TextStyle(
                       color: Colors.white60,
-                      fontSize: 22,
+                      fontSize: 24,
                       fontWeight: FontWeight.w100,
                       letterSpacing: -1,
                     ),
@@ -391,14 +391,14 @@ class SummaryHeroCard extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Color(0xFFC6C7C9),
+              color: Colors.white,
               fontSize: 12,
               fontWeight: FontWeight.w200,
             ),
           ),
         ],
       ),
-      const SizedBox(height: 4),
+      const SizedBox(height: 3),
       Padding(
         padding: const EdgeInsets.only(left: 12),
         child: Text(
@@ -528,29 +528,25 @@ class TravelRecordCard extends StatelessWidget {
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: summary.isEmpty
-                      ? 60 // 1. 내용이 아예 없을 때
-                      : (summary.length > 40
-                            ? 103 // 2. 글이 길 때 (약 2줄 이상)
-                            : 80), // 3. 글이 짧을 때 (1줄)
+                  bottom: 75, // 3. 글이 짧을 때 (1줄)
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
+                          horizontal: 6,
+                          vertical: 3,
                         ),
                         decoration: BoxDecoration(
                           color: badgeColor,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(5),
                         ),
                         child: Text(
                           badgeText,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
