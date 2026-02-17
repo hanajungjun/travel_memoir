@@ -17,15 +17,30 @@ class AppDialogs {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
-        content: Text(message.tr()),
+        content: Text(
+          message.tr(),
+          style: const TextStyle(fontSize: 14, color: AppColors.textColor03),
+        ),
         actions: [
-          TextButton(
+          // 기존 TextButton 대신 배경이 있는 ElevatedButton 적용
+          ElevatedButton(
             onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC2C2C2), // 버튼 배경색
+              foregroundColor: AppColors.textColor03, // 버튼 텍스트 기본색
+              elevation: 0, // 그림자 제거
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: Text(
               'confirm'.tr(),
-              style: const TextStyle(color: Colors.blue),
+              style: const TextStyle(
+                color: AppColors.textColor02, // 요청하신 텍스트 색상
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -40,7 +55,7 @@ class AppDialogs {
     required String message,
     required String actionLabel,
     Color actionColor = const Color(0xFF1C2328),
-    Color actionTextColor = Colors.white,
+    Color actionTextColor = AppColors.textColor02,
     required VoidCallback onAction,
   }) {
     showDialog(
@@ -50,26 +65,30 @@ class AppDialogs {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
-          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         content: Text(
           message.tr(),
           style: const TextStyle(fontSize: 14, color: AppColors.textColor03),
         ),
         actions: [
-          TextButton(
+          // 닫기 버튼: ElevatedButton으로 변경하여 배경색 적용
+          ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            style:
-                TextButton.styleFrom(
-                  // 클릭 시 발생하는 하이라이트/스플래시 효과를 투명하게 설정
-                  backgroundColor: Colors.transparent, // 기본 배경색 투명
-                ).copyWith(
-                  // 모든 상태(눌림, 호버 등)에서 배경색이 생기지 않도록 처리
-                  overlayColor: WidgetStateProperty.all(Colors.transparent),
-                ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC2C2C2), // 닫기 버튼용 연한 배경색 (예시)
+              foregroundColor: AppColors.textColor03,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: Text(
               'close'.tr(),
-              style: const TextStyle(color: AppColors.textColor03),
+              style: const TextStyle(
+                color: AppColors.textColor02,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           ElevatedButton(
@@ -77,7 +96,7 @@ class AppDialogs {
               backgroundColor: actionColor,
               foregroundColor: actionTextColor,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               elevation: 0,
             ),
@@ -101,7 +120,7 @@ class AppDialogs {
     required String title,
     required String message,
     String? confirmLabel,
-    Color confirmColor = Colors.blue,
+    Color confirmColor = const Color(0xFF1C2328),
   }) {
     return showDialog<bool>(
       context: context,
@@ -110,23 +129,46 @@ class AppDialogs {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
-        content: Text(message.tr()),
+        content: Text(
+          message.tr(),
+          style: const TextStyle(fontSize: 14, color: AppColors.textColor03),
+        ),
         actions: [
-          TextButton(
+          // 취소 버튼
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, false),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC2C2C2),
+              foregroundColor: AppColors.textColor03,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: Text(
               'cancel'.tr(),
-              style: const TextStyle(color: Colors.grey),
+              style: const TextStyle(
+                color: AppColors.textColor02,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          TextButton(
+          // 확인 버튼
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: confirmColor,
+              foregroundColor: AppColors.textColor02,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: confirmColor),
             child: Text(
               confirmLabel?.tr() ?? 'confirm'.tr(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -150,7 +192,7 @@ class AppDialogs {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         content: TextField(
           controller: controller,
@@ -158,17 +200,30 @@ class AppDialogs {
           decoration: InputDecoration(hintText: hintText.tr()),
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC2C2C2),
+              foregroundColor: AppColors.textColor03,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: Text(
               'cancel'.tr(),
-              style: const TextStyle(color: Colors.grey),
+              style: const TextStyle(
+                color: AppColors.textColor02,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1C2328),
+              foregroundColor: AppColors.textColor02,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
             onPressed: () {
@@ -199,29 +254,51 @@ class AppDialogs {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: Text(
           title.tr(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
-        content: Text(message.tr()),
+        content: Text(
+          message.tr(),
+          style: const TextStyle(fontSize: 14, color: AppColors.textColor03),
+        ),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               onFirstAction();
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC2C2C2), // 닫기 버튼용 연한 배경색 (예시)
+              foregroundColor: AppColors.textColor03,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
             child: Text(
               firstLabel.tr(),
               style: const TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
+                color: AppColors.textColor02,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          TextButton(
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1C2328),
+              foregroundColor: AppColors.textColor02,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              elevation: 0,
+            ),
             onPressed: () {
               Navigator.pop(context);
               onSecondAction();
             },
-            child: Text(secondLabel.tr()),
+            child: Text(
+              secondLabel.tr(),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
           ),
         ],
       ),
@@ -234,7 +311,7 @@ class AppDialogs {
     required String title,
     required String message,
     IconData icon = Icons.stars,
-    Color iconColor = Colors.orangeAccent,
+    Color iconColor = const Color(0xFFFFB338),
     bool barrierDismissible = false,
     required VoidCallback onClose,
   }) {
@@ -247,31 +324,45 @@ class AppDialogs {
         title: Center(
           child: Text(
             title.tr(),
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
           ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 10),
             Icon(icon, size: 60, color: iconColor),
             const SizedBox(height: 20),
-            Text(message.tr(), textAlign: TextAlign.center),
+            Text(
+              message.tr(),
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textColor03,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         actions: [
           SizedBox(
             width: double.infinity,
-            child: TextButton(
+            child: ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 onClose();
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1C2328), // 강조된 와이드 버튼 스타일
+                foregroundColor: AppColors.textColor02,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
               child: Text(
                 "close".tr(),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -362,7 +453,7 @@ class AppDialogs {
     required String title,
     required String message,
     IconData icon = Icons.stars,
-    Color iconColor = Colors.orangeAccent,
+    Color iconColor = const Color(0xFFFFB338),
     bool barrierDismissible = false,
     required VoidCallback onClose,
   }) {
@@ -376,15 +467,23 @@ class AppDialogs {
         title: Center(
           child: Text(
             title,
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
           ),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 10),
             Icon(icon, size: 60, color: iconColor),
             const SizedBox(height: 20),
-            Text(message, textAlign: TextAlign.center),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textColor03,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
         actions: [
@@ -395,12 +494,18 @@ class AppDialogs {
                 Navigator.pop(context);
                 onClose();
               },
-              child: Text(
-                "close".tr(), // 버튼 글자는 공통 번역 사용
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1C2328), // 강조된 와이드 버튼 스타일
+                foregroundColor: AppColors.textColor02,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: Text(
+                "close".tr(),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),

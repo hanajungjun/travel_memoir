@@ -87,7 +87,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
       title: 'premium_only_style_title',
       message: 'premium_only_style_desc',
       actionLabel: 'go_to_shop',
-      actionColor: Colors.amber,
+      actionColor: const Color(0xFFFFB338),
       onAction: () {
         Navigator.push(
           context,
@@ -112,7 +112,7 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
       height: 105, // 텍스트 높이 고려하여 소폭 조정
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 0),
         itemCount: _styles.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) {
@@ -147,12 +147,6 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(6),
                         color: Colors.white,
-                        border: selected
-                            ? Border.all(
-                                color: AppColors.travelingBlue,
-                                width: 2,
-                              )
-                            : Border.all(color: Colors.grey.shade200, width: 1),
                       ),
                       clipBehavior: Clip.hardEdge,
                       child: ClipRRect(
@@ -177,12 +171,12 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                     // 2. [변경됨] 이미지 구석의 별표 아이콘 (PRO 글씨 대신)
                     if (style.isPremium)
                       const Positioned(
-                        left: 4,
-                        top: 4,
+                        left: 3,
+                        top: 3,
                         child: Icon(
                           Icons.stars_rounded, // 동그라미 안의 별 모양
-                          color: Colors.amber,
-                          size: 18,
+                          color: Color.fromARGB(255, 255, 203, 59),
+                          size: 16,
                         ),
                       ),
 
@@ -191,14 +185,14 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: AppColors.travelingBlue.withOpacity(0.4),
+                            color: AppColors.travelingBlue.withOpacity(0.5),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Center(
                             child: Icon(
                               Icons.check_rounded,
                               color: Colors.white,
-                              size: 30,
+                              size: 45,
                             ),
                           ),
                         ),
@@ -215,8 +209,8 @@ class _ImageStylePickerState extends State<ImageStylePicker> {
                           child: const Center(
                             child: Icon(
                               Icons.lock_rounded,
-                              color: Colors.white,
-                              size: 20,
+                              color: Color.fromARGB(150, 255, 255, 255),
+                              size: 27,
                             ),
                           ),
                         ),

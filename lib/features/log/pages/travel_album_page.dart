@@ -289,7 +289,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
       title: 'premium_only_title'.tr(),
       message: 'premium_infographic_desc'.tr(),
       actionLabel: 'go_to_shop'.tr(),
-      actionColor: Colors.amber,
+      actionColor: const Color(0xFFFFB338),
       onAction: () {
         Navigator.push(
           context,
