@@ -115,38 +115,62 @@ class _ShopPageState extends State<ShopPage> {
 
   Future<void> _fetchOfferings() async {
     try {
-      Offerings? offerings = await PaymentService.getOfferings();
-      final customerInfo = await Purchases.getCustomerInfo();
-      if (offerings?.current != null) {
-        final allPackages = offerings!.current!.availablePackages;
+      // 1. 타임아웃 설정 (최대 15초 대기 후 강제 에러 발생)
+      Offerings? offerings = await PaymentService.getOfferings().timeout(
+        const Duration(seconds: 30),
+      );
+
+      final customerInfo = await Purchases.getCustomerInfo().timeout(
+        const Duration(seconds: 30),
+      );
+
+      if (mounted) {
         setState(() {
-          _isPremium =
-              customerInfo.entitlements.all["TravelMemoir Pro"]?.isActive ??
-              false;
+          if (offerings?.current != null) {
+            final allPackages = offerings!.current!.availablePackages;
+            setState(() {
+              _isPremium =
+                  customerInfo.entitlements.all["TravelMemoir Pro"]?.isActive ??
+                  false;
 
-          _subscriptionPackages = allPackages.where((p) {
-            final id = p.identifier.toLowerCase();
-            return p.packageType == PackageType.monthly ||
-                p.packageType == PackageType.annual ||
-                id.contains('vip');
-          }).toList();
+              _subscriptionPackages = allPackages.where((p) {
+                final id = p.identifier.toLowerCase();
+                return p.packageType == PackageType.monthly ||
+                    p.packageType == PackageType.annual ||
+                    id.contains('vip');
+              }).toList();
 
-          _subscriptionPackages.sort(
-            (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
-          );
-          _coinPackages =
-              allPackages
-                  .where((p) => p.storeProduct.identifier.contains('coin'))
-                  .toList()
-                ..sort(
-                  (a, b) =>
-                      a.storeProduct.price.compareTo(b.storeProduct.price),
-                );
+              _subscriptionPackages.sort(
+                (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
+              );
+              _coinPackages =
+                  allPackages
+                      .where((p) => p.storeProduct.identifier.contains('coin'))
+                      .toList()
+                    ..sort(
+                      (a, b) =>
+                          a.storeProduct.price.compareTo(b.storeProduct.price),
+                    );
+              _isProductsLoading = false;
+            });
+          } else {
+            // 💡 offerings.current가 없을 경우에 대한 처리 추가
+            debugPrint("⚠️ No current offerings found");
+            AppToast.show(context, "Failed to load products.");
+          }
+          // ✅ 성공 여부와 상관없이 어떤 경우에도 로딩은 종료해야 함
           _isProductsLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _isProductsLoading = false);
+      debugPrint("❌ Shop Load Error: $e");
+      if (mounted) {
+        setState(() {
+          _isProductsLoading = false;
+        });
+        // 사용자에게 에러 알림
+        AppToast.error(context, 'network_error_msg'.tr());
+      }
     }
   }
 

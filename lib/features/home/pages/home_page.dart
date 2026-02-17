@@ -73,9 +73,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
     final String cleanUserId = user.id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
     final String storageKey = 'last_reward_popup_$cleanUserId';
 
-  debugPrint("❌ [today]: $today");
-  debugPrint("❌ [cleanUserId]: $cleanUserId");
-  debugPrint("❌ [storageKey]: $storageKey");
+    debugPrint("❌ [today]: $today");
+    debugPrint("❌ [cleanUserId]: $cleanUserId");
+    debugPrint("❌ [storageKey]: $storageKey");
 
     if (prefs.getString(storageKey) == today) {
       debugPrint("✅ [Reward] 오늘 이미 팝업을 본 유저입니다.");
@@ -143,9 +143,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
 
     // 🎯 신규 가입자면 메시지 덮어쓰기
     if (isNewUser) {
-      desc = locale == 'ko'
-          ? '🎉 가입을 환영합니다!\n신규 가입 선물로 20개의 스탬프를 드렸어요!'
-          : '🎉 Welcome!\nWe gave you 20 stamps as a new member gift!';
+      desc = 'welcome_message'.tr();
     } else {
       final String normalAmount = (reward['normal_amount'] ?? "5").toString();
       final String vipAmount = (reward['reward_amount'] ?? "0").toString();
@@ -163,7 +161,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
           ? Icons.card_giftcard
           : (isVip ? Icons.workspace_premium : Icons.stars),
       iconColor: isNewUser
-          ? Colors.green
+          ? AppColors.travelingPurple
           : (isVip ? Colors.amber : Colors.orangeAccent),
       barrierDismissible: false,
       onClose: () => _triggerRefresh(),
