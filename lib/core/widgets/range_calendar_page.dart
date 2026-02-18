@@ -139,6 +139,12 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ 1. 언어코드 + 요일 리스트
+    final String locale = context.locale.languageCode;
+    final List<String> weekdays = locale == 'ko'
+        ? ['일', '월', '화', '수', '목', '금', '토']
+        : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
     Color themeColor;
     if (widget.travelType == 'overseas') {
       themeColor = AppColors.travelingPurple;
@@ -153,7 +159,6 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // 1. 상단 앱바 (X - 연달력 - 오늘 - V)
             Padding(
               padding: const EdgeInsets.fromLTRB(23, 15, 32, 7),
               child: Row(
@@ -174,12 +179,9 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: TextButton.icon(
-                      onPressed: () => _showYearPicker(
-                        context,
-                        themeColor,
-                      ), // 👈 themeColor 전달,
+                      onPressed: () => _showYearPicker(context, themeColor),
                       icon: Text(
-                        DateFormat('yyyy').format(focusedYear), // 🎯 실시간 연도 표시
+                        DateFormat('yyyy').format(focusedYear),
                         style: const TextStyle(
                           color: AppColors.textColor02,
                           fontWeight: FontWeight.w600,
@@ -197,7 +199,6 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  // 📍 오늘 버튼 (연한 테마색 배경의 캡슐 형태)
                   Container(
                     height: 33,
                     decoration: BoxDecoration(
@@ -207,7 +208,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                     child: TextButton(
                       onPressed: _jumpToToday,
                       child: Text(
-                        'today'.tr().toUpperCase(), // TODAY 대문자 표시
+                        'today'.tr().toUpperCase(),
                         style: const TextStyle(
                           color: AppColors.textColor02,
                           fontWeight: FontWeight.w600,
@@ -250,7 +251,6 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
               ),
             ),
 
-            // 2. 날짜 표시 요약 카드
             Padding(
               padding: const EdgeInsets.fromLTRB(27, 0, 27, 45),
               child: Container(
@@ -272,13 +272,11 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                   children: [
                     Row(
                       children: [
-                        // 🎯 [수정 부분] 카드 내부의 작은 달력 아이콘을 SVG로 변경
                         SvgPicture.asset(
                           'assets/icons/ico_calendar.svg',
                           width: 12,
                           height: 12,
-                          color: AppColors
-                              .textColor01, // ✅ colorFilter 대신 color 사용
+                          color: AppColors.textColor01,
                           colorBlendMode: BlendMode.srcIn,
                         ),
                         const SizedBox(width: 4),
@@ -308,7 +306,6 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
               ),
             ),
 
-            // 3. 달력 본체 (여기가 비어있어서 아무것도 안 나왔던 거야!)
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(left: 10, right: 10),
@@ -316,8 +313,8 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                   key: ValueKey(calendarController),
                   child: ScrollableCleanCalendar(
                     calendarController: calendarController,
-                    layout: Layout.BEAUTY,
-                    locale: 'en',
+                    layout: Layout.DEFAULT,
+                    locale: locale, // ✅ 2. 하드코딩 → 변수로
                     calendarCrossAxisSpacing: 0,
                     showWeekdays: false,
                     monthBuilder: (context, month) {
@@ -336,35 +333,25 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                             ),
                           ),
                           const SizedBox(height: 25),
+                          // ✅ 3. 요일 변수로
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children:
-                                [
-                                  'Sun',
-                                  'Mon',
-                                  'Tue',
-                                  'Wed',
-                                  'Thu',
-                                  'Fri',
-                                  'Sat',
-                                ].map((d) {
-                                  return Expanded(
-                                    child: Center(
-                                      child: Text(
-                                        d,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          color: AppColors.textColor01,
-                                          fontWeight: FontWeight.w400,
-                                        ),
-                                      ),
+                            children: weekdays.map((d) {
+                              return Expanded(
+                                child: Center(
+                                  child: Text(
+                                    d,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      color: AppColors.textColor01,
+                                      fontWeight: FontWeight.w400,
                                     ),
-                                  );
-                                }).toList(),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
                           ),
-                          // monthBuilder 내부 요일 Row 바로 아래
                           const SizedBox(height: 10),
-                          // 🎯 사라졌던 도트 라인(점선) 추가
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: CustomPaint(
@@ -402,6 +389,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                           date.isAfter(rangeMin!) &&
                           date.isBefore(rangeMax!);
 
+                      // ✅ 4. textColor 변수 정의
                       Color textColor = (isStart || isEnd || isBetween)
                           ? Colors.white
                           : (date.weekday == DateTime.sunday
@@ -456,16 +444,15 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                                       ),
                                     ),
                                   ),
+                                // ✅ 4. textColor 변수 사용
                                 Text(
                                   values.text,
                                   style: TextStyle(
-                                    color:
-                                        (isToday ||
-                                            isStart ||
-                                            isEnd ||
-                                            isBetween) // 🎯 오늘이거나 선택된 영역이면 color02 적용
+                                    color: (isStart || isEnd || isBetween)
+                                        ? Colors.white
+                                        : isToday
                                         ? AppColors.textColor02
-                                        : AppColors.textColor01,
+                                        : textColor,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w500,
                                   ),

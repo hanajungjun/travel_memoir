@@ -51,11 +51,21 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   Future<void> _pickImage() async {
+    // ✅ 재생성 방지 딜레이
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+
     final List<AssetEntity>? result = await AssetPicker.pickAssets(
       context,
-      pickerConfig: const AssetPickerConfig(
+      pickerConfig: AssetPickerConfig(
         maxAssets: 1,
         requestType: RequestType.image,
+        // ✅ 플랫폼별 설정 (pageSize는 gridCount의 배수)
+        pageSize: Platform.isIOS ? 60 : 120,
+        gridCount: 3,
+        gridThumbnailSize: Platform.isIOS
+            ? const ThumbnailSize.square(200)
+            : const ThumbnailSize.square(300),
       ),
     );
 
@@ -85,28 +95,36 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     }
 
     setState(() => _saving = true);
-    String? finalImageUrl = _imageUrl;
 
-    if (_pickedImage != null) {
-      final uploadedUrl = await _uploadImage(_pickedImage!);
-      finalImageUrl = '$uploadedUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+    try {
+      String? finalImageUrl = _imageUrl;
+      if (_pickedImage != null) {
+        final uploadedUrl = await _uploadImage(_pickedImage!);
+        finalImageUrl =
+            '$uploadedUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+      }
+
+      final user = supabase.auth.currentUser!;
+      await supabase
+          .from('users')
+          .update({
+            'nickname': nicknameController.text.trim(),
+            'bio': bioController.text.trim(),
+            'nationality': nationalityController.text.trim(),
+            'profile_image_url': finalImageUrl,
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('auth_uid', user.id);
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        AppToast.error(context, 'save_failed'.tr());
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-
-    final user = supabase.auth.currentUser!;
-    await supabase
-        .from('users')
-        .update({
-          'nickname': nicknameController.text.trim(),
-          'bio': bioController.text.trim(),
-          'nationality': nationalityController.text.trim(), // ✅ 국적 저장
-          'profile_image_url': finalImageUrl,
-          'updated_at': DateTime.now().toIso8601String(),
-        })
-        .eq('auth_uid', user.id);
-
-    if (!mounted) return;
-    setState(() => _saving = false);
-    Navigator.pop(context, true);
   }
 
   @override

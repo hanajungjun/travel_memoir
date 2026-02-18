@@ -19,6 +19,7 @@ import 'firebase_options.dart';
 import 'services/prompt_cache.dart';
 import 'env.dart';
 import 'app/app.dart';
+import 'package:travel_memoir/services/country_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -69,6 +70,8 @@ Future<void> main() async {
 
   await MobileAds.instance.initialize();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  CountryService.prefetch(); // ✅ await 없이 백그라운드로 미리 로드
 
   String? token;
   try {

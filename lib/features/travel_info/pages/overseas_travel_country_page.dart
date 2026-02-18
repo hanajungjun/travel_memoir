@@ -148,18 +148,19 @@ class _OverseasTravelCountryPageState extends State<OverseasTravelCountryPage> {
                         final c = _filtered[index];
                         return ListTile(
                           contentPadding: const EdgeInsets.only(left: 5),
+                          minLeadingWidth: 48, // ✅ 추가
                           leading: c.flagUrl != null
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
                                   child: Image.network(
                                     c.flagUrl!,
-                                    width: 40,
-                                    height: 40,
+                                    width: 48,
+                                    height: 32,
                                     fit: BoxFit.cover,
                                     errorBuilder:
                                         (context, error, stackTrace) =>
                                             const SizedBox(
-                                              width: 40,
+                                              width: 48,
                                               child: Icon(Icons.flag),
                                             ),
                                   ),

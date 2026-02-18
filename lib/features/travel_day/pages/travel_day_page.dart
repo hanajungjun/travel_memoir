@@ -100,6 +100,7 @@ class _TravelDayPageState extends State<TravelDayPage>
   String _diaryHintText = '';
   String _freeStampText = '';
   String _paidStampText = '';
+  String _todayImageHint = '';
 
   ImageStyleModel? _selectedStyle;
   String? _existingAiStyleId;
@@ -158,6 +159,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     _diaryHintText = 'diary_hint'.tr();
     _freeStampText = 'free_stamp'.tr();
     _paidStampText = 'paid_stamp'.tr();
+    _todayImageHint = 'today_image_hint'.tr();
   }
 
   @override
@@ -379,12 +381,22 @@ class _TravelDayPageState extends State<TravelDayPage>
     final int currentTotal = _localPhotos.length + _remotePhotoUrls.length;
     if (currentTotal >= 3) return;
 
+    // ✅ 1. 재생성 방지 딜레이 추가
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
+
     final List<AssetEntity>? result = await AssetPicker.pickAssets(
       context,
       pickerConfig: AssetPickerConfig(
         maxAssets: 3 - currentTotal,
         requestType: RequestType.image,
         selectedAssets: [],
+        // ✅ 2. 플랫폼별 pageSize/thumbnailSize 추가
+        pageSize: Platform.isIOS ? 60 : 120, // 둘 다 3의 배수
+        gridCount: 3,
+        gridThumbnailSize: Platform.isIOS
+            ? const ThumbnailSize.square(200)
+            : const ThumbnailSize.square(300),
       ),
     );
 
@@ -1144,10 +1156,10 @@ class _TravelDayPageState extends State<TravelDayPage>
             height: 101,
           ),
           const SizedBox(height: 5),
-          const Text(
-            '오늘의 하루를\n그림으로 남겨보세요',
+          Text(
+            _todayImageHint,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: Color(0xFFB3B3B3),
               fontSize: 15,
               height: 1.2,
