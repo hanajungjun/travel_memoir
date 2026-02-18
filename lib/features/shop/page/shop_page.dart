@@ -351,7 +351,12 @@ class _ShopPageState extends State<ShopPage> {
           _isProductsLoading
               ? const Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    10,
+                    16,
+                    MediaQuery.of(context).padding.bottom + 16, // ✅ 이걸로 교체
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

@@ -158,8 +158,12 @@ class _MyPageState extends State<MyPage> with RouteAware {
         'completedTravels': results[1] ?? [],
         'travelCount': (results[1] as List?)?.length ?? 0,
       };
+    } on PostgrestException catch (e) {
+      debugPrint("❌ [MyPage] DB 오류: ${e.message}");
+      return {'profile': null, 'completedTravels': [], 'travelCount': 0};
     } catch (e) {
-      rethrow;
+      debugPrint("❌ [MyPage] 알 수 없는 오류: $e");
+      return {'profile': null, 'completedTravels': [], 'travelCount': 0};
     }
   }
 
@@ -249,7 +253,12 @@ class _MyPageState extends State<MyPage> with RouteAware {
             final String? email = profile['email'];
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                20,
+                24,
+                MediaQuery.of(context).padding.bottom + 32,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
