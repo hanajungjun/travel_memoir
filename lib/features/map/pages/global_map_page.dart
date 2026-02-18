@@ -139,17 +139,12 @@ class GlobalMapPageState extends State<GlobalMapPage>
       children: [
         MapWidget(
           styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
-          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-            Factory<OneSequenceGestureRecognizer>(
-              () => EagerGestureRecognizer(),
-            ),
-          },
+          // gestureRecognizers 블록 전체 삭제!
           cameraOptions: CameraOptions(
             center: Point(coordinates: Position(10, 20)),
             zoom: 1.3,
           ),
           onMapCreated: (map) async {
-            //debugPrint("🗺️ [LOG] MapWidget Created");
             _map = map;
             try {
               await map.setBounds(
@@ -162,6 +157,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
           onStyleLoadedListener: _onStyleLoaded,
           onTapListener: widget.isReadOnly ? null : _onMapTap,
         ),
+
         if (!_ready)
           const ColoredBox(
             color: Colors.white,
@@ -259,8 +255,12 @@ class GlobalMapPageState extends State<GlobalMapPage>
       }
 
       //debugPrint("📍 [LOG] 방문 국가 수: ${visitedCountries.length}, 완료 국가 수: ${completedCountries.length}",);
+      String? _cachedWorldJson;
 
-      final worldJson = await rootBundle.loadString(_worldGeo);
+      // _drawAll() 안에서
+      _cachedWorldJson ??= await rootBundle.loadString(_worldGeo);
+      final worldJson = _cachedWorldJson!;
+
       await _rm(style, _worldFill, _worldSource);
 
       //debugPrint("🌍 [LOG] 월드 Source 추가 중...");
