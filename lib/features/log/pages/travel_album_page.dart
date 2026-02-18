@@ -681,7 +681,10 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    final overallSummary = (widget.travel['ai_cover_summary'] ?? '').toString();
+    final String overallSummary = (widget.travel['ai_cover_summary'] ?? '')
+        .toString();
+    final String cleanedSummary = overallSummary.replaceAll('**', '').trim();
+
     final startDate = DateTime.parse(widget.travel['start_date']);
 
     return Scaffold(
@@ -735,7 +738,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
                       ],
                     ),
                     child: Text(
-                      overallSummary,
+                      cleanedSummary,
                       style: AppTextStyles.body.copyWith(
                         fontSize: 15,
                         fontWeight: FontWeight.w300,
