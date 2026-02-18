@@ -232,7 +232,9 @@ class _EmptyTravelCard extends StatelessWidget {
               color: AppColors.lightSurface,
               child: Center(
                 child: Image.asset(
-                  'assets/images/no_trip.png',
+                  context.locale.languageCode == 'en'
+                      ? 'assets/images/no_trip_en.png'
+                      : 'assets/images/no_trip.png',
                   width: 90,
                   height: 90,
                   fit: BoxFit.contain,
