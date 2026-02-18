@@ -239,7 +239,7 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_title'.tr(),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 31,
+                      fontSize: 29,
                       fontWeight: FontWeight.w500,
                       height: 1.4,
                       letterSpacing: -0.5,
@@ -249,7 +249,7 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_label'.tr(),
                     style: const TextStyle(
                       color: Color(0xFFFFC669),
-                      fontSize: 31,
+                      fontSize: 29,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
                       letterSpacing: -0.5,
@@ -392,7 +392,7 @@ class SummaryHeroCard extends StatelessWidget {
             label,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w200,
             ),
           ),
@@ -405,7 +405,7 @@ class SummaryHeroCard extends StatelessWidget {
           value,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -518,8 +518,8 @@ class TravelRecordCard extends StatelessWidget {
                         // 🎯 0.5(절반) 지점부터 검은색이 시작되어 바닥으로 갈수록 진해집니다.
                         stops: const [0.5, 1.0],
                         colors: [
-                          Colors.transparent,
-                          Colors.black.withOpacity(0.75), // 농도는 0.6 정도로 조절 가능
+                          Colors.black.withOpacity(0.05),
+                          Colors.black.withOpacity(0.55), // 농도는 0.6 정도로 조절 가능
                         ],
                       ),
                     ),
@@ -528,7 +528,7 @@ class TravelRecordCard extends StatelessWidget {
                 Positioned(
                   left: 0,
                   right: 0,
-                  bottom: 75, // 3. 글이 짧을 때 (1줄)
+                  bottom: 95,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -593,7 +593,7 @@ class BottomLabel extends StatelessWidget {
           20,
           20,
           20,
-          50,
+          70,
         ), // 🎯 하단 여백 제거 (80 -> 20)
         decoration: gradient
             ? BoxDecoration(
