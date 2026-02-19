@@ -30,7 +30,7 @@ class ImageUploadService {
           path,
           bytes,
           fileOptions: const FileOptions(
-            contentType: 'image/jpeg',
+            contentType: 'image/webp',
             upsert: false,
           ),
         );
@@ -53,7 +53,7 @@ class ImageUploadService {
             path,
             imageBytes,
             fileOptions: const FileOptions(
-              contentType: 'image/png',
+              contentType: 'image/webp',
               upsert: true,
             ),
           );
@@ -86,7 +86,7 @@ class ImageUploadService {
             path,
             imageBytes,
             fileOptions: const FileOptions(
-              contentType: 'image/png',
+              contentType: 'image/webp',
               upsert: true,
             ),
           );
@@ -113,7 +113,7 @@ class ImageUploadService {
           path,
           imageBytes,
           fileOptions: const FileOptions(
-            contentType: 'image/png',
+            contentType: 'image/webp',
             upsert: true,
           ),
         );

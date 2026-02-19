@@ -116,7 +116,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
         'name': displayName.toUpperCase(), // 영문은 대문자로 깔끔하게
         'isUnlocked': true,
         'created_at': row['first_visited_at'],
-        'asset': _supabase.storage.from('stickers').getPublicUrl('$code.png'),
+        'asset': _supabase.storage.from('stickers').getPublicUrl('$code.webp'),
       };
     }).toList();
 

@@ -38,7 +38,7 @@ class GeminiService {
 
     for (final bytes in photoBytes) {
       parts.add({
-        'inlineData': {'mimeType': 'image/jpeg', 'data': base64Encode(bytes)},
+        'inlineData': {'mimeType': 'image/webp', 'data': base64Encode(bytes)},
       });
     }
 

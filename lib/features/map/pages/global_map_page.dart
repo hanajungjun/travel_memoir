@@ -612,7 +612,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
     String finalUrl = (countryCode == 'US' && _hasAccess('US'))
         ? StorageUrls.usaMapFromPath(rawPath)
-        : StorageUrls.globalMapFromPath('${countryCode.toUpperCase()}.png');
+        : StorageUrls.globalMapFromPath('${countryCode.toUpperCase()}.webp');
 
     if (!mounted) return;
     showGeneralDialog(

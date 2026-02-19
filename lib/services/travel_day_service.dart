@@ -242,8 +242,8 @@ class TravelDayService {
       );
 
       // 기타 커버/지도 이미지 (필요시)
-      finalDeleteList.add('users/$uid/travels/$tid/travel_cover.png');
-      finalDeleteList.add('users/$uid/travels/$tid/travel_map.png');
+      finalDeleteList.add('users/$uid/travels/$tid/travel_cover.webp');
+      finalDeleteList.add('users/$uid/travels/$tid/travel_map.webp');
 
       // 4. [소탕 실시] 수집된 모든 경로를 한 번에 삭제합니다.
       if (finalDeleteList.isNotEmpty) {

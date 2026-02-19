@@ -240,7 +240,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
       );
 
       final String storagePath =
-          'users/$userId/travels/$travelId/premium_report.png';
+          'users/$userId/travels/$travelId/premium_report.webp';
       await client.storage
           .from('travel_images')
           .uploadBinary(

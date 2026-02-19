@@ -302,7 +302,7 @@ class SummaryHeroCard extends StatelessWidget {
                       ? StorageUrls.usaMapFromPath(rawPath)
                       : (type == 'domestic')
                       ? StorageUrls.domesticMapFromPath(rawPath)
-                      : StorageUrls.globalMapFromPath('$countryCode.png');
+                      : StorageUrls.globalMapFromPath('$countryCode.webp');
 
                   return GestureDetector(
                     onTap: () => Navigator.push(

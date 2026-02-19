@@ -132,7 +132,7 @@ class TravelCompleteService {
         if (travelType == 'domestic' && regionId != null)
           'region_key': regionId,
         if (travelType == 'domestic' && regionId != null)
-          'map_image_url': '$regionId.png',
+          'map_image_url': '$regionId.webp',
       };
 
       await _supabase.from('travels').update(finalUpdate).eq('id', travelId);

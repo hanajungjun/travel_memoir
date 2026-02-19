@@ -362,7 +362,7 @@ class _TravelDayPageState extends State<TravelDayPage>
         }
       }
       final temp = await getTemporaryDirectory();
-      final file = await File('${temp.path}/share_diary.png').create();
+      final file = await File('${temp.path}/share_diary.webp').create();
       await file.writeAsBytes(imageBytes);
       final box = ctx.findRenderObject() as RenderBox?;
       await Share.shareXFiles(
@@ -835,16 +835,17 @@ class _TravelDayPageState extends State<TravelDayPage>
         final storage = Supabase.instance.client.storage.from('travel_images');
         for (int i = 0; i < _localPhotos.length; i++) {
           final targetPath =
-              '${(await getTemporaryDirectory()).path}/${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+              '${(await getTemporaryDirectory()).path}/${DateTime.now().millisecondsSinceEpoch}_$i.webp';
           final result = await FlutterImageCompress.compressAndGetFile(
             _localPhotos[i].absolute.path,
             targetPath,
             quality: 80,
             minWidth: 800,
             minHeight: 800,
+            format: CompressFormat.webp, // 👈 포맷 명시 추가
           );
           final String fullPath =
-              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/moment_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+              'users/$_userId/travels/$_cleanTravelId/diaries/$diaryId/moments/moment_${DateTime.now().millisecondsSinceEpoch}_$i.webp';
           await storage.upload(fullPath, File(result!.path));
           newlyUploadedUrls.add(storage.getPublicUrl(fullPath));
         }
@@ -855,20 +856,20 @@ class _TravelDayPageState extends State<TravelDayPage>
       if (_generatedImage != null) {
         final tempDir = await getTemporaryDirectory();
         final tempPath =
-            '${tempDir.path}/temp_ai_${DateTime.now().millisecondsSinceEpoch}.png';
+            '${tempDir.path}/temp_ai_${DateTime.now().millisecondsSinceEpoch}.webp';
 
         final tempFile = File(tempPath);
         await tempFile.writeAsBytes(_generatedImage!);
 
         final compressedPath =
-            '${tempDir.path}/compressed_ai_${DateTime.now().millisecondsSinceEpoch}.jpg';
+            '${tempDir.path}/compressed_ai_${DateTime.now().millisecondsSinceEpoch}.webp';
         final compressedFile = await FlutterImageCompress.compressAndGetFile(
           tempPath,
           compressedPath,
           quality: 70,
           minWidth: 1024,
           minHeight: 1024,
-          format: CompressFormat.jpeg,
+          format: CompressFormat.webp,
         );
 
         if (compressedFile != null) {
