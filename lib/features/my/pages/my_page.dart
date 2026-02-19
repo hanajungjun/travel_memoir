@@ -140,23 +140,30 @@ class _MyPageState extends State<MyPage> with RouteAware {
       }
 
       final userId = user.id;
-      final userFuture = Supabase.instance.client
-          .from('users')
-          .select()
-          .eq('auth_uid', userId)
-          .maybeSingle();
-      final travelFuture = Supabase.instance.client
+
+      // 🛡️ 신규 유저 딜레이 대비 재시도 로직
+      Map<String, dynamic>? profile;
+      for (int i = 0; i < 3; i++) {
+        profile = await Supabase.instance.client
+            .from('users')
+            .select()
+            .eq('auth_uid', userId)
+            .maybeSingle();
+        if (profile != null) break;
+        await Future.delayed(const Duration(milliseconds: 800));
+      }
+
+      final travelResult = await Supabase.instance.client
           .from('travels')
           .select('*')
           .eq('user_id', userId)
           .eq('is_completed', true)
           .order('created_at', ascending: false);
 
-      final results = await Future.wait([userFuture, travelFuture]);
       return {
-        'profile': results[0],
-        'completedTravels': results[1] ?? [],
-        'travelCount': (results[1] as List?)?.length ?? 0,
+        'profile': profile,
+        'completedTravels': travelResult ?? [],
+        'travelCount': (travelResult as List?)?.length ?? 0,
       };
     } on PostgrestException catch (e) {
       debugPrint("❌ [MyPage] DB 오류: ${e.message}");
@@ -237,7 +244,21 @@ class _MyPageState extends State<MyPage> with RouteAware {
             }
 
             if (!snapshot.hasData || snapshot.data!['profile'] == null) {
-              return Center(child: Text("error_loading_data".tr()));
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text('loading'.tr()),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: _refreshPage,
+                      child: Text('retry'.tr()),
+                    ),
+                  ],
+                ),
+              );
             }
 
             final profile = snapshot.data!['profile'];
