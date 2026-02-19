@@ -1,3 +1,5 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
@@ -6,7 +8,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/storage_urls.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/core/widgets/ai_map_popup.dart';
-import 'package:travel_memoir/core/utils/travel_utils.dart'; // 경로는 맞게 수정
+import 'package:travel_memoir/core/utils/travel_utils.dart';
 import 'package:travel_memoir/core/constants/korea/sgg_code_map.dart';
 
 class DomesticMapPage extends StatefulWidget {
@@ -43,6 +45,9 @@ class DomesticMapPageState extends State<DomesticMapPage>
     // ✅ Scaffold 제거
     return MapWidget(
       styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
+      gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+        Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
+      },
       cameraOptions: CameraOptions(
         center: Point(coordinates: Position(127.8, 36.3)),
         zoom: 5.2,

@@ -139,6 +139,13 @@ class GlobalMapPageState extends State<GlobalMapPage>
       children: [
         MapWidget(
           styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
+          gestureRecognizers: widget.isReadOnly
+              ? <Factory<OneSequenceGestureRecognizer>>{
+                  Factory<EagerGestureRecognizer>(
+                    () => EagerGestureRecognizer(),
+                  ),
+                }
+              : null,
           // gestureRecognizers 블록 전체 삭제!
           cameraOptions: CameraOptions(
             center: Point(coordinates: Position(10, 20)),
