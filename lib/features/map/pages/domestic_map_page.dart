@@ -12,7 +12,8 @@ import 'package:travel_memoir/core/utils/travel_utils.dart';
 import 'package:travel_memoir/core/constants/korea/sgg_code_map.dart';
 
 class DomesticMapPage extends StatefulWidget {
-  const DomesticMapPage({super.key});
+  final bool readOnly; // ✅ 추가
+  const DomesticMapPage({super.key, this.readOnly = false});
 
   @override
   State<DomesticMapPage> createState() => DomesticMapPageState();
@@ -195,7 +196,7 @@ class DomesticMapPageState extends State<DomesticMapPage>
       });
 
       final regId = SggCodeMap.getRegionIdFromSggCd(lookup);
-      if (regId.isNotEmpty) _handlePopup(regId);
+      if (regId.isNotEmpty && !widget.readOnly) _handlePopup(regId);
     } catch (e) {
       debugPrint('❌ [MAP TAP ERROR] $e');
     }

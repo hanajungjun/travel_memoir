@@ -113,7 +113,7 @@ class DomesticSummaryTab extends StatelessWidget {
               const SizedBox(
                 width: double.infinity,
                 height: 350,
-                child: DomesticMapPage(),
+                child: DomesticMapPage(readOnly: true),
               ),
               const SizedBox(height: 24),
               Padding(
