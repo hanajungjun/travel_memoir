@@ -6,7 +6,11 @@ import 'package:travel_memoir/features/log/pages/record_tab_page.dart';
 import 'package:travel_memoir/features/travel_list/pages/travel_list_page.dart';
 import 'package:travel_memoir/features/my/pages/my_page.dart';
 import 'package:travel_memoir/features/shop/page/shop_page.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // SVG 아이콘을 사용하기 위해 추가
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:travel_memoir/core/widgets/notice_dialog.dart';
+import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 /**
  * 📱 Screen ID: APP_SHELL
@@ -23,6 +27,74 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  @override
+  void initState() {
+    super.initState();
+
+    // 🔥 핵심: 화면이 그려진 직후에 공지사항 체크
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkNotice();
+    });
+  }
+
+  Future<void> _checkNotice() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      if (prefs.getString('hide_until_date') == today) return;
+
+      final notice = await Supabase.instance.client
+          .from('notices')
+          .select()
+          .eq('is_active', true)
+          .order('id', ascending: false)
+          .limit(1)
+          .maybeSingle();
+
+      if (notice != null) {
+        // 🎯 [수정] latestId 변수를 여기서 확실히 정의해줍니다.
+        final int latestId = notice['id'];
+        final int lastReadId = prefs.getInt('last_notice_id') ?? 0;
+
+        if (latestId > lastReadId) {
+          if (!mounted) return;
+
+          bool isKorean = context.locale.languageCode == 'ko';
+
+          // 줄바꿈(\n) 문제 해결을 위한 replaceAll 추가
+          String displayTitle = isKorean
+              ? (notice['title'] ?? '')
+              : (notice['title_en'] ?? notice['title'] ?? '');
+
+          String displayContent = isKorean
+              ? (notice['content'] ?? '')
+              : (notice['content_en'] ?? notice['content'] ?? '');
+
+          AppDialogs.showChoice(
+            context: context,
+            title: displayTitle,
+            message: displayContent.replaceAll('\\n', '\n'),
+            firstLabel: 'dont_show_today'.tr(),
+            onFirstAction: () async {
+              // 🎯 [수정] "오늘 하루 보지 않기" 클릭 시
+              // 오늘 날짜와 공지 ID를 모두 저장해서 완전히 차단
+              await prefs.setString('hide_until_date', today);
+              await prefs.setInt('last_notice_id', latestId);
+            },
+            secondLabel: 'close'.tr(),
+            onSecondAction: () {
+              // 🎯 [수정] 그냥 "닫기" 클릭 시
+              // 아무것도 저장하지 않음 -> 다음에 앱 켜면 또 뜸!
+            },
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("⚠️ 공지사항 체크 실패: $e");
+    }
+  }
+
   int _currentIndex = 0;
 
   void _onTabSelected(int index) {

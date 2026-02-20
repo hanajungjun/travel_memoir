@@ -193,8 +193,10 @@ class _TravelMemoirAppWrapperState extends State<_TravelMemoirAppWrapper> {
     _initNotificationPermission(); // 🔔 안드로이드 13+ 알림 권한 시스템 팝업 요청
     _initMediaStorePermission(); // ✅ [추가] 갤러리 접근 권한 요청
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _isLoadingComplete = true);
+    Future.delayed(const Duration(seconds: 2), () async {
+      if (mounted) {
+        setState(() => _isLoadingComplete = true);
+      }
     });
   }
 

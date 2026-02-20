@@ -36,6 +36,7 @@ class _TravelMemoirAppState extends State<TravelMemoirApp> {
   @override
   void initState() {
     super.initState();
+
     _initSupabase();
   }
 
