@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_app_badge_control/flutter_app_badge_control.dart';
 import 'package:travel_memoir/app/route_observer.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:travel_memoir/services/travel_list_service.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
 
@@ -64,25 +63,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
 
     try {
       await FlutterAppBadgeControl.removeBadge();
-    } catch (e) {
-      debugPrint("❌ [Badge] 뱃지 제거 실패: $e");
-    }
+    } catch (e) {}
 
-    final prefs = await SharedPreferences.getInstance();
-    final String today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final String cleanUserId = user.id.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-    final String storageKey = 'last_reward_popup_$cleanUserId';
-
-    debugPrint("❌ [today]: $today");
-    debugPrint("❌ [cleanUserId]: $cleanUserId");
-    debugPrint("❌ [storageKey]: $storageKey");
-
-    if (prefs.getString(storageKey) == today) {
-      debugPrint("✅ [Reward] 오늘 이미 팝업을 본 유저입니다.");
-      return;
-    }
-
-    // 1️⃣ 일반 보상 수량 DB 조회
+    // 일반 보상 수량
     int normalRewardAmount = 5;
     try {
       final normalData = await Supabase.instance.client
@@ -93,11 +76,9 @@ class _HomePageState extends State<HomePage> with RouteAware {
       if (normalData != null) {
         normalRewardAmount = normalData['reward_amount'] as int;
       }
-    } catch (e) {
-      debugPrint("⚠️ [Reward] 일반 보상 설정 로드 실패: $e");
-    }
+    } catch (e) {}
 
-    // 2️⃣ 신규 가입자 여부 체크 (가입 24시간 이내)
+    // 신규 가입자 여부
     bool isNewUser = false;
     try {
       final userData = await Supabase.instance.client
@@ -109,22 +90,15 @@ class _HomePageState extends State<HomePage> with RouteAware {
         final createdAt = DateTime.parse(userData['created_at']).toLocal();
         isNewUser = DateTime.now().difference(createdAt).inHours < 24;
       }
-    } catch (e) {
-      debugPrint("⚠️ [Reward] 신규 유저 체크 실패: $e");
-    }
+    } catch (e) {}
 
-    // 3️⃣ 서버에서 보상 지급 처리
     final reward = await _stampService.checkAndGrantDailyReward(user.id);
 
     if (reward != null && mounted) {
       final Map<String, dynamic> rewardWithNormal = Map.from(reward);
       rewardWithNormal['normal_amount'] = normalRewardAmount;
-      rewardWithNormal['is_new_user'] = isNewUser; // 👈 신규 여부 추가
-
-      debugPrint("🎁 [Reward Log] Data with Normal: $rewardWithNormal");
-
+      rewardWithNormal['is_new_user'] = isNewUser;
       _showRewardPopup(rewardWithNormal);
-      await prefs.setString(storageKey, today);
     }
   }
 
