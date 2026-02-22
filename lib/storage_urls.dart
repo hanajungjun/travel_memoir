@@ -33,6 +33,11 @@ class StorageUrls {
     String diaryId,
   ) => travelImage(StoragePaths.travelDayImagePath(userId, travelId, diaryId));
 
+  /// 스티커(국가별 도장) 이미지 주소 (NAS)
+  static String sticker(String code) {
+    // code가 'KR'이면 -> http://hajungtech.synology.me/travel_assets/stickers/KR.webp
+    return "$_nasBaseUrl/stickers/${code.toUpperCase()}.webp";
+  }
   // =====================================================
   // ✅ 시스템 지도 (NAS 주소로 변경 완료)
   // =====================================================

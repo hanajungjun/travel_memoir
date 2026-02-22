@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:travel_memoir/storage_urls.dart';
 
 class MyStickerPage extends StatefulWidget {
   const MyStickerPage({super.key});
@@ -116,7 +117,7 @@ class _MyStickerPageState extends State<MyStickerPage> {
         'name': displayName.toUpperCase(), // 영문은 대문자로 깔끔하게
         'isUnlocked': true,
         'created_at': row['first_visited_at'],
-        'asset': _supabase.storage.from('stickers').getPublicUrl('$code.webp'),
+        'asset': StorageUrls.sticker(code),
       };
     }).toList();
 
@@ -432,11 +433,17 @@ class _MyStickerPageState extends State<MyStickerPage> {
                 opacity: 0.95,
                 child: Image.network(
                   item['asset'] ?? "",
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain, // 도장이니까 꽉 채우기보다 비율 유지 권장
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    );
+                  },
                   errorBuilder: (context, error, stackTrace) => Icon(
-                    Icons.flag,
+                    Icons.flag_outlined,
                     color: Colors.brown.withOpacity(0.1),
-                    size: 100,
+                    size: 60,
                   ),
                 ),
               ),

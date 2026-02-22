@@ -146,7 +146,7 @@ class DomesticMapPageState extends State<DomesticMapPage>
       ]);
 
       final doneColor = _toHex(AppColors.travelingBlue);
-      final activeColor = _toHex(AppColors.mapActiveFill);
+      final activeColor = _toHex(const Color.fromARGB(255, 141, 189, 223));
 
       final colorExpr = completedSgg.isEmpty
           ? activeColor

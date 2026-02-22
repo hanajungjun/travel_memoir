@@ -3,7 +3,7 @@ description: Travel Memoir project.
 
 publish_to: 'none'
 
-version: 1.0.0+42
+version: 1.0.0+44
 
 environment:
   sdk: ">=3.10.0 <4.0.0"
