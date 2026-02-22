@@ -3,7 +3,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:travel_memoir/features/map/pages/domestic_map_page.dart';
-import 'package:travel_memoir/features/map/pages/global_map_page.dart';
+import 'package:travel_memoir/features/map/pages/global_map_page_%EC%9B%90%EB%B3%B8.dart';
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 
 /**

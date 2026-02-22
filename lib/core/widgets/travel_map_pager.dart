@@ -6,7 +6,7 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 import 'package:travel_memoir/features/map/pages/domestic_map_page.dart';
-import 'package:travel_memoir/features/map/pages/global_map_page.dart';
+import 'package:travel_memoir/features/map/pages/global_map_page_%EC%9B%90%EB%B3%B8.dart';
 import 'package:travel_memoir/features/map/pages/map_main_page.dart';
 
 class TravelMapPager extends StatefulWidget {
