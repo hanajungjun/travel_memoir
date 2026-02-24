@@ -428,6 +428,23 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _handleGenerateWithStamp() async {
+    // ✅ AI 동의 팝업 (최초 1회만)
+    final prefs = await SharedPreferences.getInstance();
+    final bool hasConsented = prefs.getBool('ai_data_consent') ?? false;
+
+    if (!hasConsented) {
+      final bool? agreed = await AppDialogs.showConfirm(
+        context: context,
+        title: 'ai_consent_title', // 번역키 추가 필요
+        message: 'ai_consent_message', // 번역키 추가 필요
+        confirmLabel: 'agree', // 번역키 추가 필요
+        confirmColor: const Color(0xFF1C2328),
+      );
+
+      if (agreed != true) return;
+      await prefs.setBool('ai_data_consent', true);
+    }
+
     // ✅ setState 밖에서 미리 추출
     final String enterDiaryMessage = 'please_enter_diary_text'.tr();
     final String selectStyleMessage = 'select_style_msg'.tr();

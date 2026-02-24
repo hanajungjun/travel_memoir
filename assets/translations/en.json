@@ -387,5 +387,8 @@
   "select_year": "Select Year",
   "kosovo": "Kosovo",
   "ai_error_guide": "The content or photos may be difficult for AI to process. Try editing them slightly." ,
-  "dont_show_today": "dont show today"
+  "dont_show_today": "dont show today",
+  "ai_consent_title": "AI Data Consent",
+  "ai_consent_message": "Journal content and photos are shared with OpenAI and Google Gemini for image generation.",
+  "agree": "Agree"
 }
