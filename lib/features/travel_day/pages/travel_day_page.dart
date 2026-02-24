@@ -435,10 +435,10 @@ class _TravelDayPageState extends State<TravelDayPage>
     if (!hasConsented) {
       final bool? agreed = await AppDialogs.showConfirm(
         context: context,
-        title: 'ai_consent_title', // 번역키 추가 필요
-        message: 'ai_consent_message', // 번역키 추가 필요
-        confirmLabel: 'agree', // 번역키 추가 필요
-        confirmColor: const Color(0xFF1C2328),
+        title: 'ai_consent_title',
+        message: 'ai_consent_message',
+        confirmLabel: 'agree',
+        confirmColor: AppColors.black,
       );
 
       if (agreed != true) return;
