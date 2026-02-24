@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 import 'package:travel_memoir/app/app_shell.dart';
+import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
@@ -53,6 +54,10 @@ class _LoginPageState extends State<LoginPage> {
             user.email?.split('@')[0],
         'updated_at': DateTime.now().toIso8601String(),
       }, onConflict: 'auth_uid');
+
+      // 🚨 2. [핵심 추가] RevenueCat에 로그인 알리기
+      // 이 과정을 거쳐야 RevenueCat이 이 유저의 결제 내역을 정확히 불러옵니다.
+      await PaymentService.init(user.id);
 
       if (!mounted) return;
       Navigator.pushReplacement(

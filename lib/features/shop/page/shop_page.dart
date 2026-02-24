@@ -26,6 +26,10 @@ class _ShopPageState extends State<ShopPage> {
   List<Package> _coinPackages = [];
   bool _isProductsLoading = true;
   bool _isPremium = false;
+  bool _isVip = false;
+  // Entitlement ID (PaymentService에 정의된 것과 동일해야 함)
+  static const String _proEntitlementId = "PREMIUM ACCESS";
+  //static const String _vipEntitlementId = "VIP_ACCESS";
 
   late Future<Map<String, int>> _balanceFuture;
 
@@ -115,7 +119,9 @@ class _ShopPageState extends State<ShopPage> {
 
   Future<void> _fetchOfferings() async {
     try {
-      // 1. 타임아웃 설정 (최대 15초 대기 후 강제 에러 발생)
+      setState(() => _isProductsLoading = true);
+
+      // 1. 타임아웃 설정 (최대 30초 대기)
       Offerings? offerings = await PaymentService.getOfferings().timeout(
         const Duration(seconds: 30),
       );
@@ -126,39 +132,42 @@ class _ShopPageState extends State<ShopPage> {
 
       if (mounted) {
         setState(() {
+          // ✅ VIP와 Premium 권한을 각각 체크 (PaymentService에 정의된 ID 사용)
+          // 만약 클래스 내에 변수가 없다면 직접 문자열 "VIP_ACCESS", "PREMIUM ACCESS"를 넣으셔도 됩니다.
+          _isVip = customerInfo.entitlements.all[""]?.isActive ?? false;
+          _isPremium =
+              customerInfo.entitlements.all["PREMIUM ACCESS"]?.isActive ??
+              false;
+
           if (offerings?.current != null) {
             final allPackages = offerings!.current!.availablePackages;
-            setState(() {
-              _isPremium =
-                  customerInfo.entitlements.all["TravelMemoir Pro"]?.isActive ??
-                  false;
 
-              _subscriptionPackages = allPackages.where((p) {
-                final id = p.identifier.toLowerCase();
-                return p.packageType == PackageType.monthly ||
-                    p.packageType == PackageType.annual ||
-                    id.contains('vip');
-              }).toList();
+            // 2. 패키지 분류 로직
+            _subscriptionPackages = allPackages.where((p) {
+              final id = p.identifier.toLowerCase();
+              return p.packageType == PackageType.monthly ||
+                  p.packageType == PackageType.annual ||
+                  id.contains('vip');
+            }).toList();
 
-              _subscriptionPackages.sort(
-                (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
-              );
-              _coinPackages =
-                  allPackages
-                      .where((p) => p.storeProduct.identifier.contains('coin'))
-                      .toList()
-                    ..sort(
-                      (a, b) =>
-                          a.storeProduct.price.compareTo(b.storeProduct.price),
-                    );
-              _isProductsLoading = false;
-            });
+            _subscriptionPackages.sort(
+              (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
+            );
+
+            _coinPackages =
+                allPackages
+                    .where((p) => p.storeProduct.identifier.contains('coin'))
+                    .toList()
+                  ..sort(
+                    (a, b) =>
+                        a.storeProduct.price.compareTo(b.storeProduct.price),
+                  );
           } else {
-            // 💡 offerings.current가 없을 경우에 대한 처리 추가
             debugPrint("⚠️ No current offerings found");
             AppToast.show(context, "Failed to load products.");
           }
-          // ✅ 성공 여부와 상관없이 어떤 경우에도 로딩은 종료해야 함
+
+          // ✅ 모든 데이터 처리가 끝난 후 로딩 종료
           _isProductsLoading = false;
         });
       }
@@ -168,7 +177,6 @@ class _ShopPageState extends State<ShopPage> {
         setState(() {
           _isProductsLoading = false;
         });
-        // 사용자에게 에러 알림
         AppToast.error(context, 'network_error_msg'.tr());
       }
     }
@@ -268,6 +276,8 @@ class _ShopPageState extends State<ShopPage> {
         final newFuture = _fetchCoinBalances();
 
         if (mounted) {
+          // 🚨 [핵심] 결제 후 웹훅/DB 업데이트 시간을 위해 잠깐 대기
+          await Future.delayed(const Duration(milliseconds: 1000));
           // 4. 상태 업데이트 (동기적으로 수행)
           setState(() {
             _balanceFuture = newFuture;
@@ -367,10 +377,11 @@ class _ShopPageState extends State<ShopPage> {
                         style: AppTextStyles.sectionTitle,
                       ),
                       const SizedBox(height: 8),
-                      if (_isPremium)
-                        _buildSubscribedCard()
-                      else
-                        _buildSubscriptionSection(),
+                      //일단주석 vip일때는 다가리고 premium일떄는 vip만 보이개 해줘야함
+                      // if (_isPremium)
+                      //   _buildSubscribedCard()
+                      // else
+                      _buildSubscriptionSection(),
                       const SizedBox(height: 10),
                       Text(
                         'charge_coins'.tr(),

@@ -6,13 +6,14 @@ import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:intl/intl.dart';
-import 'package:confetti/confetti.dart'; // ✅ 폭죽 효과
+import 'package:confetti/confetti.dart';
 
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
+import 'package:travel_memoir/features/shop/page/shop_page.dart';
 
 class PayManagementPage extends StatefulWidget {
   const PayManagementPage({super.key});
@@ -23,15 +24,10 @@ class PayManagementPage extends StatefulWidget {
 
 class _PayManagementPageState extends State<PayManagementPage>
     with WidgetsBindingObserver {
-  CustomerInfo? _customerInfo;
-  Offerings? _offerings;
+  final _supabase = Supabase.instance.client;
+  Map<String, dynamic>? _userData;
   bool _isLoading = true;
-
-  // ✅ 폭죽 컨트롤러
   late ConfettiController _confettiController;
-
-  static const String _proEntitlementId = "PREMIUM ACCESS";
-  static const String _vipEntitlementId = "VIP_ACCESS";
 
   @override
   void initState() {
@@ -40,75 +36,77 @@ class _PayManagementPageState extends State<PayManagementPage>
       duration: const Duration(seconds: 3),
     );
     WidgetsBinding.instance.addObserver(this);
-    _loadSubscriptionStatus();
+
+    // ✅ 결제 성공 신호를 감시하는 리스너 추가
+    PaymentService.refreshNotifier.addListener(_onPaymentRefresh);
+
+    _loadDataFromDB();
   }
 
   @override
   void dispose() {
+    // ✅ 페이지가 닫힐 때 리스너 해제 (메모리 누수 방지)
+    PaymentService.refreshNotifier.removeListener(_onPaymentRefresh);
     _confettiController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
+  // ✅ 신호를 받았을 때 실행할 함수
+  void _onPaymentRefresh() {
+    if (mounted) {
+      debugPrint("📡 [결제관리] 새로고침 신호 수신 - 데이터를 다시 로드합니다.");
+      _loadDataFromDB();
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _loadSubscriptionStatus();
+      _loadDataFromDB();
     }
   }
 
-  Future<void> _loadSubscriptionStatus() async {
+  // ✅ [데이터 로드] 레베뉴캣 동기화 없이 오직 DB 데이터만 사용
+  Future<void> _loadDataFromDB() async {
     try {
-      await PaymentService.syncSubscriptionStatus();
-      final offerings = await PaymentService.getOfferings();
-      final customerInfo = await Purchases.getCustomerInfo();
+      setState(() => _isLoading = true);
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
+
+      // 1. [제거] PaymentService.checkSubscriptionStatus()
+      // 레베뉴캣 서버에 묻지 않고 바로 DB를 조회합니다.
+
+      // 2. DB에서 현재 유저 정보 가져오기
+      final data = await _supabase
+          .from('users')
+          .select('is_vip, vip_until, is_premium, premium_until')
+          .eq('auth_uid', user.id)
+          .single();
 
       if (mounted) {
         setState(() {
-          _offerings = offerings;
-          _customerInfo = customerInfo;
+          // 3. DB에서 가져온 데이터 그대로 반영
+          _userData = data;
           _isLoading = false;
         });
-      }
-    } catch (e) {
-      debugPrint("❌ 결제 정보 로드 실패: $e");
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
 
-  Future<void> _purchase(Package package) async {
-    setState(() => _isLoading = true);
-    try {
-      bool success = await PaymentService.purchasePackage(package);
+        // 4. (선택) DB 상으로 VIP나 Premium이면 폭죽 효과
+        final bool isVip = data['is_vip'] ?? false;
+        final bool isPremium = data['is_premium'] ?? false;
 
-      if (success) {
-        await PaymentService.syncSubscriptionStatus();
-        await _loadSubscriptionStatus();
-
-        if (mounted) {
-          // 🎊 진동 없이 화려한 폭죽만 발사!
+        if ((isVip || isPremium) &&
+            _confettiController.state != ConfettiControllerState.playing) {
           _confettiController.play();
-
-          // AppDialogs.showDynamicIconAlert(
-          //   context: context,
-          //   title: 'congratulations'.tr(),
-          //   message: 'upgrade_success_msg'.tr(),
-          //   icon: Icons.celebration,
-          //   iconColor: AppColors.primary,
-          //   onClose: () =>
-          //       Navigator.of(context).popUntil((route) => route.isFirst),
-          // );
         }
-        AppToast.show(context, 'upgrade_success_msg'.tr());
       }
     } catch (e) {
-      debugPrint("❌ 결제 중 에러 발생: $e");
-      if (mounted) AppToast.error(context, 'purchase_error_msg'.tr());
-    } finally {
+      debugPrint("❌ 데이터 로드 실패: $e");
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // ✅ [해지 로직] 기존 소스 그대로 유지
   Future<void> _handleCancelSubscription() async {
     final bool? confirm = await AppDialogs.showConfirm(
       context: context,
@@ -130,325 +128,192 @@ class _PayManagementPageState extends State<PayManagementPage>
     }
   }
 
+  // ✅ [복원 로직] 기존 소스 그대로 유지
+  Future<void> _handleRestore() async {
+    setState(() => _isLoading = true);
+    await PaymentService.restorePurchases();
+    await _loadDataFromDB(); // 복원 후 DB 다시 읽기
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+      final bool isNowPremium =
+          (_userData?['is_vip'] ?? false) ||
+          (_userData?['is_premium'] ?? false);
+      if (isNowPremium) _confettiController.play();
+
+      AppToast.show(
+        context,
+        isNowPremium
+            ? 'restore_success_msg'.tr()
+            : 'restore_no_history_msg'.tr(),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final bool isPro =
-        _customerInfo?.entitlements.all[_proEntitlementId]?.isActive ?? false;
-    final bool isVip =
-        _customerInfo?.entitlements.all[_vipEntitlementId]?.isActive ?? false;
-    final bool isPremium = isPro || isVip;
+    final bool isVip = _userData?['is_vip'] ?? false;
+    final bool isPremium = _userData?['is_premium'] ?? false;
+    final bool hasActivePlan = isVip || isPremium;
 
-    final List<Package> subscriptionPackages =
-        _offerings?.current?.availablePackages.where((p) {
-          final id = p.identifier.toLowerCase();
-          return p.packageType == PackageType.monthly ||
-              p.packageType == PackageType.annual ||
-              id.contains('vip');
-        }).toList() ??
-        [];
+    String membershipTitle = 'free_member'.tr();
+    String? expiryDateRaw;
 
-    subscriptionPackages.sort(
-      (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
-    );
+    if (isVip) {
+      membershipTitle = 'vip_member'.tr();
+      expiryDateRaw = _userData?['vip_until'];
+    } else if (isPremium) {
+      membershipTitle = 'premium_member'.tr();
+      expiryDateRaw = _userData?['premium_until'];
+    }
+
+    String formattedDate = expiryDateRaw != null
+        ? DateFormat('yyyy. MM. dd').format(DateTime.parse(expiryDateRaw))
+        : '';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         title: Text(
           'payment_management'.tr(),
           style: const TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF8F9FA),
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: Colors.black87,
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // ✅ 멤버십 변경 버튼 누르면 상점으로 이동
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ShopPage()),
+              );
+            },
+            child: Text(
+              'change_membership'.tr(), // "멤버십변경"
+              style: const TextStyle(
+                color: Color(0xFF4A90E2),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Stack(
         children: [
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+              : Padding(
+                  padding: const EdgeInsets.all(20.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'subscription_info'.tr(),
-                        style: AppTextStyles.pageTitle,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildStatusCard(isPremium, isVip),
-                      const SizedBox(height: 35),
-                      if (!isPremium) ...[
-                        Text(
-                          'choose_plan'.tr(),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      // 💳 메인 상태 카드 (사진 디자인 반영)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 30,
                         ),
-                        const SizedBox(height: 12),
-                        ...subscriptionPackages
-                            .map((p) => _buildPackageCard(p))
-                            .toList(),
-                      ] else ...[
-                        _buildCancelSection(),
-                      ],
-                      const SizedBox(height: 20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 15,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // 1. 텍스트 영역
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  membershipTitle,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF333333),
+                                  ),
+                                ),
+                                // ✅ 구독 중(VIP/Premium)일 때만 결제일 노출
+                                if (hasActivePlan &&
+                                    formattedDate.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'next_billing_date'.tr(
+                                      args: [formattedDate],
+                                    ),
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[400],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+
+                            // 2. 버튼 영역
+                            // ✅ 구독 중일 때만 '구독 취소' 버튼 노출 (일반 유저는 아예 안 보임)
+                            if (hasActivePlan)
+                              ElevatedButton(
+                                onPressed: _handleCancelSubscription,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFD9D9D9),
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                ),
+                                child: Text(
+                                  'cancel_subscription_btn'.tr(),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 30),
+                      // 구매 복원 버튼
                       _buildRestoreButton(),
                     ],
                   ),
                 ),
-
-          // ✨ 브랜드 컬러 폭죽 위젯 (진동 없음)
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirectionality: BlastDirectionality.explosive,
-              shouldLoop: false,
-              colors: [
-                AppColors.primary,
-                const Color(0xFFFFD700),
-                Colors.white,
-                Colors.blueAccent,
-              ],
-              createParticlePath: _drawStar,
-            ),
-          ),
         ],
       ),
-    );
-  }
-
-  Path _drawStar(Size size) {
-    double degToRad(double deg) => deg * (Math.pi / 180.0);
-    const numberOfPoints = 5;
-    final halfWidth = size.width / 2;
-    final externalRadius = halfWidth;
-    final internalRadius = halfWidth / 2.5;
-    final degreesPerStep = degToRad(360 / numberOfPoints);
-    final halfDegreesPerStep = degreesPerStep / 2;
-    final path = Path();
-    final fullAngle = degToRad(360);
-    path.moveTo(size.width, halfWidth);
-    for (double step = 0; step < fullAngle; step += degreesPerStep) {
-      path.lineTo(
-        halfWidth + externalRadius * Math.cos(step),
-        halfWidth + externalRadius * Math.sin(step),
-      );
-      path.lineTo(
-        halfWidth + internalRadius * Math.cos(step + halfDegreesPerStep),
-        halfWidth + internalRadius * Math.sin(step + halfDegreesPerStep),
-      );
-    }
-    path.close();
-    return path;
-  }
-
-  Widget _buildStatusCard(bool isPremium, bool isVip) {
-    final activeEntitlement = isVip
-        ? _customerInfo?.entitlements.all[_vipEntitlementId]
-        : _customerInfo?.entitlements.all[_proEntitlementId];
-
-    String? rawDate = activeEntitlement?.expirationDate;
-    String formattedDate = rawDate != null
-        ? DateFormat('yyyy. MM. dd').format(DateTime.parse(rawDate))
-        : '-';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isVip
-            ? const Color(0xFFFFF9E6)
-            : (isPremium ? const Color(0xFFF0F7FF) : const Color(0xFFF8F9FA)),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isVip
-              ? Colors.amber.withOpacity(0.5)
-              : (isPremium
-                    ? AppColors.primary.withOpacity(0.3)
-                    : Colors.transparent),
-          width: 2,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isVip
-                    ? Icons.workspace_premium_rounded
-                    : (isPremium
-                          ? Icons.stars_rounded
-                          : Icons.person_outline_rounded),
-                color: isVip
-                    ? Colors.amber[800]
-                    : (isPremium ? AppColors.primary : Colors.grey),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                isVip
-                    ? 'VIP MEMBER'
-                    : (isPremium ? 'premium_member'.tr() : 'free_member'.tr()),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isVip ? Colors.amber[900] : Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          if (isPremium) ...[
-            const SizedBox(height: 16),
-            Text(
-              'next_billing_date'.tr(args: [formattedDate]),
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPackageCard(Package package) {
-    final id = package.identifier.toLowerCase();
-    bool isVipProduct = id.contains('vip');
-    bool isYearly = package.packageType == PackageType.annual;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      width: double.infinity,
-      child: InkWell(
-        onTap: () => _purchase(package),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-          decoration: BoxDecoration(
-            gradient: isVipProduct
-                ? const LinearGradient(
-                    colors: [Color(0xFF1A1A1A), Color(0xFFC5A028)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: !isVipProduct && isYearly ? AppColors.primary : Colors.white,
-            border: Border.all(
-              color: isVipProduct ? Colors.transparent : AppColors.primary,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: isVipProduct
-                ? [
-                    BoxShadow(
-                      color: Colors.amber.withOpacity(0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    if (isVipProduct)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 8),
-                        child: Icon(
-                          Icons.workspace_premium,
-                          color: Colors.amber,
-                          size: 22,
-                        ),
-                      ),
-                    Flexible(
-                      child: Text(
-                        package.storeProduct.title.split('(').first.trim(),
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: (isVipProduct || isYearly)
-                              ? Colors.white
-                              : AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                package.storeProduct.priceString,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: (isVipProduct || isYearly)
-                      ? Colors.white
-                      : AppColors.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCancelSection() {
-    return Column(
-      children: [
-        const Divider(height: 60),
-        Center(
-          child: TextButton(
-            onPressed: _handleCancelSubscription,
-            child: Text(
-              'cancel_subscription'.tr(),
-              style: const TextStyle(
-                color: Colors.grey,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
   Widget _buildRestoreButton() {
     return Center(
       child: TextButton(
-        onPressed: () async {
-          setState(() => _isLoading = true);
-          await PaymentService.restorePurchases();
-          await _loadSubscriptionStatus();
-          if (mounted) {
-            setState(() => _isLoading = false);
-            final bool isPremiumNow =
-                (_customerInfo?.entitlements.all[_proEntitlementId]?.isActive ??
-                    false) ||
-                (_customerInfo?.entitlements.all[_vipEntitlementId]?.isActive ??
-                    false);
-
-            if (isPremiumNow) {
-              _confettiController.play();
-            }
-
-            AppToast.show(
-              context,
-              isPremiumNow
-                  ? 'restore_success_msg'.tr()
-                  : 'restore_no_history_msg'.tr(),
-            );
-          }
-        },
+        onPressed: _handleRestore,
         child: Text(
           'restore_purchase'.tr(),
           style: const TextStyle(fontSize: 13, color: Colors.blueGrey),

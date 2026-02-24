@@ -13,7 +13,7 @@ class PaymentService {
 
   // ✅ RevenueCat Entitlement ID 설정
   static const String _proEntitlementId = "PREMIUM ACCESS";
-  static const String _vipEntitlementId = "VIP_ACCESS";
+  //static const String _vipEntitlementId = "";
 
   // =========================
   // 🟢 플랫폼별 초기화 (init)
@@ -27,8 +27,9 @@ class PaymentService {
 
       // ⚠️ 특정 StoreKit 버전을 강제하지 않고 최신 설정을 따르도록 구성
       final configuration = PurchasesConfiguration(apiKey)..appUserID = userId;
-
       await Purchases.configure(configuration);
+      await Purchases.logIn(userId); // appUserID를 configure에 넣지 말고 logIn으로
+
       debugPrint("✅ RevenueCat 초기화 완료 (Platform: ${Platform.operatingSystem})");
     } catch (e) {
       debugPrint("❌ RevenueCat 초기화 실패: $e");
@@ -125,40 +126,48 @@ class PaymentService {
     CustomerInfo info,
     String? productIdentifier,
   ) async {
-    // Pro 권한 확인
-    final proEntitlement = info.entitlements.all[_proEntitlementId];
-    final bool isProActive = proEntitlement?.isActive ?? false;
+    // 1. 전체 권한(Entitlement) 확인
+    // 이제 모든 구독 상품이 "PREMIUM ACCESS"에 들어있으므로 이 하나만 가져옵니다.
+    final premiumEntitlement =
+        info.entitlements.all[_proEntitlementId]; // "PREMIUM ACCESS"
+    final bool hasActiveEntitlement = premiumEntitlement?.isActive ?? false;
 
-    // 💎 VIP 권한 확인
-    final vipEntitlement = info.entitlements.all[_vipEntitlementId];
-    final bool isVipActive = vipEntitlement?.isActive ?? false;
+    // 2. 💎 현재 활성화된 "상품 ID" 목록 확인
+    // 유저가 실제로 결제해서 가지고 있는 상품들의 ID 리스트를 뽑습니다.
+    final List<String> activeProductIds = info.entitlements.active.values
+        .map((e) => e.productIdentifier)
+        .toList();
 
-    // 🚀 [추가할 로그 위치] DB 업데이트 직전에 변수 값 확인
-    debugPrint("------------------------------------------");
-    debugPrint("🚩 [DB 반영 전 체크]");
-    debugPrint("🚩 Entitlement ID (VIP): $_vipEntitlementId");
-    debugPrint("🚩 RevenueCat 실시간 VIP 상태: $isVipActive"); // 👈 이게 핵심!
-    debugPrint(
-      "🚩 RevenueCat 전체 활성 권한: ${info.entitlements.active.keys.toList()}",
+    // 3. 🎯 VIP 여부 판별 (상품 ID에 'vip_premium'이 포함되어 있는지 확인)
+    // Entitlement ID가 아니라 실제 결제한 상품명을 보고 판단합니다.
+    final bool isVipActive = activeProductIds.any(
+      (id) => id.contains('vip_premium'),
     );
-    debugPrint("------------------------------------------");
-    debugPrint("------------------------------------------");
-    debugPrint("🔍 [결제체크] Pro 활성화 상태: $isProActive");
-    debugPrint("🔍 [결제체크] VIP 활성화 상태: $isVipActive");
-    debugPrint("🚨 [전체 권한 목록]: ${info.entitlements.active.keys.toList()}");
 
-    // Supabase DB와 동기화 (먼저 수행)
+    // 4. 일반 프리미엄 판별
+    // 권한은 있는데 VIP 상품이 아니면 일반 프리미엄으로 간주합니다.
+    final bool isProActive = hasActiveEntitlement && !isVipActive;
+
+    debugPrint("------------------------------------------");
+    debugPrint("🚩 [권한 판별 결과]");
+    debugPrint("🚩 전체 활성 엔타이틀먼트: ${info.entitlements.active.keys.toList()}");
+    debugPrint("🚩 실제 활성 상품 목록: $activeProductIds");
+    debugPrint("🚩 최종 판정 -> VIP: $isVipActive / Pro: $isProActive");
+    debugPrint("------------------------------------------");
+
+    // Supabase DB와 동기화
     await _syncStatusToSupabase(
       isProActive: isProActive,
-      proExpirationDate: proEntitlement?.expirationDate,
+      proExpirationDate: premiumEntitlement?.expirationDate,
       isVipActive: isVipActive,
-      vipExpirationDate: vipEntitlement?.expirationDate,
-      vipLatestPurchaseDate: vipEntitlement?.latestPurchaseDate,
+      // 날짜 정보는 동일한 엔타이틀먼트 주머니에서 가져옵니다.
+      vipExpirationDate: premiumEntitlement?.expirationDate,
+      vipLatestPurchaseDate: premiumEntitlement?.latestPurchaseDate,
       rcId: info.originalAppUserId,
       productIdentifier: productIdentifier,
     );
 
-    // ✨ [핵심] DB 동기화가 완전히 끝난 시점에 전파를 쏩니다!
+    // ✨ UI 새로고침 전파
     refreshNotifier.value = !refreshNotifier.value;
 
     return true;
@@ -191,6 +200,13 @@ class PaymentService {
     if (user == null) return;
 
     try {
+      // 🔍 [추가된 로그] DB 저장 직전의 데이터 확인
+      debugPrint("------------------------------------------");
+      debugPrint("💾 [DB 저장 시도] 유저: ${user.email}");
+      debugPrint("💾 [DB 저장 시도] is_vip: $isVipActive"); // 👈 로그 확인 포인트 1
+      debugPrint("💾 [DB 저장 시도] is_premium: $isProActive");
+      debugPrint("------------------------------------------");
+
       // (1) 통합 유저 상태 데이터 구성
       final updateData = {
         'is_premium': isProActive,
@@ -218,10 +234,16 @@ class PaymentService {
       }
 
       // (2) ✅ 멤버십 보너스 지급 (RPC)
-      if (isVipActive) {
-        await _supabase.rpc('grant_membership_coins');
-      } else if (isProActive) {
-        await _supabase.rpc('grant_membership_coins');
+      // if (isVipActive) {
+      //   await _supabase.rpc('grant_membership_coins');
+      // } else if (isProActive) {
+      //   await _supabase.rpc('grant_membership_coins');
+      // }
+      if (productIdentifier != null) {
+        if (isVipActive || isProActive) {
+          await _supabase.rpc('grant_membership_coins');
+          debugPrint("🎊 실제 결제 성공 시점에만 멤버십 보너스 지급 로직 실행");
+        }
       }
 
       // (3) ✅ 코인 상품 구매 처리 (단발성 아이템)
@@ -271,4 +293,34 @@ class PaymentService {
       debugPrint("❌ DB 업데이트 오류: $e");
     }
   }
+
+  // 단순 상태 조회용 (보너스 지급 없음)
+  // static Future<void> checkSubscriptionStatus() async {
+  //   try {
+  //     CustomerInfo customerInfo = await Purchases.getCustomerInfo();
+  //     final proEntitlement = customerInfo.entitlements.all[_proEntitlementId];
+  //     final vipEntitlement = customerInfo.entitlements.all[_vipEntitlementId];
+
+  //     final bool isVip = vipEntitlement?.isActive ?? false;
+
+  //     // 🔍 [추가된 로그] 단순 동기화 시 데이터 확인
+  //     debugPrint("🔍 [상태 체크 로그] 현재 레베뉴캣 서버 VIP 상태: $isVip"); // 👈 로그 확인 포인트 2
+
+  //     // DB 상태만 업데이트, 보너스 지급 없음
+  //     final user = _supabase.auth.currentUser;
+  //     if (user == null) return;
+
+  //     await _supabase
+  //         .from('users')
+  //         .update({
+  //           'is_premium': proEntitlement?.isActive ?? false,
+  //           'is_vip': vipEntitlement?.isActive ?? false,
+  //           'premium_until': proEntitlement?.expirationDate,
+  //           'vip_until': vipEntitlement?.expirationDate,
+  //         })
+  //         .eq('auth_uid', user.id);
+  //   } catch (e) {
+  //     debugPrint("❌ 상태 체크 실패: $e");
+  //   }
+  // }
 }

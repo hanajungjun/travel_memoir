@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:easy_localization/easy_localization.dart'; // 추가
-
+import 'package:easy_localization/easy_localization.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
@@ -67,6 +67,16 @@ class MyUserDetailPage extends StatelessWidget {
           const SizedBox(height: 12),
           _LogoutTile(
             onTap: () async {
+              try {
+                final info = await Purchases.getCustomerInfo();
+                // anonymous 유저가 아닐 때만 logOut 호출
+                if (!info.originalAppUserId.startsWith('\$RCAnonymousID')) {
+                  await Purchases.logOut();
+                }
+              } catch (e) {
+                debugPrint('RevenueCat logOut 스킵: $e');
+              }
+
               await Supabase.instance.client.auth.signOut();
               if (context.mounted) {
                 Navigator.of(context).popUntil((route) => route.isFirst);

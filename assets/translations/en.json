@@ -390,5 +390,8 @@
   "dont_show_today": "dont show today",
   "ai_consent_title": "AI Data Consent",
   "ai_consent_message": "Journal content and photos are shared with OpenAI and Google Gemini for image generation.",
-  "agree": "Agree"
+  "agree": "Agree",
+  "vip_member": "VIP",
+  "change_membership": "Change Membership",
+  "cancel_subscription_btn": "Cancel Subscription"
 }

@@ -388,5 +388,8 @@
   "dont_show_today": "오늘 하루 보지 않기",
   "ai_consent_title": "AI 데이터 사용 안내",
   "ai_consent_message": "일기 내용과 사진이 OpenAI 및 Google Gemini로 전송되어 이미지 생성에 사용됩니다.",
-  "agree": "동의"
+  "agree": "동의",
+  "vip_member": "VIP",
+  "change_membership": "멤버십변경",
+  "cancel_subscription_btn": "구독 취소"
 }
