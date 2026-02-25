@@ -393,5 +393,6 @@
   "agree": "Agree",
   "vip_member": "VIP",
   "change_membership": "Change Membership",
-  "cancel_subscription_btn": "Cancel Subscription"
+  "cancel_subscription_btn": "Cancel Subscription",
+  "server_busy_error":"The AI is having a teenage tantrum and locked its door. Give us a sec to bribe it with data!"
 }

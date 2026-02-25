@@ -444,7 +444,7 @@ class _MyPageState extends State<MyPage> with RouteAware {
                       _MenuTile(
                         title: 'passport_label'.tr(),
                         svgName: 'ico_menu06.svg', // 내 여권
-                        subtitle: '(VIP 전용)',
+                        subtitle: '(${"premium_only_title".tr()})',
                         onTap: () => _handlePassportTap(hasAccess),
                       ),
                     ],

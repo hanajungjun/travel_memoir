@@ -14,9 +14,49 @@ import 'package:travel_memoir/services/ai_premium_prompt_service.dart';
 class GeminiService {
   final String _apiKey = AppEnv.geminiApiKey;
 
-  // ============================
-  // ✍️ 텍스트 요약 (generateSummary)
-  // ============================
+  // --------------------------------------------------------------------------
+  // ✅ 공통 HTTP 재시도 헬퍼 (503, 429 에러 대응)
+  // --------------------------------------------------------------------------
+  Future<http.Response> _postWithRetry(
+    Uri uri,
+    Map<String, dynamic> body,
+  ) async {
+    int retryCount = 0;
+    const int maxRetries = 3;
+
+    while (true) {
+      try {
+        final response = await http
+            .post(
+              uri,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode(body),
+            )
+            .timeout(const Duration(seconds: 40)); // 이미지 생성은 시간이 걸리므로 40초
+
+        if ((response.statusCode == 503 || response.statusCode == 429) &&
+            retryCount < maxRetries) {
+          retryCount++;
+          int waitSeconds = math.pow(2, retryCount - 1).toInt();
+          debugPrint(
+            '⚠️ [Gemini] 서버 과부하(${response.statusCode}) 감지. ${waitSeconds}초 후 재시도... ($retryCount/$maxRetries)',
+          );
+          await Future.delayed(Duration(seconds: waitSeconds));
+          continue;
+        }
+        return response;
+      } catch (e) {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          await Future.delayed(const Duration(seconds: 2));
+          continue;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  // ✍️ 텍스트 요약
   Future<String> generateSummary({
     String? finalPrompt,
     String? diaryText,
@@ -24,10 +64,10 @@ class GeminiService {
     required List<Uint8List> photoBytes,
     String languageCode = 'en',
   }) async {
-    final url =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=$_apiKey';
+    final uri = Uri.parse(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=$_apiKey',
+    );
 
-    // 변수명 충돌 방지를 위해 targetPrompt 사용
     String targetPrompt = (finalPrompt != null && finalPrompt.isNotEmpty)
         ? finalPrompt
         : '${(languageCode == 'ko') ? PromptCache.textPrompt.contentKo : PromptCache.textPrompt.contentEn}\n[Info] Location: $location\nDiary: $diaryText';
@@ -42,127 +82,108 @@ class GeminiService {
       });
     }
 
-    final res = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'contents': [
-          {'parts': parts},
-        ],
-      }),
-    );
+    final res = await _postWithRetry(uri, {
+      'contents': [
+        {'parts': parts},
+      ],
+    });
 
-    final decoded = jsonDecode(res.body);
-
-    // 에러 발생 시 상세 로그 출력 (디버깅용)
     if (res.statusCode != 200) {
-      debugPrint('❌ [Gemini Error Body]: ${res.body}');
-      throw Exception('❌ HTTP ${res.statusCode}');
+      throw Exception(
+        res.statusCode == 503
+            ? 'server_busy_error'.tr()
+            : '❌ HTTP ${res.statusCode}',
+      );
     }
 
+    final decoded = jsonDecode(res.body);
     final candidates = decoded['candidates'];
     if (candidates == null || candidates.isEmpty) {
-      // 🎯 Safety Filter에 걸렸을 가능성이 높음
-      debugPrint('⚠️ [Safety Blocked]: ${decoded['promptFeedback']}');
       throw Exception('ai_error_guide'.tr());
     }
 
     return candidates[0]['content']['parts'][0]['text'].toString().trim();
   }
 
-  // ============================
-  // 🎨 이미지 생성 (generateImage)
-  // ============================
+  // 🎨 이미지 생성
   Future<Uint8List> generateImage({
-    String? finalPrompt, // 👈 파라미터명 유지
+    String? finalPrompt,
     String? summary,
     String? stylePrompt,
     String languageCode = 'en',
   }) async {
-    // 내부 변수명을 imagePrompt로 변경하여 파라미터와 충돌 방지
-    String imagePrompt = "";
+    String imagePrompt = (finalPrompt != null && finalPrompt.isNotEmpty)
+        ? finalPrompt
+        : '${(languageCode == 'ko') ? PromptCache.imagePrompt.contentKo : PromptCache.imagePrompt.contentEn}\nStyle: $stylePrompt\n[Context]: $summary';
 
-    if (finalPrompt != null && finalPrompt.isNotEmpty) {
-      imagePrompt = finalPrompt;
-    } else {
-      final basePrompt = (languageCode == 'ko')
-          ? PromptCache.imagePrompt.contentKo
-          : PromptCache.imagePrompt.contentEn;
-      imagePrompt = '$basePrompt\nStyle: $stylePrompt\n[Context]: $summary';
-    }
-
-    debugPrint('🤖 [GEMINI] image request (Lang: $languageCode)');
     final uri = Uri.parse(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey',
     );
 
     try {
-      return await _requestImage(uri, imagePrompt);
+      return await _executeImageRequest(uri, imagePrompt);
     } catch (e) {
-      debugPrint('⚠️ [GEMINI] image retry once');
-      return await _requestImage(
+      return await _executeImageRequest(
         uri,
         '$imagePrompt\n\nGenerate exactly ONE image. No text.',
       );
     }
   }
 
-  // 내부 이미지 요청 헬퍼
-  Future<Uint8List> _requestImage(Uri uri, String prompt) async {
-    debugPrint('🚀 [GEMINI_FINAL_PROMPT] >>>\n$prompt\n<<<');
-    final response = await http.post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'contents': [
-          {
-            'role': 'user',
-            'parts': [
-              {'text': prompt},
-            ],
-          },
-        ],
-        'generationConfig': {
-          'responseModalities': ['IMAGE'],
+  Future<Uint8List> _executeImageRequest(Uri uri, String prompt) async {
+    final body = {
+      'contents': [
+        {
+          'role': 'user',
+          'parts': [
+            {'text': prompt},
+          ],
         },
-        'safetySettings': [
-          {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
-          {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
-          {
-            'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            'threshold': 'BLOCK_NONE',
-          },
-          {
-            'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            'threshold': 'BLOCK_NONE',
-          },
-        ],
-      }),
-    );
+      ],
+      'generationConfig': {
+        'responseModalities': ['IMAGE'],
+      },
+      'safetySettings': [
+        {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+        {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
+        {
+          'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          'threshold': 'BLOCK_NONE',
+        },
+        {
+          'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          'threshold': 'BLOCK_NONE',
+        },
+      ],
+    };
 
-    if (response.statusCode != 200) throw Exception('❌ Gemini Image Error');
-    final decoded = jsonDecode(response.body);
+    final res = await _postWithRetry(uri, body);
+    if (res.statusCode != 200)
+      throw Exception(
+        res.statusCode == 503
+            ? 'server_busy_error'.tr()
+            : '❌ Gemini Image Error',
+      );
+
+    final decoded = jsonDecode(res.body);
     final base64Str =
-        decoded['candidates'][0]['content']?['parts'][0]['inlineData']?['data'];
+        decoded['candidates']?[0]['content']?['parts']?[0]?['inlineData']?['data'];
     if (base64Str == null) throw Exception('GEMINI_TEXT_ONLY_RESPONSE');
     return base64Decode(base64Str);
   }
 
+  // 🗺️ 인포그래픽 생성 (풀버전 로직 유지)
   Future<Uint8List> generateFullTravelInfographic({
     required List<String> allDiaryTexts,
-    required String getPlaceName, // 👈 widget.placeName 대신 파라미터로 받음
-    required String travelType, // 👈 travel_type을 파라미터로 추가로 받으세요!
+    required String getPlaceName,
+    required String travelType,
     List<String>? photoUrls,
   }) async {
-    final url =
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey';
-
-    //어드민페이지 프리미엄프롬프트
+    final uri = Uri.parse(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$_apiKey',
+    );
     final premiumPrompt = await AiPremiumPromptService.fetchActive();
-
-    if (premiumPrompt == null) {
-      throw Exception('❌ 활성 프리미엄 프롬프트 없음');
-    }
+    if (premiumPrompt == null) throw Exception('❌ 활성 프리미엄 프롬프트 없음');
 
     String placeName = getPlaceName;
     if (travelType == 'usa') {
@@ -171,7 +192,6 @@ class GeminiService {
       placeName = "$getPlaceName, South Korea";
     }
 
-    // 1️⃣ 'Infographic' 단어 제거 -> 'Mural Illustration'으로 교체 (배너 방지)
     String basePrompt = premiumPrompt.prompt.replaceAll(
       'Infographic',
       'Seamless Cinematic Travel Mural Illustration',
@@ -181,9 +201,7 @@ class GeminiService {
     String textStrictRule = "";
     int dayCount = allDiaryTexts.length;
 
-    // 2️⃣ 여행 기간별 텍스트 및 로직 처리
     if (dayCount <= 1) {
-      // 당일치기: 텍스트/숫자/배너 완전 금지
       durationInstruction =
           """
 \n[Style Focus: Single Landscape Masterpiece]
@@ -193,7 +211,6 @@ class GeminiService {
 """;
       textStrictRule = "ZERO TEXT ALLOWED. No letters, no numbers, no words.";
     } else {
-      // 다일 여행: 'Day X' 라벨만 허용 (박스/동그라미 숫자 금지)
       durationInstruction =
           """
 \n[Style Focus: Artistic Journey Path of $dayCount Days]
@@ -210,7 +227,6 @@ class GeminiService {
       }
     }
 
-    // 3️⃣ 레이아웃 파괴 명령 (상단 배너 및 네모칸 제거)
     String layoutAndTextInstruction =
         """
 \n[STRICT LAYOUT OVERRIDE]
@@ -221,7 +237,6 @@ class GeminiService {
 - Entire image must be edge-to-edge illustration with no borders.
 """;
 
-    // 4️⃣ 최종 프롬프트 조립
     String finalPrompt =
         basePrompt.replaceAll(
           '\${allDiaryTexts.join(\'\\n\')}',
@@ -230,46 +245,39 @@ class GeminiService {
         durationInstruction +
         layoutAndTextInstruction;
 
-    print(' [finalPrompt] $finalPrompt');
-
-    final parts = <Map<String, dynamic>>[
-      {'text': finalPrompt},
-    ];
-
-    final res = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'contents': [
-          {'parts': parts},
-        ],
-        'generationConfig': {
-          'responseModalities': ['IMAGE'],
+    final body = {
+      'contents': [
+        {
+          'parts': [
+            {'text': finalPrompt},
+          ],
         },
-        'safetySettings': [
-          {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
-          {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
-          {
-            'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            'threshold': 'BLOCK_NONE',
-          },
-          {
-            'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            'threshold': 'BLOCK_NONE',
-          },
-        ],
-      }),
-    );
+      ],
+      'generationConfig': {
+        'responseModalities': ['IMAGE'],
+      },
+      'safetySettings': [
+        {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+        {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
+        {
+          'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+          'threshold': 'BLOCK_NONE',
+        },
+        {
+          'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+          'threshold': 'BLOCK_NONE',
+        },
+      ],
+    };
 
-    if (res.statusCode != 200) {
-      debugPrint('❌ [GEMINI] error body: ${res.body}');
+    // ✅ 재시도 로직 적용
+    final res = await _postWithRetry(uri, body);
+    if (res.statusCode != 200)
       throw Exception('❌ 이미지 생성 실패 (${res.statusCode})');
-    }
 
     final data = jsonDecode(res.body);
     final imageBase64 =
         data['candidates'][0]['content']['parts'][0]['inlineData']['data'];
-
     return base64Decode(imageBase64);
   }
 }

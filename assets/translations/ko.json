@@ -196,7 +196,7 @@
   "diary_completed_label": "🌍 완성된 추억",
   "save_reorder_button": "수정완료",
   "save_reorder_success": "저장완료",
-  "premium_only_title": "구독자 전용 기능",
+  "premium_only_title": "구독자 전용",
   "premium_sticker_desc": "AI 스티커 북은 구독 중인 유저만 이용 가능합니다.",
   "view_plans": "플랜 보기",
   "failed_to_share_image": "이미지 공유에 실패했습니다.",
@@ -391,5 +391,6 @@
   "agree": "동의",
   "vip_member": "VIP",
   "change_membership": "멤버십변경",
-  "cancel_subscription_btn": "구독 취소"
+  "cancel_subscription_btn": "구독 취소",
+  "server_busy_error":"AI가 사춘기라 방 문을 잠갔습니다. 달래서 데려올게요!"
 }
