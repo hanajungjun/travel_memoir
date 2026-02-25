@@ -235,7 +235,7 @@ class _CustomRangeCalendarPageState extends State<CustomRangeCalendarPage> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.08),
-                            blurRadius: 20,
+                            blurRadius: 18,
                             offset: const Offset(0, 8),
                           ),
                         ],

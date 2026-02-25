@@ -21,6 +21,8 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
+
 /**
  * 📱 Screen ID : MY_PAGE
  * 📝 Name      : 마이페이지 (프로필 및 설정 허브)
@@ -213,7 +215,7 @@ class _MyPageState extends State<MyPage> with RouteAware {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF6F6F6),
       body: SafeArea(
         child: FutureBuilder<Map<String, dynamic>>(
           future: _profileDataFuture,
@@ -275,9 +277,9 @@ class _MyPageState extends State<MyPage> with RouteAware {
 
             return SingleChildScrollView(
               padding: EdgeInsets.fromLTRB(
-                24,
+                27,
                 20,
-                24,
+                27,
                 MediaQuery.of(context).padding.bottom + 32,
               ),
               child: Column(
@@ -293,120 +295,89 @@ class _MyPageState extends State<MyPage> with RouteAware {
                       );
                       _refreshPage();
                     },
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(15),
+                      child: Column(
+                        children: [
+                          // 프로필 이미지 + 편집 아이콘
+                          Stack(
+                            alignment: Alignment.bottomRight,
                             children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    nickname,
-                                    style: const TextStyle(
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _buildBadge(badge),
-                                  if (isVip) ...[
-                                    const SizedBox(width: 6),
-                                    _buildVipMark(),
-                                  ] else if (isPremium) ...[
-                                    const SizedBox(width: 6),
-                                    _buildPremiumMark(),
-                                  ],
-                                ],
+                              Container(
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                ),
+                                child: CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: Color(0xFFE4E4E4),
+                                  backgroundImage: imageUrl != null
+                                      ? NetworkImage(imageUrl)
+                                      : null,
+                                  child: imageUrl == null
+                                      ? SvgPicture.asset(
+                                          'assets/icons/ico_user.svg',
+                                          width: 45,
+                                          height: 47,
+                                        )
+                                      : null,
+                                ),
                               ),
-                              const SizedBox(height: 12),
                             ],
                           ),
-                        ),
-                        CircleAvatar(
-                          radius: 38,
-                          backgroundColor: Colors.grey.shade100,
-                          backgroundImage: imageUrl != null
-                              ? NetworkImage(imageUrl)
-                              : null,
-                          child: imageUrl == null
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 38,
-                                  color: Colors.grey,
-                                )
-                              : null,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: () => _handlePassportTap(hasAccess),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A3D2F),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
+                          const SizedBox(height: 15),
+                          // 닉네임과 칭호/배지
+                          // ✨ 닉네임 + VIP마크 (한 줄)
+                          Stack(
+                            alignment: Alignment.center, // 모든 자식을 일단 중앙에 모아요
+                            clipBehavior:
+                                Clip.none, // 마크가 닉네임 밖으로 튀어나가도 잘리지 않게!
+                            children: [
+                              // 1. 닉네임 (얘가 기준점이 되어 정중앙에 옵니다)
+                              Text(
+                                nickname,
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2B2B2B),
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
+
+                              // 2. VIP 마크 (닉네임 옆에 살짝 띄워서 배치)
+                              if (isVip || isPremium)
+                                Positioned(
+                                  // 닉네임 중앙으로부터 오른쪽으로 (닉네임 길이에 따라 조절이 필요할 수 있음)
+                                  // 하지만 가장 쉬운 건 아까 Row 방식을 쓰되, 투명한 가짜 박스를 왼쪽에 넣는 거예요.
+                                  right: -50, // 이 수치를 조절해서 닉네임과의 간격을 맞춥니다
+                                  child: isVip
+                                      ? _buildVipMark()
+                                      : _buildPremiumMark(),
+                                ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.menu_book,
-                            color: Color(0xFFE5C100),
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'passport_label'.tr(),
-                            style: const TextStyle(
-                              color: Color(0xFFE5C100),
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          if (!hasAccess) ...[
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.lock_outline_rounded,
-                              color: Color(0xFFE5C100),
-                              size: 16,
-                            ),
-                          ],
+
+                          const SizedBox(height: 3), // 위아래 줄 사이 간격
+                          // ✨ 뱃지만 따로 (중앙 정렬)
+                          Center(child: _buildBadge(badge)),
                         ],
                       ),
                     ),
                   ),
-                  if (email != null && email.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      email,
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
+                  // ✨ 여권 아래 나오던 이메일은 통일성을 위해 안쓸꺼임
+                  // if (email != null && email.isNotEmpty) ...[
+                  //   const SizedBox(height: 4),
+                  //   Text(
+                  //     email,
+                  //     style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  //   ),
+                  // ],
                   const SizedBox(height: 20),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
-                    shrinkWrap: true,
-                    padding: EdgeInsets.zero,
-                    physics: const NeverScrollableScrollPhysics(),
+                  Column(
                     children: [
                       _MenuTile(
                         title: 'my_travels'.tr(),
-                        icon: Icons.public,
+                        svgName: 'ico_menu01.svg', // 나의 여행
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -419,7 +390,7 @@ class _MyPageState extends State<MyPage> with RouteAware {
                       ),
                       _MenuTile(
                         title: 'map_settings'.tr(),
-                        icon: Icons.map_outlined,
+                        svgName: 'ico_menu02.svg', // 지도 설정
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -432,7 +403,7 @@ class _MyPageState extends State<MyPage> with RouteAware {
                       ),
                       _MenuTile(
                         title: 'user_detail_title'.tr(),
-                        icon: Icons.manage_accounts_outlined,
+                        svgName: 'ico_menu03.svg', // 계정 관리
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -444,21 +415,8 @@ class _MyPageState extends State<MyPage> with RouteAware {
                         },
                       ),
                       _MenuTile(
-                        title: 'support'.tr(),
-                        icon: Icons.menu_book_outlined,
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MySupportPage(),
-                            ),
-                          );
-                          _refreshPage();
-                        },
-                      ),
-                      _MenuTile(
                         title: 'settings'.tr(),
-                        icon: Icons.settings_outlined,
+                        svgName: 'ico_menu04.svg', // 설정
                         onTap: () async {
                           await Navigator.push(
                             context,
@@ -469,22 +427,25 @@ class _MyPageState extends State<MyPage> with RouteAware {
                           _refreshPage();
                         },
                       ),
-                      GestureDetector(
-                        onTap: _showTestRewardPopup, // 🎯 이제 누를 때마다 즉시 뜹니다!
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFF0F0F0)),
-                          ),
-                          child: Center(
-                            child: Lottie.asset(
-                              'assets/lottie/Earth globe rotating with Seamless loop animation.json',
-                              fit: BoxFit.contain,
+                      _MenuTile(
+                        title: 'support'.tr(),
+                        svgName: 'ico_menu05.svg', // 고객 지원
+                        onTap: () async {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MySupportPage(),
                             ),
-                          ),
-                        ),
+                          );
+                          _refreshPage();
+                        },
+                      ),
+                      // 마지막 내 여권 메뉴 (이미지처럼 subtitle 추가)
+                      _MenuTile(
+                        title: 'passport_label'.tr(),
+                        svgName: 'ico_menu06.svg', // 내 여권
+                        subtitle: '(VIP 전용)',
+                        onTap: () => _handlePassportTap(hasAccess),
                       ),
                     ],
                   ),
@@ -499,34 +460,31 @@ class _MyPageState extends State<MyPage> with RouteAware {
 
   Widget _buildVipMark() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF000000), Color(0xFF434343)],
+          colors: [Color(0xFFFFAC38), Color(0xFFFFAC38)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFFFD700), width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.stars, color: Color(0xFFFFD700), size: 14),
-          SizedBox(width: 4),
-          Text(
+          // 직접 만드신 VIP 아이콘 넣기
+          SvgPicture.asset(
+            'assets/icons/ico_vip.svg', // 폴더 경로를 꼭 확인하세요!
+            width: 9,
+            height: 9,
+          ),
+          const SizedBox(width: 2),
+          const Text(
             'VIP',
             style: TextStyle(
-              color: Color(0xFFFFD700),
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
+              color: Color(0xFFFFFFFF),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -562,20 +520,13 @@ class _MyPageState extends State<MyPage> with RouteAware {
   }
 
   Widget _buildBadge(Map<String, dynamic> badge) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: badge['color'].withOpacity(0.1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: badge['color'].withOpacity(0.3)),
-      ),
-      child: Text(
-        (badge['title_key'] as String).tr(),
-        style: TextStyle(
-          color: badge['color'],
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-        ),
+    return Text(
+      (badge['title_key'] as String).tr(),
+      style: const TextStyle(
+        color: Color(0xFF888888),
+        fontWeight: FontWeight.w300,
+        fontSize: 14,
+        letterSpacing: -0.5,
       ),
     );
   }
@@ -583,34 +534,74 @@ class _MyPageState extends State<MyPage> with RouteAware {
 
 class _MenuTile extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final String svgName;
   final VoidCallback onTap;
+  final String? subtitle; // 'VIP 전용' 같은 추가 문구를 위해 넣었어요
   const _MenuTile({
     required this.title,
-    required this.icon,
+    required this.svgName, // 필수 인자
     required this.onTap,
+    this.subtitle,
   });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        margin: const EdgeInsets.only(bottom: 13), // 메뉴 사이의 간격
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFF0F0F0)),
+          borderRadius: BorderRadius.circular(12), // 이미지처럼 부드러운 모서리
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Row(
           children: [
-            Icon(icon, size: 32, color: Colors.blue.shade700),
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            // 🎯 요청하신 대로 SVG 아이콘 적용 (사이즈 19)
+            SizedBox(
+              width: 24, // 아이콘 영역 확보 (터치 및 정렬용)
+              child: Align(
+                alignment: Alignment.center,
+                child: SvgPicture.asset(
+                  'assets/icons/$svgName',
+                  width: 19,
+                  height: 19,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+
+            // 2. 메뉴 제목
+            Expanded(
+              child: Row(
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2B2B2B),
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(width: 2),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Color(0xFF2B2B2B),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
