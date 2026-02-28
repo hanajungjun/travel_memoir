@@ -713,7 +713,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
                         _travelTitle(),
                         style: AppTextStyles.pageTitle.copyWith(
                           fontSize: 21, // 페이지 메인 제목으로 강조
-                          color: Colors.black,
+                          color: AppColors.textColor01,
                         ),
                         textAlign: TextAlign.center,
                       ),
