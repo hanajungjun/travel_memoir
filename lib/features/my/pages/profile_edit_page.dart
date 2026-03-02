@@ -209,7 +209,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 15),
                     // 2. 메인 프로필 카드
                     Container(
                       width: double
@@ -219,7 +219,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                             MediaQuery.of(context).size.height -
                             18 // 상단 여백 (padding top)
                             -
-                            50 // 상단 바(Row) 대략적인 높이
+                            55 // 상단 바(Row) 대략적인 높이
                             -
                             27 // 요청하신 하단 여백 27px
                             -
@@ -344,7 +344,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           TextField(
             controller: controller,
             maxLength: maxLength,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
             decoration: const InputDecoration(
               isDense: true,
               contentPadding: EdgeInsets.symmetric(vertical: 5),
@@ -360,7 +364,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   // ❷ 점선을 그려주는 헬퍼 위젯 (새로 추가)
   Widget _buildDashedDivider() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.only(
+        top: 4,
+        bottom: 10,
+      ), // 위(top)는 0, 아래(bottom)만 10!
       child: CustomPaint(
         size: const Size(double.infinity, 1),
         painter: DashedLinePainter(),

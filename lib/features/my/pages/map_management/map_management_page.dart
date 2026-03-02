@@ -9,6 +9,8 @@ import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
+
 class MapManagementPage extends StatefulWidget {
   const MapManagementPage({super.key});
 
@@ -56,35 +58,35 @@ class _MapManagementPageState extends State<MapManagementPage> {
       {
         'id': 'world',
         'name': 'world_map',
-        'icon': '🌎',
+        'icon': 'assets/icons/ico_map_world.svg', // ✅ SVG 경로로 변경
         'isFixed': true,
         'isAvailable': true,
       },
       {
         'id': 'ko',
         'name': 'korea_map',
-        'icon': '🇰🇷',
+        'icon': 'assets/icons/ico_map_ko.svg', // ✅ SVG 경로로 변경
         'isFixed': false,
         'isAvailable': true,
       },
       {
         'id': 'us',
         'name': 'usa_map',
-        'icon': '🇺🇸',
+        'icon': 'assets/icons/ico_map_us.svg', // ✅ SVG 경로로 변경
         'isFixed': false, // ✅ 수정: true → false
         'isAvailable': true,
       },
       {
         'id': 'jp',
         'name': 'japan_map',
-        'icon': '🇯🇵',
+        'icon': 'assets/icons/ico_map_jp.svg', // ✅ SVG 경로로 변경
         'isFixed': false,
         'isAvailable': false,
       },
       {
         'id': 'it',
         'name': 'italy_map',
-        'icon': '🇮🇹',
+        'icon': 'assets/icons/ico_map_it.svg', // ✅ SVG 경로로 변경
         'isFixed': false,
         'isAvailable': false,
       },
@@ -172,54 +174,88 @@ class _MapManagementPageState extends State<MapManagementPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFF8F9FA),
-        elevation: 0,
-        centerTitle: true,
-        title: Text('map_settings'.tr(), style: AppTextStyles.sectionTitle),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _handleRestore,
-            child: Text(
-              'restore'.tr(),
-              style: const TextStyle(
-                color: Colors.blue,
-                fontWeight: FontWeight.bold,
+      backgroundColor: const Color(0xFFF6F6F6),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          // 디자인: 첫 번째 소스와 동일한 여백값 적용
+          padding: const EdgeInsets.fromLTRB(27, 18, 27, 27),
+          child: Column(
+            children: [
+              // ❶ [디자인] 커스텀 상단바 (제목 중앙, 복원 버튼 우측)
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // 제목: 중앙 정렬
+                    Text(
+                      'map_settings'.tr(),
+                      style: AppTextStyles.pageTitle.copyWith(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textColor01,
+                      ),
+                    ),
+                    // 복원 버튼: 우측 끝 정렬
+                    Positioned(
+                      right: 0,
+                      child: TextButton(
+                        onPressed: _handleRestore, // 로직: 기존 복원 함수 그대로 사용
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                        ),
+                        child: Text(
+                          'restore'.tr(),
+                          style: const TextStyle(
+                            color: Color(0xFF289AEB),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Color(0xFF289AEB),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
-      ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting &&
-              _localMapList == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasData && _localMapList == null) {
-            _localMapList = List.from(snapshot.data!);
-          }
-          if (_localMapList == null) return const SizedBox.shrink();
+              const SizedBox(height: 15),
 
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            itemCount: _localMapList!.length,
-            itemBuilder: (context, index) {
-              return _MapItemTile(
-                map: _localMapList![index],
-                onToggle: () => _handleToggle(index),
-                onPurchase: () =>
-                    _handleMapPurchase(_localMapList![index]['id']),
-              );
-            },
-          );
-        },
+              // ❷ [로직] 기존 FutureBuilder 로직 100% 동일하게 유지
+              FutureBuilder<List<Map<String, dynamic>>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  // 기존 로직: 로딩 중 처리
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      _localMapList == null) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  // 기존 로직: 데이터 할당
+                  if (snapshot.hasData && _localMapList == null) {
+                    _localMapList = List.from(snapshot.data!);
+                  }
+                  // 기존 로직: 빈 화면 처리
+                  if (_localMapList == null) return const SizedBox.shrink();
+
+                  // 디자인: 리스트를 Column으로 배치 (스크롤 꼬임 방지)
+                  return Column(
+                    children: List.generate(_localMapList!.length, (index) {
+                      return _MapItemTile(
+                        map: _localMapList![index],
+                        onToggle: () => _handleToggle(index), // 기존 로직 연결
+                        onPurchase: () => _handleMapPurchase(
+                          _localMapList![index]['id'],
+                        ), // 기존 로직 연결
+                      );
+                    }),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -244,43 +280,51 @@ class _MapItemTile extends StatelessWidget {
     final bool isFixed = map['isFixed'] ?? false;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 13),
       child: Opacity(
         opacity: isAvailable ? 1.0 : 0.6,
         child: Container(
           decoration: BoxDecoration(
-            color: isPurchased ? Colors.white : Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(20),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
             boxShadow: isPurchased
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
                     ),
                   ]
                 : null,
           ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 10,
+          child: Theme(
+            // ❶ ListTile의 클릭 효과를 여기서 죽입니다.
+            data: Theme.of(context).copyWith(
+              splashColor: Colors.transparent, // 물결 제거
+              highlightColor: Colors.transparent, // 하이라이트 제거
+              hoverColor: Colors.transparent, // 호버 제거
             ),
-            leading: Text(map['icon'], style: const TextStyle(fontSize: 32)),
-            title: Text(
-              map['name'].toString().tr(),
-              style: AppTextStyles.sectionTitle.copyWith(
-                fontSize: 18,
-                color: isPurchased ? Colors.black87 : Colors.grey,
+            child: ListTile(
+              contentPadding: const EdgeInsets.fromLTRB(22, 10, 18, 10),
+              horizontalTitleGap: 12,
+
+              leading: SvgPicture.asset(map['icon'], width: 25, height: 25),
+              title: Text(
+                map['name'].toString().tr(),
+                style: AppTextStyles.sectionTitle.copyWith(
+                  fontSize: 15,
+                  color: AppColors.textColor01,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              trailing: _buildTrailing(
+                isAvailable,
+                isPurchased,
+                isActive,
+                isFixed,
+              ),
+              onTap: (!isAvailable || isPurchased) ? null : onPurchase,
             ),
-            trailing: _buildTrailing(
-              isAvailable,
-              isPurchased,
-              isActive,
-              isFixed,
-            ),
-            onTap: (!isAvailable || isPurchased) ? null : onPurchase,
           ),
         ),
       ),
@@ -294,39 +338,56 @@ class _MapItemTile extends StatelessWidget {
     bool isFixed,
   ) {
     if (!isAvailable) {
-      return Text(
-        'coming_soon'.tr(),
-        style: const TextStyle(
-          color: Colors.grey,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      );
-    }
-    if (!isPurchased) {
-      return const Icon(Icons.shopping_cart_outlined, color: Colors.blue);
-    }
-    if (isFixed) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: AppColors.travelingBlue.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
+      // ❶ '준비중' 텍스트 좌우 10px 여백 추가
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Text(
-          'active_label'.tr(),
-          style: TextStyle(
+          'coming_soon'.tr(),
+          style: const TextStyle(
+            color: Colors.grey,
             fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: AppColors.travelingBlue,
+            fontWeight: FontWeight.w400,
           ),
         ),
       );
     }
-    return CupertinoSwitch(
-      value: isActive,
-      activeColor: AppColors.travelingBlue,
-      onChanged: (_) => onToggle(),
+
+    if (!isPurchased) {
+      // ❷ '구매하기' 버튼 좌우 10px 여백 추가
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: Text(
+          'BUY'.tr(),
+          style: const TextStyle(
+            color: Color(0xFF289AEB),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            decoration: TextDecoration.underline,
+            decorationColor: Color(0xFF289AEB),
+          ),
+        ),
+      );
+    }
+    if (isFixed) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Text(
+          'active_label'.tr(),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: Color(0xffADADAD),
+          ),
+        ),
+      );
+    }
+    return Transform.scale(
+      scale: 0.9, // ✅ 1.0보다 작으면 작아지고, 크면 커집니다. (0.7~0.8 추천)
+      child: CupertinoSwitch(
+        value: isActive,
+        activeColor: AppColors.travelingBlue,
+        onChanged: (_) => onToggle(),
+      ),
     );
   }
 }

@@ -328,12 +328,25 @@ class _MyPageState extends State<MyPage> with RouteAware {
                           const SizedBox(height: 15),
                           // 닉네임과 칭호/배지
                           // ✨ 닉네임 + VIP마크 (한 줄)
-                          Stack(
-                            alignment: Alignment.center, // 모든 자식을 일단 중앙에 모아요
-                            clipBehavior:
-                                Clip.none, // 마크가 닉네임 밖으로 튀어나가도 잘리지 않게!
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // 1. 닉네임 (얘가 기준점이 되어 정중앙에 옵니다)
+                              // ❶ [왼쪽] 투명한 마크 (무게 중심 맞추기용)
+                              // 이 녀석이 오른쪽 마크와 똑같은 공간을 차지해서 이름을 정중앙으로 밀어줍니다.
+                              if (isVip || isPremium)
+                                Opacity(
+                                  opacity: 0, // 0으로 하면 눈에는 안 보이지만 자리는 차지해요
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(
+                                      right: 10,
+                                    ), // 이름과의 간격 (오른쪽과 똑같이)
+                                    child: isVip
+                                        ? _buildVipMark()
+                                        : _buildPremiumMark(),
+                                  ),
+                                ),
+
+                              // ❷ [중앙] 실제 닉네임 (이제 완벽하게 가운데 옵니다)
                               Text(
                                 nickname,
                                 style: const TextStyle(
@@ -344,12 +357,12 @@ class _MyPageState extends State<MyPage> with RouteAware {
                                 ),
                               ),
 
-                              // 2. VIP 마크 (닉네임 옆에 살짝 띄워서 배치)
+                              // ❸ [오른쪽] 실제 마크
                               if (isVip || isPremium)
-                                Positioned(
-                                  // 닉네임 중앙으로부터 오른쪽으로 (닉네임 길이에 따라 조절이 필요할 수 있음)
-                                  // 하지만 가장 쉬운 건 아까 Row 방식을 쓰되, 투명한 가짜 박스를 왼쪽에 넣는 거예요.
-                                  right: -50, // 이 수치를 조절해서 닉네임과의 간격을 맞춥니다
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 10,
+                                  ), // 이름과 10px 간격
                                   child: isVip
                                       ? _buildVipMark()
                                       : _buildPremiumMark(),
@@ -462,11 +475,7 @@ class _MyPageState extends State<MyPage> with RouteAware {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFAC38), Color(0xFFFFAC38)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFFFFAC38),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -494,26 +503,29 @@ class _MyPageState extends State<MyPage> with RouteAware {
 
   Widget _buildPremiumMark() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFBC02D), Color(0xFFFFEB3B), Color(0xFFFBC02D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: const Color(0xFFFF388E),
         borderRadius: BorderRadius.circular(6),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.amber.withOpacity(0.5),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.workspace_premium, color: Color(0xFF795548), size: 14),
+          // 직접 만드신 VIP 아이콘 넣기
+          SvgPicture.asset(
+            'assets/icons/ico_vip.svg', // 폴더 경로를 꼭 확인하세요!
+            width: 9,
+            height: 9,
+          ),
+          const SizedBox(width: 2),
+          const Text(
+            'Premium',
+            style: TextStyle(
+              color: Color(0xFFFFFFFF),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -548,6 +560,8 @@ class _MenuTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      highlightColor: Colors.transparent, // 터치 시 생기는 회색 상자를 투명하게!
+      splashColor: Colors.transparent, // 물결 효과도 아주 연하게 하거나 투명하게!
       child: Container(
         margin: const EdgeInsets.only(bottom: 13), // 메뉴 사이의 간격
         padding: const EdgeInsets.all(24),
