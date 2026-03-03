@@ -173,150 +173,185 @@ class _PayManagementPageState extends State<PayManagementPage>
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: Text(
-          'payment_management'.tr(),
-          style: const TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        backgroundColor: const Color(0xFFF8F9FA),
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.black87,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // ✅ 멤버십 변경 버튼 누르면 상점으로 이동
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ShopPage()),
-              );
-            },
-            child: Text(
-              'change_membership'.tr(), // "멤버십변경"
-              style: const TextStyle(
-                color: Color(0xFF4A90E2),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Stack(
-        children: [
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    children: [
-                      // 💳 메인 상태 카드 (사진 디자인 반영)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 30,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 15,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // 1. 텍스트 영역
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+      body: SafeArea(
+        bottom: false, // 하단 풀 바 디자인을 위해 false 설정
+        child: Column(
+          children: [
+            // ❶ 스크롤 가능한 상단 영역
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(27, 18, 27, 27),
+                      child: Column(
+                        children: [
+                          // 커스텀 상단바 (제목 중앙, 멤버십 변경 우측)
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: Stack(
+                              alignment: Alignment.center,
                               children: [
                                 Text(
-                                  membershipTitle,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF333333),
+                                  'payment_management'.tr(),
+                                  style: AppTextStyles.pageTitle.copyWith(
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textColor01,
                                   ),
                                 ),
-                                // ✅ 구독 중(VIP/Premium)일 때만 결제일 노출
-                                if (hasActivePlan &&
-                                    formattedDate.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'next_billing_date'.tr(
-                                      args: [formattedDate],
+                                Positioned(
+                                  right: 0,
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => const ShopPage(),
+                                        ),
+                                      );
+                                    },
+                                    style: TextButton.styleFrom(
+                                      padding: EdgeInsets.zero,
+                                      minimumSize: Size.zero,
                                     ),
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[400],
+                                    child: Text(
+                                      'change_membership'.tr(),
+                                      style: const TextStyle(
+                                        color: Color(0xFF289AEB),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        decoration: TextDecoration.underline,
+                                        decorationColor: Color(0xFF289AEB),
+                                      ),
                                     ),
                                   ),
-                                ],
+                                ),
                               ],
                             ),
+                          ),
+                          const SizedBox(height: 15),
 
-                            // 2. 버튼 영역
-                            // ✅ 구독 중일 때만 '구독 취소' 버튼 노출 (일반 유저는 아예 안 보임)
-                            if (hasActivePlan)
-                              ElevatedButton(
-                                onPressed: _handleCancelSubscription,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFD9D9D9),
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 8,
-                                  ),
+                          // 💳 메인 상태 카드
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.fromLTRB(30, 20, 21, 20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.08),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 8),
                                 ),
-                                child: Text(
-                                  'cancel_subscription_btn'.tr(),
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      membershipTitle,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF2B2B2B),
+                                      ),
+                                    ),
+                                    if (hasActivePlan &&
+                                        formattedDate.isNotEmpty) ...[
+                                      const SizedBox(height: 1),
+                                      Text(
+                                        'next_billing_date'.tr(
+                                          args: [formattedDate],
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w300,
+                                          color: Color(0xFF7F7F7F),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                              ),
-                          ],
-                        ),
+                                if (hasActivePlan)
+                                  ElevatedButton(
+                                    onPressed: _handleCancelSubscription,
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFD5D5D5),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 15,
+                                        vertical: 6,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'cancel_subscription_btn'.tr(),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 30),
-                      // 구매 복원 버튼
-                      _buildRestoreButton(),
-                    ],
-                  ),
-                ),
-        ],
-      ),
-    );
-  }
+                    ),
+            ),
 
-  Widget _buildRestoreButton() {
-    return Center(
-      child: TextButton(
-        onPressed: _handleRestore,
-        child: Text(
-          'restore_purchase'.tr(),
-          style: const TextStyle(fontSize: 13, color: Colors.blueGrey),
+            // ❷ 하단 고정 구매 복원 버튼 (Full Bar 디자인)
+            GestureDetector(
+              onTap: _isLoading ? null : _handleRestore,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 58,
+                    color: _isLoading
+                        ? const Color(0xFFC2C2C2)
+                        : const Color(0xFF454B54),
+                    child: Center(
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFFFFFFF),
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              'restore_purchase'.tr(),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                  // 디바이스 하단 Safe Area 영역 색상 채우기
+                  Container(
+                    width: double.infinity,
+                    height: MediaQuery.of(context).padding.bottom,
+                    color: _isLoading
+                        ? const Color(0xFFC2C2C2)
+                        : const Color(0xFF454B54),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

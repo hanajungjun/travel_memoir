@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
 
 import 'package:travel_memoir/features/map/pages/global_map_page_%EC%9B%90%EB%B3%B8.dart';
 import 'package:travel_memoir/services/overseas_travel_summary_service.dart';
@@ -73,47 +74,43 @@ class OverseasSummaryTab extends StatelessWidget {
           mostVisitedText = '${mostVisitedList.take(2).join(', ')}...';
         }
 
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              // 🌍 1. 방문 국가 도넛 차트
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: TotalDonutCard(
-                  visited: visitedCountries,
-                  total: totalCountries,
-                  title: 'in_total'.tr(),
-                  sub: 'countries'.tr(),
-                  percent: totalCountries == 0
-                      ? 0
-                      : (visitedCountries / totalCountries * 100).round(),
-                ),
+        return Column(
+          children: [
+            // 🌍 1. 방문 국가 도넛 차트
+            Padding(
+              padding: const EdgeInsets.fromLTRB(34, 10, 27, 10),
+              child: TotalDonutCard(
+                visited: visitedCountries,
+                total: totalCountries,
+                activeColor: AppColors.travelingPurple, // 보라색 추가!
+                title: 'in_total'.tr(),
+                sub: 'countries'.tr(),
+                percent: totalCountries == 0
+                    ? 0
+                    : (visitedCountries / totalCountries * 100).round(),
               ),
+            ),
 
-              // 🗺️ 2. 글로벌 지도
-              const SizedBox(
+            // 🗺️ 2. 글로벌 지도
+            const Expanded(
+              child: SizedBox(
                 width: double.infinity,
-                height: 300,
                 child: GlobalMapPage(isReadOnly: true),
               ),
+            ),
 
-              const SizedBox(height: 24),
-
-              // 📝 3. 요약 카드
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: CommonTravelSummaryCard(
-                  travelCount: totalVisitCount,
-                  completedCount: completedDiaryCount,
-                  travelDays: travelDays,
-                  mostVisited: mostVisitedText,
-                  mostVisitedLabel: 'country'.tr(),
-                ),
+            // 📝 3. 요약 카드
+            Padding(
+              padding: const EdgeInsets.all(27),
+              child: CommonTravelSummaryCard(
+                travelCount: totalVisitCount,
+                completedCount: completedDiaryCount,
+                travelDays: travelDays,
+                mostVisited: mostVisitedText,
+                mostVisitedLabel: 'country'.tr(),
               ),
-
-              const SizedBox(height: 40),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );

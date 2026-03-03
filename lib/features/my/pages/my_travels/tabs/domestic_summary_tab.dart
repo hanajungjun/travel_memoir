@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
 
 import 'package:travel_memoir/core/constants/korea/korea_region_master.dart';
 import 'package:travel_memoir/core/constants/korea/korea_region.dart';
@@ -95,40 +96,42 @@ class DomesticSummaryTab extends StatelessWidget {
             )
             .length;
 
-        return SingleChildScrollView(
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: TotalDonutCard(
-                  visited: visitedCityCount,
-                  total: totalCityCount,
-                  title: 'in_total'.tr(),
-                  sub: 'visited_cities'.tr(),
-                  percent: totalCityCount == 0
-                      ? 0
-                      : (visitedCityCount / totalCityCount * 100).round(),
-                ),
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(34, 10, 27, 10),
+              child: TotalDonutCard(
+                visited: visitedCityCount,
+                total: totalCityCount,
+                activeColor: AppColors.travelingBlue, // 파란색 추가!
+                title: 'in_total'.tr(),
+                sub: 'visited_cities'.tr(),
+                percent: totalCityCount == 0
+                    ? 0
+                    : (visitedCityCount / totalCityCount * 100).round(),
               ),
-              const SizedBox(
+            ),
+
+            // 지도 - 남은 공간 유동적으로 채움
+            const Expanded(
+              child: SizedBox(
                 width: double.infinity,
-                height: 350,
                 child: DomesticMapPage(readOnly: true),
               ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: CommonTravelSummaryCard(
-                  travelCount: totalVisitCount,
-                  completedCount: completedMemoriesCount, // ✅ 여기
-                  travelDays: travelDays,
-                  mostVisited: mostVisitedText,
-                  mostVisitedLabel: 'region'.tr(),
-                ),
+            ),
+
+            // 요약 카드 하단 고정
+            Padding(
+              padding: const EdgeInsets.all(27),
+              child: CommonTravelSummaryCard(
+                travelCount: totalVisitCount,
+                completedCount: completedMemoriesCount, // ✅ 여기
+                travelDays: travelDays,
+                mostVisited: mostVisitedText,
+                mostVisitedLabel: 'region'.tr(),
               ),
-              const SizedBox(height: 40),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );

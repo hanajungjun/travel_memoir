@@ -4,10 +4,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
+// ✅ 점선을 그리기 위해 필요한 라이브러리야!
+import 'package:flutter_svg/flutter_svg.dart';
+
 class MySupportPage extends StatelessWidget {
   const MySupportPage({super.key});
 
-  // ✅ URL 실행 공통 함수
+  // ✅ URL 실행 공통 함수 (로직 사수!)
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
     try {
@@ -27,161 +30,192 @@ class MySupportPage extends StatelessWidget {
     final bool isKo = context.locale.languageCode == 'ko';
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('support'.tr()),
-        centerTitle: false,
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 24),
+      backgroundColor: const Color(0xFFF6F6F6), // ✅ 1단계: 배경색 변경
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(27, 18, 27, 27), // ✅ 전체 여백
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ❶ 2단계: 커스텀 상단바 (뒤로가기 + 제목)
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Text(
+                      'support'.tr(),
+                      style: AppTextStyles.pageTitle.copyWith(
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textColor01,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 15),
 
-            // 1️⃣ 고객지원 섹션
-            _SectionTitle('help_center'.tr()),
-            const _Divider(),
-            _SupportTile(
-              title: 'notice'.tr(),
-              trailing: const Icon(
-                Icons.open_in_new,
-                size: 18,
-                color: Colors.grey,
-              ),
-              onTap: () => _launchURL(
-                isKo
-                    ? 'https://hanajungjun.github.io/travel-memoir-docs/notice.html'
-                    : 'https://hanajungjun.github.io/travel-memoir-docs/notice_en.html',
-              ),
-            ),
-            const _Divider(),
-            _SupportTile(
-              title: 'get_help'.tr(),
-              trailing: const Icon(
-                Icons.open_in_new,
-                size: 18,
-                color: Colors.grey,
-              ),
-              onTap: () => _launchURL(
-                isKo
-                    ? 'https://hanajungjun.github.io/travel-memoir-docs/faq.html'
-                    : 'https://hanajungjun.github.io/travel-memoir-docs/faq_en.html',
-              ),
-            ),
-            const _Divider(),
-            /*
-            // ✨ 새롭게 추가된 [사용법] 메뉴
-            _SupportTile(
-              title: 'how_to_use'.tr(), // "사용법" 또는 "가이드"
-              trailing: const Icon(
-                Icons.open_in_new,
-                size: 18,
-                color: Colors.grey,
-              ),
-              onTap: () => _launchURL(
-                'https://www.notion.so/2fa8fcc97af880ac968dfc493fbd0fcf?source=copy_link',
-              ), // ✅ 노션 주소 입력
-            ),
-             */
-            const SizedBox(height: 32),
+              // ❷ 3단계: 커다란 하얀색 카드 상자
+              Container(
+                width: double.infinity,
+                constraints: BoxConstraints(
+                  // ✅ 이 계산식이 박스를 바닥까지 늘려줘!
+                  minHeight:
+                      MediaQuery.of(context).size.height -
+                      MediaQuery.of(context).padding.top -
+                      MediaQuery.of(context).padding.bottom -
+                      18 -
+                      27 -
+                      48 -
+                      15,
+                ),
+                padding: const EdgeInsets.fromLTRB(
+                  25,
+                  30,
+                  25,
+                  25,
+                ), // ✅ 카드 내부 여백
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  // 🌟 [디자인 수정] 위/아래를 끝으로 밀어내는 마법!
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // --- 상단 메뉴 뭉치 (자기들끼리 모여있게 Column으로 감싸줌) ---
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1️⃣ 고객센터 섹션
+                        _SectionTitle('help_center'.tr()),
+                        _SupportTile(
+                          title: 'notice'.tr(),
+                          trailing: SvgPicture.asset(
+                            'assets/icons/ico_newwindow.svg',
+                          ),
+                          onTap: () => _launchURL(
+                            isKo
+                                ? 'https://hanajungjun.github.io/travel-memoir-docs/notice.html'
+                                : 'https://hanajungjun.github.io/travel-memoir-docs/notice_en.html',
+                          ),
+                        ),
+                        _SupportTile(
+                          title: 'get_help'.tr(),
+                          trailing: SvgPicture.asset(
+                            'assets/icons/ico_newwindow.svg',
+                          ),
+                          onTap: () => _launchURL(
+                            isKo
+                                ? 'https://hanajungjun.github.io/travel-memoir-docs/faq.html'
+                                : 'https://hanajungjun.github.io/travel-memoir-docs/faq_en.html',
+                          ),
+                        ),
+                        const _DashedDivider(),
 
-            // 2️⃣ 개발자 정보 (심사 안전 지대)
-            _SectionTitle('developer_info'.tr()),
-            const _Divider(),
-            _SupportTile(
-              title: 'contact_email'.tr(),
-              trailing: const Text(
-                'HajungTech@gmail.com',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-              onTap: () => _launchURL('mailto:HajungTech@gmail.com'),
-            ),
-            const _Divider(),
-            _SupportTile(
-              title: 'support_project'.tr(), // "개발자 응원 및 프로젝트 지원"
-              trailing: const Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: Colors.grey,
-              ),
-              onTap: () => _launchURL(
-                isKo
-                    ? 'https://hanajungjun.github.io/travel-memoir-docs/support.html'
-                    : 'https://hanajungjun.github.io/travel-memoir-docs/support_en.html',
-              ),
-            ),
+                        // 2️⃣ 개발정보 정보
+                        _SectionTitle('developer_info'.tr()),
+                        _SupportTile(
+                          title: 'contact_email'.tr(),
+                          trailing: const Text(
+                            'HajungTech@gmail.com',
+                            style: TextStyle(
+                              color: Color(0xFF289AEB),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          onTap: () =>
+                              _launchURL('mailto:HajungTech@gmail.com'),
+                        ),
+                        _SupportTile(
+                          title: 'support_project'.tr(),
+                          trailing: SvgPicture.asset(
+                            'assets/icons/ico_newwindow.svg',
+                          ),
+                          onTap: () => _launchURL(
+                            isKo
+                                ? 'https://hanajungjun.github.io/travel-memoir-docs/support.html'
+                                : 'https://hanajungjun.github.io/travel-memoir-docs/support_en.html',
+                          ),
+                        ),
+                        const _DashedDivider(),
 
-            const SizedBox(height: 32),
+                        // 3️⃣ 이용약관 섹션
+                        _SectionTitle('legal'.tr()),
+                        _SupportTile(
+                          title: 'privacy_policy'.tr(),
+                          trailing: SvgPicture.asset(
+                            'assets/icons/ico_newwindow.svg',
+                          ),
+                          onTap: () => _launchURL(
+                            isKo
+                                ? 'https://hanajungjun.github.io/travel-memoir-docs/'
+                                : 'https://hanajungjun.github.io/travel-memoir-docs/index_en.html',
+                          ),
+                        ),
+                        _SupportTile(
+                          title: 'terms_of_service'.tr(),
+                          trailing: SvgPicture.asset(
+                            'assets/icons/ico_newwindow.svg',
+                          ),
+                          onTap: () => _launchURL(
+                            isKo
+                                ? 'https://hanajungjun.github.io/travel-memoir-docs/terms.html'
+                                : 'https://hanajungjun.github.io/travel-memoir-docs/terms_en.html',
+                          ),
+                        ),
+                        _SupportTile(
+                          title: 'open_source_licenses'.tr(),
+                          trailing: SvgPicture.asset(
+                            'assets/icons/ico_user_more.svg',
+                          ),
+                          onTap: () => showLicensePage(context: context),
+                        ),
+                      ],
+                    ),
 
-            // 3️⃣ 법적 고지 섹션
-            _SectionTitle('legal'.tr()),
-            const _Divider(),
-            _SupportTile(
-              title: 'privacy_policy'.tr(),
-              trailing: const Icon(
-                Icons.open_in_new,
-                size: 18,
-                color: Colors.grey,
+                    // ❸ 하단 버전 정보 (맨 밑 오른쪽으로!)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'app_brand_name'.tr(),
+                            style: AppTextStyles.sectionTitle.copyWith(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textColor01,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            'app_version_format'.tr(args: ['1.0.0', '100']),
+                            style: AppTextStyles.caption.copyWith(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w300,
+                              color: const Color(0xFF949494),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              onTap: () => _launchURL(
-                isKo
-                    ? 'https://hanajungjun.github.io/travel-memoir-docs/'
-                    : 'https://hanajungjun.github.io/travel-memoir-docs/index_en.html',
-              ),
-            ),
-            const _Divider(),
-            _SupportTile(
-              title: 'terms_of_service'.tr(),
-              trailing: const Icon(
-                Icons.open_in_new,
-                size: 18,
-                color: Colors.grey,
-              ),
-              onTap: () => _launchURL(
-                isKo
-                    ? 'https://hanajungjun.github.io/travel-memoir-docs/terms.html'
-                    : 'https://hanajungjun.github.io/travel-memoir-docs/terms_en.html',
-              ),
-            ),
-            const _Divider(),
-            _SupportTile(
-              title: 'open_source_licenses'.tr(),
-              trailing: const Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: Colors.grey,
-              ),
-              onTap: () => showLicensePage(context: context),
-            ),
-            const _Divider(),
-
-            const SizedBox(height: 26),
-
-            // 4️⃣ 하단 버전 정보
-            Center(
-              child: Column(
-                children: [
-                  Text(
-                    'app_brand_name'.tr(),
-                    style: AppTextStyles.sectionTitle.copyWith(fontSize: 16),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'app_version_format'.tr(args: ['1.0.0', '100']),
-                    style: AppTextStyles.caption.copyWith(color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 48),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -189,7 +223,7 @@ class MySupportPage extends StatelessWidget {
 }
 
 // ---------------------------------------------------------
-// ✅ 내부 헬퍼 위젯 (에러 방지를 위해 하단에 포함)
+// ✅ 아래 위젯들도 디자인에 맞춰서 싹 고쳤어!
 // ---------------------------------------------------------
 
 class _SectionTitle extends StatelessWidget {
@@ -199,13 +233,13 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      padding: const EdgeInsets.only(left: 5, right: 5, bottom: 7),
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.bold,
-          color: Colors.blueGrey,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF2B2B2B),
         ),
       ),
     );
@@ -226,10 +260,17 @@ class _SupportTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+      dense: true,
+      visualDensity: const VisualDensity(horizontal: 0, vertical: -4),
+      minVerticalPadding: 0,
+      contentPadding: const EdgeInsets.symmetric(vertical: 3, horizontal: 5),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 15, color: Colors.black87),
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w300,
+          color: Color(0xFF555555),
+        ),
       ),
       trailing: trailing,
       onTap: onTap,
@@ -237,14 +278,33 @@ class _SupportTile extends StatelessWidget {
   }
 }
 
-class _Divider extends StatelessWidget {
-  const _Divider({super.key});
-
+class _DashedDivider extends StatelessWidget {
+  const _DashedDivider();
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: Divider(height: 1, thickness: 0.5, color: Color(0xFFEEEEEE)),
+    return Padding(
+      padding: const EdgeInsets.only(top: 15, bottom: 20),
+      child: CustomPaint(
+        size: const Size(double.infinity, 1),
+        painter: DashedLinePainter(),
+      ),
     );
   }
+}
+
+class DashedLinePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    double dashWidth = 3, dashSpace = 3, startX = 0;
+    final paint = Paint()
+      ..color = const Color(0xFFD9D9D9)
+      ..strokeWidth = 1.2;
+    while (startX < size.width) {
+      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
+      startX += dashWidth + dashSpace;
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
 }

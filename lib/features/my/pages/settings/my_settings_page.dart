@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart'; // ✅ 아이폰 스위치 쓰려면 필요해!
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -6,7 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/screens/onboarding_screen.dart';
-import 'package:travel_memoir/features/my/pages/settings/data_settings_page.dart';
+
+import 'package:flutter_svg/flutter_svg.dart'; // 👈 이 한 줄을 맨 위에 추가!
 
 class MySettingsPage extends StatefulWidget {
   const MySettingsPage({super.key});
@@ -18,9 +20,8 @@ class MySettingsPage extends StatefulWidget {
 class _MySettingsPageState extends State<MySettingsPage> {
   bool _notificationEnabled = true;
   bool _marketingEnabled = false;
-  bool _isLoading = false; // ✅ 로딩 상태 관리
+  bool _isLoading = false;
 
-  // 현재 로그인된 유저의 ID를 가져오는 getter
   String get _userId => Supabase.instance.client.auth.currentUser!.id;
 
   @override
@@ -29,13 +30,11 @@ class _MySettingsPageState extends State<MySettingsPage> {
     _loadSettings();
   }
 
-  // 1. 설정값 불러오기 (Supabase DB를 우선으로 가져옴)
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
     final prefs = await SharedPreferences.getInstance();
 
     try {
-      // ✅ Supabase 'users' 테이블에서 설정값 조회
       final userData = await Supabase.instance.client
           .from('users')
           .select('is_push_enabled, is_marketing_enabled')
@@ -47,7 +46,6 @@ class _MySettingsPageState extends State<MySettingsPage> {
         _marketingEnabled = userData['is_marketing_enabled'] ?? false;
       });
 
-      // 로컬 SharedPreferences도 최신화
       await prefs.setBool('notification_enabled', _notificationEnabled);
       await prefs.setBool('marketing_enabled', _marketingEnabled);
     } catch (e) {
@@ -61,18 +59,14 @@ class _MySettingsPageState extends State<MySettingsPage> {
     }
   }
 
-  // 🔔 서비스 알림 토글 로직 (DB 업데이트 + FCM 토픽 + 로컬 저장)
   Future<void> _toggleNotification(bool value) async {
     setState(() => _notificationEnabled = value);
-
     try {
-      // 1. Supabase DB 업데이트
       await Supabase.instance.client
           .from('users')
           .update({'is_push_enabled': value})
           .eq('auth_uid', _userId);
 
-      // 2. FCM 설정 변경 (앱 내 알림 옵션 및 토픽 구독/해제)
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
             alert: value,
@@ -86,7 +80,6 @@ class _MySettingsPageState extends State<MySettingsPage> {
         await FirebaseMessaging.instance.unsubscribeFromTopic('all_users');
       }
 
-      // 3. 로컬 SharedPreferences 저장
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('notification_enabled', value);
     } catch (e) {
@@ -94,12 +87,9 @@ class _MySettingsPageState extends State<MySettingsPage> {
     }
   }
 
-  // 📢 마케팅 알림 토글 로직 (DB 업데이트 + 마케팅 동의 시간 기록)
   Future<void> _toggleMarketing(bool value) async {
     setState(() => _marketingEnabled = value);
-
     try {
-      // 1. Supabase DB 업데이트 (마케팅 동의 시간 포함)
       await Supabase.instance.client
           .from('users')
           .update({
@@ -110,14 +100,12 @@ class _MySettingsPageState extends State<MySettingsPage> {
           })
           .eq('auth_uid', _userId);
 
-      // 2. FCM 마케팅 토픽 구독/해제
       if (value) {
         await FirebaseMessaging.instance.subscribeToTopic('marketing');
       } else {
         await FirebaseMessaging.instance.unsubscribeFromTopic('marketing');
       }
 
-      // 3. 로컬 SharedPreferences 저장
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('marketing_enabled', value);
     } catch (e) {
@@ -128,140 +116,169 @@ class _MySettingsPageState extends State<MySettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('settings'.tr()),
-        centerTitle: false,
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
-                children: [
-                  const SizedBox(height: 12),
+      backgroundColor: const Color(0xFFF6F6F6), // ✅ 1단계: 배경색 변경
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  27,
+                  18,
+                  27,
+                  27,
+                ), // ✅ 1단계: 여백 변경
+                child: Column(
+                  children: [
+                    // ✅ 2단계: 커스텀 상단바 디자인
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Text(
+                            'settings'.tr(),
+                            style: AppTextStyles.pageTitle.copyWith(
+                              fontSize: 19,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textColor01,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 15),
 
-                  // 🌍 언어 변경 섹션
-                  _SettingTile(
-                    title: 'language'.tr(),
-                    trailingText: context.locale.languageCode == 'ko'
-                        ? '한국어'
-                        : 'English',
-                    onTap: () {
-                      if (context.locale.languageCode == 'ko') {
-                        context.setLocale(const Locale('en'));
-                      } else {
-                        context.setLocale(const Locale('ko'));
-                      }
-                      setState(() {});
-                    },
-                  ),
-                  _Divider(),
+                    // 🌍 언어 변경 (카드 스타일)
+                    _SettingCard(
+                      title: 'language'.tr(),
+                      trailingText: context.locale.languageCode == 'ko'
+                          ? '한국어'
+                          : 'English',
+                      iconColor: AppColors.travelingBlue, // 👈 more버튼 색상 변경
+                      onTap: () {
+                        if (context.locale.languageCode == 'ko') {
+                          context.setLocale(const Locale('en'));
+                        } else {
+                          context.setLocale(const Locale('ko'));
+                        }
+                        setState(() {});
+                      },
+                    ),
 
-                  // 🔔 서비스 알림 스위치 (DB 연동)
-                  _SwitchTile(
-                    title: 'notifications'.tr(),
-                    value: _notificationEnabled,
-                    onChanged: _toggleNotification,
-                  ),
-                  _Divider(),
+                    // 🔔 서비스 알림 (카드 스타일 + 아이폰 스위치)
+                    _SwitchCard(
+                      title: 'notifications'.tr(),
+                      value: _notificationEnabled,
+                      onChanged: _toggleNotification,
+                    ),
 
-                  // 📢 마케팅 정보 수신 스위치 (DB 연동)
-                  _SwitchTile(
-                    title: 'marketing_info'.tr(),
-                    value: _marketingEnabled,
-                    onChanged: _toggleMarketing,
-                  ),
-                  _Divider(),
+                    // 📢 마케팅 정보 수신 (카드 스타일 + 아이폰 스위치)
+                    _SwitchCard(
+                      title: 'marketing_info'.tr(),
+                      value: _marketingEnabled,
+                      onChanged: _toggleMarketing,
+                    ),
 
-                  // 🚀 온보딩 다시보기
-                  _SettingTile(
-                    title: 'view_onboarding'.tr(),
-                    onTap: () async {
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setBool('onboarding_done', false);
-                      if (!mounted) return;
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (_) => const OnboardingPage(),
-                        ),
-                        (route) => false,
-                      );
-                    },
-                  ),
-                  _Divider(),
-
-                  // 📊 데이터 설정
-                  // _SettingTile(
-                  //   title: 'data_settings'.tr(),
-                  //   onTap: () {
-                  //     Navigator.push(
-                  //       context,
-                  //       MaterialPageRoute(
-                  //         builder: (_) => const DataSettingsPage(),
-                  //       ),
-                  //     );
-                  //   },
-                  // ),
-                  _Divider(),
-                ],
+                    // 🚀 온보딩 다시보기 (카드 스타일)
+                    _SettingCard(
+                      title: 'view_onboarding'.tr(),
+                      onTap: () async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool('onboarding_done', false);
+                        if (!mounted) return;
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (_) => const OnboardingPage(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
 
 // =======================================================
-// 하단 공통 위젯들 (생략 없이 모두 포함)
+// 하단 공통 위젯들 (디자인 싹 바꿈)
 // =======================================================
 
-class _SettingTile extends StatelessWidget {
+// ✅ 3단계: 메뉴 카드 디자인 위젯
+class _SettingCard extends StatelessWidget {
   final String title;
   final String? trailingText;
   final VoidCallback onTap;
+  final Color? iconColor; // 👈 여기에 '색깔 변수'를 추가했어!
 
-  const _SettingTile({
+  const _SettingCard({
     required this.title,
     required this.onTap,
     this.trailingText,
+    this.iconColor, // 👈 생성자에도 추가!
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-      title: Text(title, style: AppTextStyles.body),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (trailingText != null)
-            Text(
-              trailingText!,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, size: 20),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
-      onTap: onTap,
+      child: ListTile(
+        contentPadding: const EdgeInsets.fromLTRB(25, 10, 21, 10),
+        title: Text(
+          title,
+          style: AppTextStyles.body.copyWith(
+            fontSize: 15,
+            color: AppColors.textColor01,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (trailingText != null)
+              Text(
+                trailingText!,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.travelingBlue,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            const SizedBox(width: 10),
+            // ✅ SvgPicture에 '마법 가루(ColorFilter)'를 뿌려주는 거야!
+            SvgPicture.asset(
+              'assets/icons/ico_user_more.svg',
+              color: iconColor,
+            ),
+          ],
+        ),
+        onTap: onTap,
+      ),
     );
   }
 }
 
-class _SwitchTile extends StatelessWidget {
+// ✅ 4단계: 스위치 카드 디자인 위젯
+class _SwitchCard extends StatelessWidget {
   final String title;
   final bool value;
   final ValueChanged<bool> onChanged;
 
-  const _SwitchTile({
+  const _SwitchCard({
     required this.title,
     required this.value,
     required this.onChanged,
@@ -269,26 +286,38 @@ class _SwitchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-      title: Text(title, style: AppTextStyles.body),
-      trailing: Switch(
-        value: value,
-        onChanged: onChanged,
-        activeColor: AppColors.primary,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  const _Divider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
-      child: Divider(height: 1, thickness: 0.5),
+      child: ListTile(
+        contentPadding: const EdgeInsets.fromLTRB(25, 10, 18, 10),
+        title: Text(
+          title,
+          style: AppTextStyles.body.copyWith(
+            fontSize: 15,
+            color: AppColors.textColor01,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        trailing: Transform.scale(
+          scale: 0.9, // ✅ 스위치 크기 살짝 줄임
+          child: CupertinoSwitch(
+            value: value,
+            activeColor: AppColors.travelingBlue,
+            onChanged: onChanged,
+          ),
+        ),
+      ),
     );
   }
 }

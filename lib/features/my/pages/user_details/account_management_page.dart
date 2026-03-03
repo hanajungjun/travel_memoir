@@ -165,8 +165,10 @@ class _AccountManagementPageState extends State<AccountManagementPage> {
                     children: [
                       Container(
                         width: double.infinity,
-                        height: 60,
-                        color: _deleting ? Colors.grey : Colors.red,
+                        height: 58,
+                        color: _deleting
+                            ? const Color(0xFFC2C2C2)
+                            : const Color(0xFFEB5757),
                         child: Center(
                           child: _deleting
                               ? const SizedBox(
@@ -190,7 +192,9 @@ class _AccountManagementPageState extends State<AccountManagementPage> {
                       Container(
                         width: double.infinity,
                         height: MediaQuery.of(context).padding.bottom,
-                        color: _deleting ? Colors.grey : Colors.red,
+                        color: _deleting
+                            ? const Color(0xFFC2C2C2)
+                            : const Color(0xFFEB5757),
                       ),
                     ],
                   ),

@@ -1085,7 +1085,7 @@ class _TravelDayPageState extends State<TravelDayPage>
           },
           child: Container(
             width: double.infinity,
-            color: _loading ? Colors.grey : const Color(0xFF454B54),
+            color: _loading ? const Color(0xFFC2C2C2) : const Color(0xFF454B54),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1114,7 +1114,9 @@ class _TravelDayPageState extends State<TravelDayPage>
                 Container(
                   width: double.infinity,
                   height: bottomPadding,
-                  color: _loading ? Colors.grey : const Color(0xFF454B54),
+                  color: _loading
+                      ? const Color(0xFFC2C2C2)
+                      : const Color(0xFF454B54),
                 ),
               ],
             ),

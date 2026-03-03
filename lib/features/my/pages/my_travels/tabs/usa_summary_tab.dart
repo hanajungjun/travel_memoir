@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/features/map/pages/usa_map_page.dart';
 import 'package:travel_memoir/services/usa_travel_summary_service.dart';
 import 'package:travel_memoir/features/my/pages/my_travels/widgets/travel_summary_common_widgets.dart';
@@ -61,51 +62,45 @@ class UsaSummaryTab extends StatelessWidget {
 
         const int totalStateCount = 50;
 
-        return SingleChildScrollView(
-          // 🎯 지도의 제스처와 스크롤 뷰가 충돌하지 않도록 설정
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            children: [
-              // 1. 도넛 차트 (방문율)
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: TotalDonutCard(
-                  visited: visitedStateCount,
-                  total: totalStateCount,
-                  title: 'in_total'.tr(),
-                  sub: 'visited_states'.tr(),
-                  percent: totalStateCount == 0
-                      ? 0
-                      : (visitedStateCount / totalStateCount * 100).round(),
-                ),
+        return Column(
+          children: [
+            // 1. 도넛 차트 (방문율)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(34, 10, 27, 10),
+              child: TotalDonutCard(
+                visited: visitedStateCount,
+                total: totalStateCount,
+                activeColor: AppColors.travelingRed, // 빨간색 추가!
+                title: 'in_total'.tr(),
+                sub: 'visited_states'.tr(),
+                percent: totalStateCount == 0
+                    ? 0
+                    : (visitedStateCount / totalStateCount * 100).round(),
               ),
+            ),
 
-              // 2. 🗺️ 미국 지도 (이동 및 확대 가능)
-              SizedBox(
+            // 2. 🗺️ 미국 지도 (이동 및 확대 가능)
+            const Expanded(
+              child: SizedBox(
                 width: double.infinity,
-                height: 380, // 지도를 조금 더 넓게 보기 위해 높이 조정
                 child: UsaMapPage(
                   isReadOnly: false, // 🎯 이동 가능하도록 false 설정
                 ),
               ),
+            ),
 
-              const SizedBox(height: 24),
-
-              // 3. 통계 카드 요약
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: CommonTravelSummaryCard(
-                  travelCount: totalVisitCount,
-                  completedCount: completedMemoriesCount,
-                  travelDays: travelDays,
-                  mostVisited: mostVisitedText,
-                  mostVisitedLabel: 'state'.tr(),
-                ),
+            // 3. 통계 카드 요약
+            Padding(
+              padding: const EdgeInsets.all(27),
+              child: CommonTravelSummaryCard(
+                travelCount: totalVisitCount,
+                completedCount: completedMemoriesCount,
+                travelDays: travelDays,
+                mostVisited: mostVisitedText,
+                mostVisitedLabel: 'state'.tr(),
               ),
-
-              const SizedBox(height: 40),
-            ],
-          ),
+            ),
+          ],
         );
       },
     );
