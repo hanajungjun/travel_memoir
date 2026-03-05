@@ -228,7 +228,7 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
       }
 
       // 중복 호출 방지를 위해 스티커 추출은 여기서 한 번만
-      _extractAndShuffleStickers(data);
+      //_extractAndShuffleStickers(data);
 
       final imageBytes = await GeminiService().generateFullTravelInfographic(
         allDiaryTexts: allTexts,
@@ -631,27 +631,27 @@ class _TravelAlbumPageState extends State<TravelAlbumPage> with RouteAware {
                   ),
                 ),
               ),
-            for (var sticker in _stickerPlacements)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.easeOutBack,
-                top: _showStickers
-                    ? sticker.top
-                    : (sticker.top != null ? sticker.top! + 15 : null),
-                bottom: _showStickers
-                    ? sticker.bottom
-                    : (sticker.bottom != null ? sticker.bottom! + 15 : null),
-                left: sticker.left,
-                right: sticker.right,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 500),
-                  opacity: _showStickers ? 1.0 : 0.0,
-                  child: Transform.rotate(
-                    angle: sticker.angle,
-                    child: _buildStickerFrame(sticker.url),
-                  ),
-                ),
-              ),
+            // for (var sticker in _stickerPlacements)
+            //   AnimatedPositioned(
+            //     duration: const Duration(milliseconds: 600),
+            //     curve: Curves.easeOutBack,
+            //     top: _showStickers
+            //         ? sticker.top
+            //         : (sticker.top != null ? sticker.top! + 15 : null),
+            //     bottom: _showStickers
+            //         ? sticker.bottom
+            //         : (sticker.bottom != null ? sticker.bottom! + 15 : null),
+            //     left: sticker.left,
+            //     right: sticker.right,
+            //     child: AnimatedOpacity(
+            //       duration: const Duration(milliseconds: 500),
+            //       opacity: _showStickers ? 1.0 : 0.0,
+            //       child: Transform.rotate(
+            //         angle: sticker.angle,
+            //         child: _buildStickerFrame(sticker.url),
+            //       ),
+            //     ),
+            //   ),
           ],
         ),
       ),
@@ -1195,18 +1195,18 @@ class _PremiumViewerPageState extends State<_PremiumViewerPage> {
                         ),
                       ),
                     ),
-                    if (widget.showStickers)
-                      for (var sticker in widget.stickers)
-                        Positioned(
-                          top: sticker.top,
-                          bottom: sticker.bottom,
-                          left: sticker.left,
-                          right: sticker.right,
-                          child: Transform.rotate(
-                            angle: sticker.angle,
-                            child: _buildSticker(sticker.url),
-                          ),
-                        ),
+                    // if (widget.showStickers)
+                    //   for (var sticker in widget.stickers)
+                    //     Positioned(
+                    //       top: sticker.top,
+                    //       bottom: sticker.bottom,
+                    //       left: sticker.left,
+                    //       right: sticker.right,
+                    //       child: Transform.rotate(
+                    //         angle: sticker.angle,
+                    //         child: _buildSticker(sticker.url),
+                    //       ),
+                    //     ),
                     if (!widget.isPremiumUser)
                       Positioned(
                         bottom: 10,

@@ -153,7 +153,7 @@ class _MyTravelSummaryPageState extends State<MyTravelSummaryPage> {
 
               // 하단 알약 모양 버튼 (새로운 지도 추가)
               Padding(
-                padding: const EdgeInsets.all(0),
+                padding: const EdgeInsets.only(bottom: 15),
                 child: Container(
                   // SizedBox 대신 Container나 Align을 써서 중앙 정렬 유지
                   alignment: Alignment.center,

@@ -101,7 +101,7 @@ class OverseasSummaryTab extends StatelessWidget {
 
             // 📝 3. 요약 카드
             Padding(
-              padding: const EdgeInsets.all(27),
+              padding: const EdgeInsets.fromLTRB(27, 27, 27, 0),
               child: CommonTravelSummaryCard(
                 travelCount: totalVisitCount,
                 completedCount: completedDiaryCount,

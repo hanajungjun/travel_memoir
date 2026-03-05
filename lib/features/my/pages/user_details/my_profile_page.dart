@@ -45,104 +45,117 @@ class MyProfilePage extends StatelessWidget {
           final provider = data['provider'] as String?;
 
           return SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(27, 18, 27, 27),
-              child: Column(
-                children: [
-                  // ❶ 화면 맨 위 제목 (가운데 정렬)
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: Center(
-                      child: Text(
-                        'login_info'.tr(),
-                        style: AppTextStyles.pageTitle.copyWith(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textColor01,
-                        ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(27, 18, 27, 0),
+                  // 🎯 [핵심] ClampingScrollPhysics를 써야 화면에 딱 맞을 때 스크롤이 안 됩니다.
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      // 상단 18, 하단 27 패딩을 제외한 실제 가용 높이를 최소값으로 잡습니다.
+                      minHeight: constraints.maxHeight - 18 - 0,
+                    ),
+                    child: IntrinsicHeight(
+                      child: Column(
+                        children: [
+                          // ❶ 화면 맨 위 제목 (가운데 정렬)
+                          SizedBox(
+                            width: double.infinity,
+                            height: 48,
+                            child: Center(
+                              child: Text(
+                                'login_info'.tr(),
+                                style: AppTextStyles.pageTitle.copyWith(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textColor01,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+
+                          // ❷ 예쁜 하얀색 상자 시작!
+                          // Expanded를 써서 IntrinsicHeight 내에서 남은 공간을 꽉 채웁니다.
+                          Expanded(
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 40,
+                                horizontal: 25,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 18,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  // 동그란 프로필 사진
+                                  CircleAvatar(
+                                    radius: 55,
+                                    backgroundColor: const Color(0xFFE4E4E4),
+                                    backgroundImage: imageUrl != null
+                                        ? NetworkImage(imageUrl)
+                                        : null,
+                                    child: imageUrl == null
+                                        ? SvgPicture.asset(
+                                            'assets/icons/ico_imgUser.svg',
+                                            width: 45,
+                                          )
+                                        : null,
+                                  ),
+                                  const SizedBox(height: 35),
+
+                                  // ❸ 네가 만든 if문 로직들 (여기부터 중요!)
+                                  if (providerNickname != null &&
+                                      providerNickname.isNotEmpty) ...[
+                                    _buildField(
+                                      'username'.tr(),
+                                      providerNickname,
+                                    ),
+                                    _buildDashedDivider(),
+                                  ],
+
+                                  if (email != null && email.isNotEmpty) ...[
+                                    _buildField('email'.tr(), email),
+                                    _buildDashedDivider(),
+                                  ],
+
+                                  if (provider != null) ...[
+                                    _buildField(
+                                      'connected_account'.tr(),
+                                      provider,
+                                    ),
+                                    _buildDashedDivider(),
+                                  ],
+
+                                  if (nickname != null &&
+                                      nickname.isNotEmpty) ...[
+                                    _buildField('nickname'.tr(), nickname),
+                                    _buildDashedDivider(),
+                                  ],
+
+                                  if (bio != null && bio.isNotEmpty) ...[
+                                    _buildField('bio'.tr(), bio),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 15),
-
-                  // ❷ 예쁜 하얀색 상자 시작!
-                  Container(
-                    width: double.infinity,
-                    // 🌟 이 constraints가 추가되었어!
-                    constraints: BoxConstraints(
-                      minHeight:
-                          MediaQuery.of(context).size.height -
-                          MediaQuery.of(context).padding.top -
-                          MediaQuery.of(context).padding.bottom -
-                          18 -
-                          48 -
-                          15 -
-                          19,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 40,
-                      horizontal: 25,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        // 동그란 프로필 사진
-                        CircleAvatar(
-                          radius: 55,
-                          backgroundColor: const Color(0xFFE4E4E4),
-                          backgroundImage: imageUrl != null
-                              ? NetworkImage(imageUrl)
-                              : null,
-                          child: imageUrl == null
-                              ? SvgPicture.asset(
-                                  'assets/icons/ico_imgUser.svg',
-                                  width: 45,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(height: 35),
-
-                        // ❸ 네가 만든 if문 로직들 (여기부터 중요!)
-                        if (providerNickname != null &&
-                            providerNickname.isNotEmpty) ...[
-                          _buildField('username'.tr(), providerNickname),
-                          _buildDashedDivider(),
-                        ],
-
-                        if (email != null && email.isNotEmpty) ...[
-                          _buildField('email'.tr(), email),
-                          _buildDashedDivider(),
-                        ],
-
-                        if (provider != null) ...[
-                          _buildField('connected_account'.tr(), provider),
-                          _buildDashedDivider(),
-                        ],
-
-                        if (nickname != null && nickname.isNotEmpty) ...[
-                          _buildField('nickname'.tr(), nickname),
-                          _buildDashedDivider(),
-                        ],
-
-                        if (bio != null && bio.isNotEmpty) ...[
-                          _buildField('bio'.tr(), bio),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           );
         },

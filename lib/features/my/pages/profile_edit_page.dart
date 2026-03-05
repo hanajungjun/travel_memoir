@@ -145,177 +145,191 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  27,
-                  18,
-                  27,
-                  27,
-                ), // 상단 여유 공간 확보
-                child: Column(
-                  children: [
-                    // 1. 커스텀 상단 바 (제목은 정중앙, 저장 버튼은 우측 끝)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48, // 상단 바의 높이를 잡아줍니다.
-                      child: Stack(
-                        alignment: Alignment.center, // 모든 자식들을 일단 중앙에 모읍니다.
-                        children: [
-                          // ❶ 제목: Stack의 중앙 정렬 덕분에 무조건 정중앙에 옵니다.
-                          Text(
-                            'edit_profile'.tr(),
-                            style: AppTextStyles.pageTitle.copyWith(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textColor01,
-                            ),
-                          ),
-                          // ❷ 저장 버튼: Positioned를 써서 오른쪽 끝으로 보냅니다.
-                          Positioned(
-                            right: 0,
-                            child: _saving
-                                ? const SizedBox(
-                                    width: 48,
-                                    child: Center(
-                                      child: SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                : TextButton(
-                                    onPressed: _save,
-                                    style: TextButton.styleFrom(
-                                      padding: EdgeInsets.zero, // 내부 여백 0!
-                                      minimumSize: Size.zero, // 최소 크기 제한 0!
-                                    ),
-                                    child: Text(
-                                      'save'.tr(),
-                                      style: const TextStyle(
-                                        color: Color(0xFF289AEB),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        decoration: TextDecoration.underline,
-                                        decorationColor: Color(
-                                          0xFF289AEB,
-                                        ), // 밑줄 색상 깔맞춤
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 15),
-                    // 2. 메인 프로필 카드
-                    Container(
-                      width: double
-                          .infinity, // 💡 아래 constraints를 추가하면 화면 높이에 맞춰서 늘어납니다!
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(
+                      27,
+                      18,
+                      27,
+                      0,
+                    ), // 상단 여유 공간 확보
+                    child: ConstrainedBox(
                       constraints: BoxConstraints(
                         minHeight:
-                            MediaQuery.of(context).size.height -
-                            18 // 상단 여백 (padding top)
-                            -
-                            55 // 상단 바(Row) 대략적인 높이
-                            -
-                            27 // 요청하신 하단 여백 27px
-                            -
-                            MediaQuery.of(context)
-                                .padding
-                                .top // 노치(상단 바) 영역
-                                -
-                            MediaQuery.of(context).padding.bottom, // 하단 바 영역
+                            constraints.maxHeight - 18 - 0, // 상하 패딩 제외한 높이
                       ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 40,
-                        horizontal: 25,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 18,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          // 프로필 이미지 영역
-                          GestureDetector(
-                            onTap: _pickImage,
-                            child: Stack(
-                              children: [
-                                CircleAvatar(
-                                  radius: 55,
-                                  backgroundColor: const Color(0xFFE4E4E4),
-                                  backgroundImage: _pickedImage != null
-                                      ? FileImage(_pickedImage!)
-                                      : (_imageUrl != null
-                                                ? NetworkImage(_imageUrl!)
-                                                : null)
-                                            as ImageProvider?,
-                                  child:
-                                      _pickedImage == null && _imageUrl == null
-                                      ? SvgPicture.asset(
-                                          'assets/icons/ico_imgUser.svg',
-                                          width: 45,
-                                          height: 47,
-                                        )
-                                      : null,
-                                ),
-                                Positioned(
-                                  bottom: 0,
-                                  right: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.primary,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: SvgPicture.asset(
-                                      'assets/icons/ico_photo.svg',
-                                      width: 16,
-                                      height: 14,
+                      child: IntrinsicHeight(
+                        child: Column(
+                          children: [
+                            // 1. 커스텀 상단 바 (제목은 정중앙, 저장 버튼은 우측 끝)
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48, // 상단 바의 높이를 잡아줍니다.
+                              child: Stack(
+                                alignment:
+                                    Alignment.center, // 모든 자식들을 일단 중앙에 모읍니다.
+                                children: [
+                                  // ❶ 제목: Stack의 중앙 정렬 덕분에 무조건 정중앙에 옵니다.
+                                  Text(
+                                    'edit_profile'.tr(),
+                                    style: AppTextStyles.pageTitle.copyWith(
+                                      fontSize: 19,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textColor01,
                                     ),
                                   ),
-                                ),
-                              ],
+                                  // ❷ 저장 버튼: Positioned를 써서 오른쪽 끝으로 보냅니다.
+                                  Positioned(
+                                    right: 0,
+                                    child: _saving
+                                        ? const SizedBox(
+                                            width: 48,
+                                            child: Center(
+                                              child: SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                    ),
+                                              ),
+                                            ),
+                                          )
+                                        : TextButton(
+                                            onPressed: _save,
+                                            style: TextButton.styleFrom(
+                                              padding:
+                                                  EdgeInsets.zero, // 내부 여백 0!
+                                              minimumSize:
+                                                  Size.zero, // 최소 크기 제한 0!
+                                            ),
+                                            child: Text(
+                                              'save'.tr(),
+                                              style: const TextStyle(
+                                                color: Color(0xFF289AEB),
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                decoration:
+                                                    TextDecoration.underline,
+                                                decorationColor: Color(
+                                                  0xFF289AEB,
+                                                ), // 밑줄 색상 깔맞춤
+                                              ),
+                                            ),
+                                          ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 35),
+                            const SizedBox(height: 15),
+                            // 2. 메인 프로필 카드
+                            // Expanded를 써서 IntrinsicHeight 내에서 가용 공간을 꽉 채우게 합니다.
+                            Expanded(
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 40,
+                                  horizontal: 25,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFFFFF),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 18,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    // 프로필 이미지 영역
+                                    GestureDetector(
+                                      onTap: _pickImage,
+                                      child: Stack(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 55,
+                                            backgroundColor: const Color(
+                                              0xFFE4E4E4,
+                                            ),
+                                            backgroundImage:
+                                                _pickedImage != null
+                                                ? FileImage(_pickedImage!)
+                                                : (_imageUrl != null
+                                                          ? NetworkImage(
+                                                              _imageUrl!,
+                                                            )
+                                                          : null)
+                                                      as ImageProvider?,
+                                            child:
+                                                _pickedImage == null &&
+                                                    _imageUrl == null
+                                                ? SvgPicture.asset(
+                                                    'assets/icons/ico_imgUser.svg',
+                                                    width: 45,
+                                                    height: 47,
+                                                  )
+                                                : null,
+                                          ),
+                                          Positioned(
+                                            bottom: 0,
+                                            right: 0,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: const BoxDecoration(
+                                                color: AppColors.primary,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: SvgPicture.asset(
+                                                'assets/icons/ico_photo.svg',
+                                                width: 16,
+                                                height: 14,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 35),
 
-                          // 닉네임 필드
-                          _buildTextField(
-                            controller: nicknameController,
-                            label: 'nickname'.tr(),
-                            maxLength: 10,
-                          ),
-                          _buildDashedDivider(), // 점선 쓱-
-                          // ✅ 국적 필드 (새로 추가됨)
-                          _buildTextField(
-                            controller: nationalityController,
-                            label: 'nationality'.tr(),
-                            // hint: '예: 방구석 공화국, 지구 방위대',
-                            maxLength: 15,
-                          ),
-                          _buildDashedDivider(), // 점선 쓱-
-                          // 자기소개 필드
-                          _buildTextField(
-                            controller: bioController,
-                            label: 'bio_label'.tr(),
-                            maxLength: 40,
-                          ),
-                        ],
+                                    // 닉네임 필드
+                                    _buildTextField(
+                                      controller: nicknameController,
+                                      label: 'nickname'.tr(),
+                                      maxLength: 10,
+                                    ),
+                                    _buildDashedDivider(), // 점선 쓱-
+                                    // ✅ 국적 필드 (새로 추가됨)
+                                    _buildTextField(
+                                      controller: nationalityController,
+                                      label: 'nationality'.tr(),
+                                      // hint: '예: 방구석 공화국, 지구 방위대',
+                                      maxLength: 15,
+                                    ),
+                                    _buildDashedDivider(), // 점선 쓱-
+                                    // 자기소개 필드
+                                    _buildTextField(
+                                      controller: bioController,
+                                      label: 'bio_label'.tr(),
+                                      maxLength: 40,
+                                      maxLines:
+                                          null, // 🎯 null로 설정하면 글자가 찰 때 자동으로 엔터 처리(줄바꿈) 됩니다.
+                                      keyboardType:
+                                          TextInputType.multiline, // 🎯 엔터키 활성화
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
     );
@@ -327,6 +341,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     required String label,
     String? hint,
     required int maxLength,
+    int? maxLines = 1, // 🎯 기본값은 1줄로 설정
+    TextInputType? keyboardType, // 🎯 키보드 타입 추가
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
@@ -344,6 +360,8 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           TextField(
             controller: controller,
             maxLength: maxLength,
+            maxLines: maxLines, // 🎯 전달받은 maxLines 적용
+            keyboardType: keyboardType, // 🎯 키보드 타입 적용
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,

@@ -334,138 +334,154 @@ class _ShopPageState extends State<ShopPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F6F6), // 연한 배경색
       // 🚨 상단 AppBar 제거
-      body: Stack(
-        children: [
-          _isProductsLoading
-              ? const Center(child: CircularProgressIndicator())
-              : Column(
-                  // 👈 SafeArea 바깥으로 Column을 이동시켜 바닥까지 닿게 함
-                  children: [
-                    // ─── 상단 다크 헤더 영역 (타이틀 + 잔액 카드 포함) ───
-                    _buildBalanceHeader(),
-
-                    // 🎯 본문 영역을 Expanded로 감싸서 남은 공간 전체를 활용
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 30),
-
-                          // ─── 멤버십 플랜 섹션 ───
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: Text(
-                              'membership_plan'.tr(),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF2B2B2B),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Padding(
-                            padding: const EdgeInsets.all(0),
-                            child: _buildSubscriptionSection(),
-                          ),
-
-                          const SizedBox(height: 25),
-
-                          // ─── 티켓 충전하기 섹션 ───
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 32),
-                            child: Text(
-                              'charge_coins'.tr(),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF2B2B2B),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 27),
-                            child: _buildCoinGrid(),
-                          ),
-                          const SizedBox(height: 25),
-
-                          // ─── 복원 버튼 ───
-                          Center(
-                            child: ElevatedButton(
-                              onPressed: _handleRestore, // 👈 기존 로직 유지
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFC2C2C2),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, // 좌우 여백 살짝 조절
-                                  vertical: 5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize:
-                                    MainAxisSize.min, // 👈 자식들 크기만큼만 버튼 크기 잡기
-                                children: [
-                                  SvgPicture.asset(
-                                    'assets/icons/ico_restore.svg',
-                                  ),
-                                  const SizedBox(
-                                    width: 5,
-                                  ), // 👈 여기서 간격을 형님 마음대로 (4~5 추천)
-                                  Text(
-                                    'restore'.tr(),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13, // 텍스트 크기도 버튼에 맞게 살짝 조절
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-
-                          // 🎯 Spacer가 남은 빈 공간을 모두 차지하여 아래 요소들을 기기 바닥으로 밀어냅니다.
-                          const Spacer(),
-
-                          // ─── 하단 유의사항 (기기 바닥에 딱 붙게 됨) ───
-                          _buildFooterNotice(),
-
-                          // 아이폰 홈 바 영역 대응을 위한 여백
-                          SizedBox(
-                            height: MediaQuery.of(context).padding.bottom,
-                          ),
-                        ],
-                      ),
+      body: _isProductsLoading
+          ? const Center(child: CircularProgressIndicator())
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  // 🎯 [핵심] ClampingScrollPhysics: 화면에 딱 맞으면 스크롤 안 됨
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      // 🎯 최소 높이를 화면 높이와 동일하게 맞춤
+                      minHeight: constraints.maxHeight,
                     ),
-                  ],
-                ),
+                    child: Stack(
+                      children: [
+                        Column(
+                          // 👈 SafeArea 바깥으로 Column을 이동시켜 바닥까지 닿게 함
+                          children: [
+                            // ─── 상단 다크 헤더 영역 (타이틀 + 잔액 카드 포함) ───
+                            _buildBalanceHeader(),
 
-          // ✨ 브랜드 컬러 폭죽 위젯
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirectionality: BlastDirectionality.explosive,
-              shouldLoop: false,
-              colors: [
-                AppColors.primary,
-                AppColors.primary.withOpacity(0.7),
-                const Color(0xFFFFD700),
-                Colors.white,
-                Colors.blueAccent,
-              ],
-              createParticlePath: _drawStar,
-              maxBlastForce: 20,
-              minBlastForce: 8,
-              emissionFrequency: 0.05,
-              numberOfParticles: 20,
+                            // 🎯 본문 영역을 수동 배치하여 높이 이슈 방지
+                            const SizedBox(height: 27),
+
+                            // ─── 멤버십 플랜 섹션 ───
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'membership_plan'.tr(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2B2B2B),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            _buildSubscriptionSection(),
+
+                            const SizedBox(height: 26),
+
+                            // ─── 티켓 충전하기 섹션 ───
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 32,
+                              ),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'charge_coins'.tr(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2B2B2B),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 27,
+                              ),
+                              child: _buildCoinGrid(),
+                            ),
+                            const SizedBox(height: 25),
+
+                            // ─── 복원 버튼 ───
+                            Center(
+                              child: ElevatedButton(
+                                onPressed: _handleRestore, // 👈 기존 로직 유지
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFC2C2C2),
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize:
+                                      MainAxisSize.min, // 👈 자식들 크기만큼만 버튼 크기 잡기
+                                  children: [
+                                    SvgPicture.asset(
+                                      'assets/icons/ico_restore.svg',
+                                    ),
+                                    const SizedBox(
+                                      width: 5,
+                                    ), // 👈 여기서 간격을 형님 마음대로 (4~5 추천)
+                                    Text(
+                                      'restore'.tr(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13, // 텍스트 크기도 버튼에 맞게 살짝 조절
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            // 🎯 IntrinsicHeight 없이 바닥에 붙이기 위해 고정 여백 활용
+                            const SizedBox(height: 15),
+
+                            // ─── 하단 유의사항 (기기 바닥 쪽 배치) ───
+                            _buildFooterNotice(),
+
+                            // 아이폰 홈 바 영역 대응을 위한 여백
+                            SizedBox(
+                              height: MediaQuery.of(context).padding.bottom,
+                            ),
+                          ],
+                        ),
+
+                        // ✨ 브랜드 컬러 폭죽 위젯
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: ConfettiWidget(
+                            confettiController: _confettiController,
+                            blastDirectionality: BlastDirectionality.explosive,
+                            shouldLoop: false,
+                            colors: [
+                              AppColors.primary,
+                              AppColors.primary.withOpacity(0.7),
+                              const Color(0xFFFFD700),
+                              Colors.white,
+                              Colors.blueAccent,
+                            ],
+                            createParticlePath: _drawStar,
+                            maxBlastForce: 20,
+                            minBlastForce: 8,
+                            emissionFrequency: 0.05,
+                            numberOfParticles: 20,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -546,7 +562,7 @@ class _ShopPageState extends State<ShopPage> {
               ),
             ],
           ),
-          const SizedBox(height: 15),
+          const SizedBox(height: 12),
           // 잔액 표시 영역
           FutureBuilder<Map<String, int>>(
             future: _balanceFuture,
@@ -588,7 +604,7 @@ class _ShopPageState extends State<ShopPage> {
     required Color labelColor, // ✅ 1. 색상을 받을 파라미터 추가
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFF4E5458),
         borderRadius: BorderRadius.circular(10),
@@ -606,7 +622,7 @@ class _ShopPageState extends State<ShopPage> {
             style: TextStyle(
               color: valueColor,
               fontWeight: FontWeight.w700,
-              fontSize: 22,
+              fontSize: 19,
             ),
           ),
         ],
@@ -837,6 +853,7 @@ class _ShopPageState extends State<ShopPage> {
                 fontSize: 11,
                 color: Color(0xFFA5A5A5),
                 height: 1.4,
+                letterSpacing: -0.3,
               ),
             ),
             const SizedBox(height: 10),
@@ -897,42 +914,6 @@ class _ShopPageState extends State<ShopPage> {
       default:
         return '';
     }
-  }
-
-  Widget _buildSubscribedCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F7FF),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.stars_rounded, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Text(
-                'premium_member_active'.tr(),
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'premium_thanks_msg'.tr(),
-            style: TextStyle(color: Colors.blueGrey[600], fontSize: 13),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildTextLink(String label, VoidCallback onTap) {

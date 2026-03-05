@@ -91,7 +91,7 @@ class UsaSummaryTab extends StatelessWidget {
 
             // 3. 통계 카드 요약
             Padding(
-              padding: const EdgeInsets.all(27),
+              padding: const EdgeInsets.fromLTRB(27, 27, 27, 0),
               child: CommonTravelSummaryCard(
                 travelCount: totalVisitCount,
                 completedCount: completedMemoriesCount,

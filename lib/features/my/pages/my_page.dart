@@ -275,195 +275,194 @@ class _MyPageState extends State<MyPage> with RouteAware {
 
             final String? email = profile['email'];
 
-            return SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                27,
-                20,
-                27,
-                MediaQuery.of(context).padding.bottom + 32,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ProfileEditPage(),
-                        ),
-                      );
-                      _refreshPage();
-                    },
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(15),
+            // 🎯 [수정 시작] LayoutBuilder와 ConstrainedBox로 감싸 화면 크기에 대응합니다.
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(), // 안넘칠 땐 고정되게
+                  padding: EdgeInsets.fromLTRB(27, 27, 27, 15),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight:
+                          constraints.maxHeight - 27 - 15, // 패딩 고려한 최소 높이
+                    ),
+                    child: IntrinsicHeight(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // 프로필 이미지 + 편집 아이콘
-                          Stack(
-                            alignment: Alignment.bottomRight,
-                            children: [
-                              Container(
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
+                          GestureDetector(
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ProfileEditPage(),
                                 ),
-                                child: CircleAvatar(
-                                  radius: 50,
-                                  backgroundColor: Color(0xFFE4E4E4),
-                                  backgroundImage: imageUrl != null
-                                      ? NetworkImage(imageUrl)
-                                      : null,
-                                  child: imageUrl == null
-                                      ? SvgPicture.asset(
-                                          'assets/icons/ico_user.svg',
-                                          width: 45,
-                                          height: 47,
-                                        )
-                                      : null,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 15),
-                          // 닉네임과 칭호/배지
-                          // ✨ 닉네임 + VIP마크 (한 줄)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              // ❶ [왼쪽] 투명한 마크 (무게 중심 맞추기용)
-                              // 이 녀석이 오른쪽 마크와 똑같은 공간을 차지해서 이름을 정중앙으로 밀어줍니다.
-                              if (isVip || isPremium)
-                                Opacity(
-                                  opacity: 0, // 0으로 하면 눈에는 안 보이지만 자리는 차지해요
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(
-                                      right: 10,
-                                    ), // 이름과의 간격 (오른쪽과 똑같이)
-                                    child: isVip
-                                        ? _buildVipMark()
-                                        : _buildPremiumMark(),
+                              );
+                              _refreshPage();
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(15),
+                              child: Column(
+                                children: [
+                                  // 프로필 이미지 + 편집 아이콘
+                                  Stack(
+                                    alignment: Alignment.bottomRight,
+                                    children: [
+                                      Container(
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: CircleAvatar(
+                                          radius: 50,
+                                          backgroundColor: Color(0xFFE4E4E4),
+                                          backgroundImage: imageUrl != null
+                                              ? NetworkImage(imageUrl)
+                                              : null,
+                                          child: imageUrl == null
+                                              ? SvgPicture.asset(
+                                                  'assets/icons/ico_user.svg',
+                                                  width: 45,
+                                                  height: 47,
+                                                )
+                                              : null,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
+                                  const SizedBox(height: 15),
+                                  // 닉네임과 칭호/배지
+                                  // ✨ 닉네임 + VIP마크 (한 줄)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // ❶ [왼쪽] 투명한 마크 (무게 중심 맞추기용)
+                                      if (isVip || isPremium)
+                                        Opacity(
+                                          opacity: 0,
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(
+                                              right: 10,
+                                            ),
+                                            child: isVip
+                                                ? _buildVipMark()
+                                                : _buildPremiumMark(),
+                                          ),
+                                        ),
 
-                              // ❷ [중앙] 실제 닉네임 (이제 완벽하게 가운데 옵니다)
-                              Text(
-                                nickname,
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF2B2B2B),
-                                  letterSpacing: -0.5,
-                                ),
+                                      // ❷ [중앙] 실제 닉네임
+                                      Text(
+                                        nickname,
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF2B2B2B),
+                                          letterSpacing: -0.5,
+                                        ),
+                                      ),
+
+                                      // ❸ [오른쪽] 실제 마크
+                                      if (isVip || isPremium)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            left: 10,
+                                          ),
+                                          child: isVip
+                                              ? _buildVipMark()
+                                              : _buildPremiumMark(),
+                                        ),
+                                    ],
+                                  ),
+
+                                  // ✨ 뱃지만 따로 (중앙 정렬)
+                                  Center(child: _buildBadge(badge)),
+                                ],
                               ),
-
-                              // ❸ [오른쪽] 실제 마크
-                              if (isVip || isPremium)
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                    left: 10,
-                                  ), // 이름과 10px 간격
-                                  child: isVip
-                                      ? _buildVipMark()
-                                      : _buildPremiumMark(),
-                                ),
+                            ),
+                          ),
+                          const SizedBox(height: 13),
+                          Column(
+                            children: [
+                              _MenuTile(
+                                title: 'my_travels'.tr(),
+                                svgName: 'ico_menu01.svg', // 나의 여행
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const MyTravelSummaryPage(),
+                                    ),
+                                  );
+                                  _refreshPage();
+                                },
+                              ),
+                              _MenuTile(
+                                title: 'map_settings'.tr(),
+                                svgName: 'ico_menu02.svg', // 지도 설정
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MapManagementPage(),
+                                    ),
+                                  );
+                                  _refreshPage();
+                                },
+                              ),
+                              _MenuTile(
+                                title: 'user_detail_title'.tr(),
+                                svgName: 'ico_menu03.svg', // 계정 관리
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MyUserDetailPage(),
+                                    ),
+                                  );
+                                  _refreshPage();
+                                },
+                              ),
+                              _MenuTile(
+                                title: 'settings'.tr(),
+                                svgName: 'ico_menu04.svg', // 설정
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MySettingsPage(),
+                                    ),
+                                  );
+                                  _refreshPage();
+                                },
+                              ),
+                              _MenuTile(
+                                title: 'support'.tr(),
+                                svgName: 'ico_menu05.svg', // 고객 지원
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const MySupportPage(),
+                                    ),
+                                  );
+                                  _refreshPage();
+                                },
+                              ),
+                              _MenuTile(
+                                title: 'passport_label'.tr(),
+                                svgName: 'ico_menu06.svg', // 내 여권
+                                subtitle: '(${"premium_only_title".tr()})',
+                                onTap: () => _handlePassportTap(hasAccess),
+                              ),
                             ],
                           ),
-
-                          const SizedBox(height: 3), // 위아래 줄 사이 간격
-                          // ✨ 뱃지만 따로 (중앙 정렬)
-                          Center(child: _buildBadge(badge)),
                         ],
                       ),
                     ),
                   ),
-                  // ✨ 여권 아래 나오던 이메일은 통일성을 위해 안쓸꺼임
-                  // if (email != null && email.isNotEmpty) ...[
-                  //   const SizedBox(height: 4),
-                  //   Text(
-                  //     email,
-                  //     style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  //   ),
-                  // ],
-                  const SizedBox(height: 20),
-                  Column(
-                    children: [
-                      _MenuTile(
-                        title: 'my_travels'.tr(),
-                        svgName: 'ico_menu01.svg', // 나의 여행
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MyTravelSummaryPage(),
-                            ),
-                          );
-                          _refreshPage();
-                        },
-                      ),
-                      _MenuTile(
-                        title: 'map_settings'.tr(),
-                        svgName: 'ico_menu02.svg', // 지도 설정
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MapManagementPage(),
-                            ),
-                          );
-                          _refreshPage();
-                        },
-                      ),
-                      _MenuTile(
-                        title: 'user_detail_title'.tr(),
-                        svgName: 'ico_menu03.svg', // 계정 관리
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MyUserDetailPage(),
-                            ),
-                          );
-                          _refreshPage();
-                        },
-                      ),
-                      _MenuTile(
-                        title: 'settings'.tr(),
-                        svgName: 'ico_menu04.svg', // 설정
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MySettingsPage(),
-                            ),
-                          );
-                          _refreshPage();
-                        },
-                      ),
-                      _MenuTile(
-                        title: 'support'.tr(),
-                        svgName: 'ico_menu05.svg', // 고객 지원
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const MySupportPage(),
-                            ),
-                          );
-                          _refreshPage();
-                        },
-                      ),
-                      // 마지막 내 여권 메뉴 (이미지처럼 subtitle 추가)
-                      _MenuTile(
-                        title: 'passport_label'.tr(),
-                        svgName: 'ico_menu06.svg', // 내 여권
-                        subtitle: '(${"premium_only_title".tr()})',
-                        onTap: () => _handlePassportTap(hasAccess),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         ),
@@ -481,12 +480,7 @@ class _MyPageState extends State<MyPage> with RouteAware {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 직접 만드신 VIP 아이콘 넣기
-          SvgPicture.asset(
-            'assets/icons/ico_vip.svg', // 폴더 경로를 꼭 확인하세요!
-            width: 9,
-            height: 9,
-          ),
+          SvgPicture.asset('assets/icons/ico_vip.svg', width: 9, height: 9),
           const SizedBox(width: 2),
           const Text(
             'VIP',
@@ -511,12 +505,7 @@ class _MyPageState extends State<MyPage> with RouteAware {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 직접 만드신 VIP 아이콘 넣기
-          SvgPicture.asset(
-            'assets/icons/ico_vip.svg', // 폴더 경로를 꼭 확인하세요!
-            width: 9,
-            height: 9,
-          ),
+          SvgPicture.asset('assets/icons/ico_vip.svg', width: 9, height: 9),
           const SizedBox(width: 2),
           const Text(
             'Premium',
@@ -548,10 +537,10 @@ class _MenuTile extends StatelessWidget {
   final String title;
   final String svgName;
   final VoidCallback onTap;
-  final String? subtitle; // 'VIP 전용' 같은 추가 문구를 위해 넣었어요
+  final String? subtitle;
   const _MenuTile({
     required this.title,
-    required this.svgName, // 필수 인자
+    required this.svgName,
     required this.onTap,
     this.subtitle,
   });
@@ -560,14 +549,14 @@ class _MenuTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      highlightColor: Colors.transparent, // 터치 시 생기는 회색 상자를 투명하게!
-      splashColor: Colors.transparent, // 물결 효과도 아주 연하게 하거나 투명하게!
+      highlightColor: Colors.transparent,
+      splashColor: Colors.transparent,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 13), // 메뉴 사이의 간격
-        padding: const EdgeInsets.all(24),
+        margin: const EdgeInsets.only(bottom: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12), // 이미지처럼 부드러운 모서리
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
@@ -578,9 +567,8 @@ class _MenuTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // 🎯 요청하신 대로 SVG 아이콘 적용 (사이즈 19)
             SizedBox(
-              width: 24, // 아이콘 영역 확보 (터치 및 정렬용)
+              width: 24,
               child: Align(
                 alignment: Alignment.center,
                 child: SvgPicture.asset(
@@ -591,8 +579,6 @@ class _MenuTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-
-            // 2. 메뉴 제목
             Expanded(
               child: Row(
                 children: [
