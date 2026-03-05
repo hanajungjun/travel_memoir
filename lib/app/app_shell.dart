@@ -185,7 +185,7 @@ class _AppShellState extends State<AppShell> {
                 // 🎯 인덱스가 0(Home)이 아닐 때만 1px 회색 라인 추가
                 color: _currentIndex == 0
                     ? Colors.transparent
-                    : const Color.fromARGB(255, 243, 243, 243), // 또는 적절한 회색 정의값
+                    : Color(0xFFEDEDED), // 또는 적절한 회색 정의값
                 width: 1.0,
               ),
             ),

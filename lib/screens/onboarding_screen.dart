@@ -36,43 +36,55 @@ class OnboardingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🌍 현재 언어 코드 가져오기 (ko, en 등)
+    final String lang = context.locale.languageCode;
+    debugPrint('🔥🔥🔥 현재 앱 언어 설정: $lang'); // 터미널에 이 문구가 뜹니다!
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: IntroductionScreen(
           pages: [
-            // 📖 1. 일기 쓰기 (기록)
+            // 📍 1. 여행 기록
             PageViewModel(
               title: "onboarding_title_1".tr(),
               body: "onboarding_body_1".tr(),
-              image: _buildImage(
-                'assets/images/onboarding_diary.png',
-                Icons.auto_stories,
-                Colors.blue,
+              // 언어별 이미지 경로 자동 생성 (예: assets/images/onboard/ko_onboard_1.png)
+              image: _buildMockupImage(
+                context,
+                'assets/images/onboard/${lang}_onboard_1.png',
               ),
               decoration: _getPageDecoration(),
             ),
 
-            // 📍 2. 지도 기록 (발자취)
+            // 📖 2. 일기 작성
             PageViewModel(
               title: "onboarding_title_2".tr(),
               body: "onboarding_body_2".tr(),
-              image: _buildImage(
-                'assets/images/onboarding_map.png',
-                Icons.map_rounded,
-                Colors.green,
+              image: _buildMockupImage(
+                context,
+                'assets/images/onboard/${lang}_onboard_2.png',
               ),
               decoration: _getPageDecoration(),
             ),
 
-            // ✨ 3. 추억 떠올리기 (AI 리포트)
+            // ✨ 3. 추억 보기
             PageViewModel(
               title: "onboarding_title_3".tr(),
               body: "onboarding_body_3".tr(),
-              image: _buildImage(
-                'assets/images/onboarding_memory.png',
-                Icons.auto_awesome_motion,
-                Colors.amber,
+              image: _buildMockupImage(
+                context,
+                'assets/images/onboard/${lang}_onboard_3.png',
+              ),
+              decoration: _getPageDecoration(),
+            ),
+
+            // 🌍 4. 여행 통계
+            PageViewModel(
+              title: "onboarding_title_4".tr(),
+              body: "onboarding_body_4".tr(),
+              image: _buildMockupImage(
+                context,
+                'assets/images/onboard/${lang}_onboard_4.png',
               ),
               decoration: _getPageDecoration(),
             ),
@@ -89,16 +101,11 @@ class OnboardingPage extends StatelessWidget {
               color: AppColors.primary,
             ),
           ),
-          controlsPadding: const EdgeInsets.symmetric(
-            horizontal: 16.0,
-            vertical: 8.0,
-          ),
           dotsDecorator: DotsDecorator(
             size: const Size.square(10.0),
             activeSize: const Size(20.0, 10.0),
             activeColor: AppColors.primary,
             color: Colors.black12,
-            spacing: const EdgeInsets.symmetric(horizontal: 3.0),
             activeShape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(25.0),
             ),
@@ -108,29 +115,56 @@ class OnboardingPage extends StatelessWidget {
     );
   }
 
-  // ✅ 이미지 위젯 빌더 (파일이 없으면 아이콘으로 대체)
-  Widget _buildImage(String assetName, IconData backupIcon, Color color) {
+  // ✅ 이미지 크기 극대화 + 미디어쿼리 적용 빌더
+  Widget _buildMockupImage(BuildContext context, String assetPath) {
+    final double screenHeight = MediaQuery.sizeOf(context).height;
+
     return Center(
-      child: Image.asset(
-        assetName,
-        width: 280,
-        errorBuilder: (context, error, stackTrace) =>
-            Icon(backupIcon, size: 120, color: color),
+      child: Container(
+        constraints: BoxConstraints(
+          maxHeight: screenHeight * 0.65, // 이미지를 화면의 65%까지 키움
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(24),
+          child: Image.asset(
+            assetPath,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.image_not_supported,
+              size: 50,
+              color: Colors.grey,
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  // ✅ 페이지 스타일 설정
   PageDecoration _getPageDecoration() {
     return PageDecoration(
-      titleTextStyle: AppTextStyles.sectionTitle.copyWith(fontSize: 26),
+      titleTextStyle: AppTextStyles.sectionTitle.copyWith(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
       bodyTextStyle: AppTextStyles.body.copyWith(
         color: Colors.grey[600],
-        height: 1.5,
+        height: 1.4,
       ),
-      imagePadding: const EdgeInsets.only(top: 60),
-      titlePadding: const EdgeInsets.only(top: 30, bottom: 12),
-      bodyPadding: const EdgeInsets.symmetric(horizontal: 24),
+      imagePadding: const EdgeInsets.only(top: 10, bottom: 0),
+      titlePadding: const EdgeInsets.only(top: 10, bottom: 8),
+      bodyPadding: const EdgeInsets.symmetric(horizontal: 32),
+      imageFlex: 6, // 이미지 영역 대폭 확대
+      bodyFlex: 2, // 텍스트 영역 축소
     );
   }
 }
