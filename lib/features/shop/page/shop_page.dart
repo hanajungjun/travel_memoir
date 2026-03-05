@@ -14,6 +14,8 @@ import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
+
 class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
 
@@ -329,36 +331,9 @@ class _ShopPageState extends State<ShopPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bool adDisabled = _adUsedToday >= _adDailyLimit;
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA), // 연한 배경색
-      appBar: AppBar(
-        title: Text(
-          'coin_shop'.tr(),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        backgroundColor: const Color(0xFF3D3D3D),
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          TextButton(
-            onPressed: adDisabled ? null : _handleWatchAdReward,
-            child: Text(
-              '${'watch_ad_get_coin'.tr()} ($_adUsedToday/$_adDailyLimit)',
-              style: TextStyle(
-                color: adDisabled ? Colors.grey[500] : const Color(0xFFFFD54F),
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-              ),
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFFF6F6F6), // 연한 배경색
+      // 🚨 상단 AppBar 제거
       body: Stack(
         children: [
           _isProductsLoading
@@ -367,43 +342,46 @@ class _ShopPageState extends State<ShopPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ─── 상단 다크 헤더 영역 (잔액 카드 포함) ───
+                      // ─── 상단 다크 헤더 영역 (타이틀 + 잔액 카드 포함) ───
                       _buildBalanceHeader(),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
 
                       // ─── 멤버십 플랜 섹션 ───
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
                           'membership_plan'.tr(),
                           style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF222222),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2B2B2B),
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildSubscriptionSection(),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 27),
+                        child: _buildSubscriptionSection(),
+                      ),
 
                       const SizedBox(height: 24),
 
                       // ─── 티켓 충전하기 섹션 ───
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
                         child: Text(
                           'charge_coins'.tr(),
                           style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF222222),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF2B2B2B),
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 27),
                         child: _buildCoinGrid(),
                       ),
 
@@ -411,27 +389,35 @@ class _ShopPageState extends State<ShopPage> {
 
                       // ─── 복원 버튼 ───
                       Center(
-                        child: ElevatedButton.icon(
-                          onPressed: _handleRestore,
-                          icon: const Icon(
-                            Icons.restore,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                          label: Text(
-                            'restore'.tr(),
-                            style: const TextStyle(color: Colors.white),
-                          ),
+                        child: ElevatedButton(
+                          onPressed: _handleRestore, // 👈 기존 로직 유지
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFC8C8C8),
+                            backgroundColor: const Color(0xFFC2C2C2),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
                             ),
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 8,
+                              horizontal: 16, // 좌우 여백 살짝 조절
+                              vertical: 6,
                             ),
+                          ),
+                          child: Row(
+                            mainAxisSize:
+                                MainAxisSize.min, // 👈 자식들 크기만큼만 버튼 크기 잡기
+                            children: [
+                              SvgPicture.asset('assets/icons/ico_restore.svg'),
+                              const SizedBox(
+                                width: 5,
+                              ), // 👈 여기서 간격을 형님 마음대로 (4~5 추천)
+                              Text(
+                                'restore'.tr(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13, // 텍스트 크기도 버튼에 맞게 살짝 조절
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -495,37 +481,89 @@ class _ShopPageState extends State<ShopPage> {
     return path;
   }
 
-  // ─── 상단 다크 헤더 위젯 (이미지 스타일 반영) ───
+  // ─── 상단 다크 헤더 위젯 (이미지 스타일 반영 + 타이틀 추가) ───
   Widget _buildBalanceHeader() {
+    final topPadding = MediaQuery.of(context).padding.top;
+    final bool adDisabled = _adUsedToday >= _adDailyLimit;
+
     return Container(
       width: double.infinity,
-      color: const Color(0xFF3D3D3D),
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-      child: FutureBuilder<Map<String, int>>(
-        future: _balanceFuture,
-        builder: (context, snapshot) {
-          final free = snapshot.data?['free'] ?? 0;
-          final paid = snapshot.data?['paid'] ?? 0;
-          return Row(
+      color: const Color(0xFF474D51),
+      // 노치 영역을 고려하여 top 여백을 줍니다.
+      padding: EdgeInsets.fromLTRB(27, topPadding + 20, 27, 24),
+      child: Column(
+        children: [
+          // 🏆 타이틀 및 광고 버튼 행
+          Stack(
+            alignment: Alignment.center, // 자식들을 중앙에 배치
             children: [
-              Expanded(
-                child: _buildBalanceTile(
-                  label: 'free_stamp'.tr(),
-                  value: free.toString().padLeft(4, '0'),
-                  valueColor: const Color(0xFF4FC3F7), // 이미지의 블루 톤
+              // 1. 타이틀: Stack의 center 정렬을 받아 무조건 정중앙에 위치
+              Text(
+                'coin_shop'.tr(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 19,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildBalanceTile(
-                  label: 'paid_stamp'.tr(),
-                  value: paid.toString().padLeft(4, '0'),
-                  valueColor: const Color(0xFFFFD54F), // 이미지의 골드 톤
+
+              // 2. 광고 리워드 버튼: Align을 사용해 오른쪽 끝으로 강제 배치
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(
+                    right: 10,
+                  ), // 👈 여기에 원하는 만큼 여백 수치를 넣으세요!
+                  child: TextButton(
+                    onPressed: adDisabled ? null : _handleWatchAdReward,
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    child: Text(
+                      '${'watch_ad_get_coin'.tr()} ($_adUsedToday/$_adDailyLimit)',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        color: adDisabled
+                            ? const Color(0xFF567285)
+                            : const Color(0xFF78C7FF),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 15),
+          // 잔액 표시 영역
+          FutureBuilder<Map<String, int>>(
+            future: _balanceFuture,
+            builder: (context, snapshot) {
+              final free = snapshot.data?['free'] ?? 0;
+              final paid = snapshot.data?['paid'] ?? 0;
+              return Row(
+                children: [
+                  Expanded(
+                    child: _buildBalanceTile(
+                      label: 'free_stamp2'.tr(),
+                      value: free.toString().padLeft(4, '0'),
+                      valueColor: const Color(0xFF58B5FF), // 이미지의 블루 톤
+                      labelColor: const Color(0xFF76C2FF), // ✅ 무료 라벨 색상 (연블루)
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildBalanceTile(
+                      label: 'paid_stamp2'.tr(),
+                      value: paid.toString().padLeft(4, '0'),
+                      valueColor: const Color(0xFFFFB338), // 이미지의 골드 톤
+                      labelColor: const Color(0xFFFFC870), // ✅ 유료 라벨 색상 (골드)
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -534,25 +572,28 @@ class _ShopPageState extends State<ShopPage> {
     required String label,
     required String value,
     required Color valueColor,
+    required Color labelColor, // ✅ 1. 색상을 받을 파라미터 추가
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF4A4A4A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: const Color(0xFF4E5458),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(
+            label,
+            style: TextStyle(color: labelColor, fontSize: 13), // ✅ 2. 스타일 적용
+          ),
           Text(
             value,
             style: TextStyle(
               color: valueColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              letterSpacing: 1.5,
+              fontWeight: FontWeight.w700,
+              fontSize: 22,
             ),
           ),
         ],
@@ -571,6 +612,7 @@ class _ShopPageState extends State<ShopPage> {
         itemBuilder: (context, index) {
           final p = _subscriptionPackages[index];
           final bool isVip = p.identifier.toLowerCase().contains('vip');
+          final bool isAnnual = p.packageType == PackageType.annual; // 연간 플랜 체크
           return SizedBox(
             width: MediaQuery.of(context).size.width * 0.75,
             child: _buildSubscriptionCard(
@@ -598,6 +640,7 @@ class _ShopPageState extends State<ShopPage> {
                     ],
               onTap: () => _handlePurchase(p),
               isVip: isVip,
+              isAnnual: isAnnual, // 👈 새로 추가된 파라미터
             ),
           );
         },
@@ -612,10 +655,20 @@ class _ShopPageState extends State<ShopPage> {
     required List<String> benefits,
     required VoidCallback onTap,
     bool isVip = false,
+    bool isAnnual = false, // 👈 파라미터 추가
   }) {
-    final List<Color> gradientColors = isVip
-        ? [const Color(0xFF917BFF), const Color(0xFF6B4BFF)] // VIP/연간용 퍼플
-        : [const Color(0xFF4A90D9), const Color(0xFF357ABD)]; // 월간구독용 블루
+    List<Color> gradientColors;
+
+    if (isVip) {
+      // 👑 VIP: 럭셔리한 다크 골드 그라데이션
+      gradientColors = [const Color(0xFF474D51), const Color(0xFF222222)];
+    } else if (isAnnual) {
+      // 💜 연간: 실속 있는 퍼플 그라데이션
+      gradientColors = [const Color(0xFF917BFF), const Color(0xFF6B4BFF)];
+    } else {
+      // 💙 월간: 깔끔한 블루 그라데이션
+      gradientColors = [const Color(0xFF4A90D9), const Color(0xFF357ABD)];
+    }
 
     return GestureDetector(
       onTap: onTap,
@@ -626,17 +679,17 @@ class _ShopPageState extends State<ShopPage> {
             end: Alignment.bottomRight,
             colors: gradientColors,
           ),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: gradientColors.last.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(27),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -644,11 +697,11 @@ class _ShopPageState extends State<ShopPage> {
                 '$title ($price $period)',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   fontSize: 15,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 9),
               Expanded(
                 child: Column(
                   children: benefits
@@ -747,20 +800,20 @@ class _ShopPageState extends State<ShopPage> {
 
   Widget _buildFooterNotice() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
+      padding: const EdgeInsets.fromLTRB(25, 24, 25, 10),
       child: Column(
         children: [
           if (Platform.isIOS) ...[
             Text(
               'subscription_notice'.tr(),
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey[400],
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFFA5A5A5),
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
           ],
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -772,8 +825,8 @@ class _ShopPageState extends State<ShopPage> {
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 10),
                 width: 1,
-                height: 10,
-                color: Colors.grey[300],
+                height: 7,
+                color: Color(0xFF2B2B2B).withOpacity(0.9),
               ),
               _buildTextLink(
                 'privacy_policy'.tr(),
@@ -839,11 +892,11 @@ class _ShopPageState extends State<ShopPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.stars_rounded, color: AppColors.primary),
+              const Icon(Icons.stars_rounded, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
                 'premium_member_active'.tr(),
-                style: TextStyle(
+                style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   color: AppColors.primary,
                   fontSize: 16,
@@ -868,9 +921,10 @@ class _ShopPageState extends State<ShopPage> {
         label,
         style: const TextStyle(
           fontSize: 11,
-          color: Colors.blueGrey,
-          fontWeight: FontWeight.w600,
+          color: Color(0xFF2B2B2B),
+          fontWeight: FontWeight.w400,
           decoration: TextDecoration.underline,
+          decorationColor: Color(0xFF2B2B2B),
         ),
       ),
     );
