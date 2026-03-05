@@ -201,7 +201,7 @@ class _PayManagementPageState extends State<PayManagementPage>
                                   ),
                                 ),
                                 Positioned(
-                                  right: 0,
+                                  right: 11,
                                   child: TextButton(
                                     onPressed: () {
                                       Navigator.push(
