@@ -26,10 +26,16 @@ class TotalDonutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeColor =
-        activeColor ?? AppColors.travelingBlue; // ✅ 전달된 색상이 없으면 기본 파란색 사용
+        activeColor ??
+        AppColors.travelingBlue; // ✅ 전달된 색상이 없으면 기본 파란색 사용// ✅ 여기에 추가!
+
+    final bool isKorean = context.locale.languageCode == 'ko';
+    final int leftFlex = isKorean ? 1 : 3;
+    final int rightFlex = isKorean ? 3 : 5;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.only(bottom: 15),q
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -39,8 +45,9 @@ class TotalDonutCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // 왼쪽: 방문 수 / 전체 수
-              SizedBox(
-                width: 90,
+              Flexible(
+                // ✅ SizedBox(width:100) → Flexible로 변경하여 영문 긴 텍스트 overflow 방지
+                flex: leftFlex,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -66,15 +73,19 @@ class TotalDonutCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // ❷ 준이 말한 대로 "전체"와 "개국"을 나란히 붙였습니다.
                     Row(
                       children: [
-                        Text(
-                          '${title ?? 'in_total'.tr()} ', // "전체"
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w300,
-                            color: Color(0xFF949494),
+                        Flexible(
+                          // ✅ Flexible 추가: 영문 텍스트가 길어져도 sub 텍스트를 밀어내지 않도록
+                          child: Text(
+                            '${title ?? 'in_total'.tr()} ', // "전체"
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w300,
+                              color: Color(0xFF949494),
+                            ),
+                            // overflow: TextOverflow.ellipsis, // ✅ 넘칠 경우 ... 처리
+                            maxLines: 1,
                           ),
                         ),
                         Text(
@@ -92,12 +103,13 @@ class TotalDonutCard extends StatelessWidget {
               ),
               // 오른쪽: 가로형 진행 바 및 퍼센트
               Expanded(
+                flex: rightFlex, // ✅ progressbar 영역이 더 넓게 확보되도록 flex 지정
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Row(
                       children: [
-                        const SizedBox(width: 30),
+                        // const SizedBox(width: 10),
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.only(top: 9),
