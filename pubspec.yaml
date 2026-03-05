@@ -69,7 +69,6 @@ dependencies:
   confetti: ^0.8.0
   wechat_assets_picker: ^9.3.2 
 
-
 dev_dependencies:
   flutter_test:
     sdk: flutter

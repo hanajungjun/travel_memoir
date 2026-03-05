@@ -236,37 +236,45 @@ class _SettingCard extends StatelessWidget {
           ),
         ],
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.fromLTRB(25, 10, 21, 10),
-        title: Text(
-          title,
-          style: AppTextStyles.body.copyWith(
-            fontSize: 15,
-            color: AppColors.textColor01,
-            fontWeight: FontWeight.w600,
-          ),
+      child: Theme(
+        // ❶ ListTile의 클릭 효과를 여기서 죽입니다.
+        data: Theme.of(context).copyWith(
+          splashColor: Colors.transparent, // 물결 제거
+          highlightColor: Colors.transparent, // 하이라이트 제거
+          hoverColor: Colors.transparent, // 호버 제거
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (trailingText != null)
-              Text(
-                trailingText!,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.travelingBlue,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            const SizedBox(width: 10),
-            // ✅ SvgPicture에 '마법 가루(ColorFilter)'를 뿌려주는 거야!
-            SvgPicture.asset(
-              'assets/icons/ico_user_more.svg',
-              color: iconColor,
+        child: ListTile(
+          contentPadding: const EdgeInsets.fromLTRB(25, 10, 21, 10),
+          title: Text(
+            title,
+            style: AppTextStyles.body.copyWith(
+              fontSize: 15,
+              color: AppColors.textColor01,
+              fontWeight: FontWeight.w600,
             ),
-          ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (trailingText != null)
+                Text(
+                  trailingText!,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.travelingBlue,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              const SizedBox(width: 10),
+              // ✅ SvgPicture에 '마법 가루(ColorFilter)'를 뿌려주는 거야!
+              SvgPicture.asset(
+                'assets/icons/ico_user_more.svg',
+                color: iconColor,
+              ),
+            ],
+          ),
+          onTap: onTap,
         ),
-        onTap: onTap,
       ),
     );
   }

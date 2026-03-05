@@ -201,7 +201,7 @@ class _PayManagementPageState extends State<PayManagementPage>
                                   ),
                                 ),
                                 Positioned(
-                                  right: 11,
+                                  right: 0,
                                   child: TextButton(
                                     onPressed: () {
                                       Navigator.push(
@@ -216,7 +216,7 @@ class _PayManagementPageState extends State<PayManagementPage>
                                       minimumSize: Size.zero,
                                     ),
                                     child: Text(
-                                      'change_membership'.tr(),
+                                      'nav_shop'.tr(),
                                       style: const TextStyle(
                                         color: Color(0xFF289AEB),
                                         fontSize: 14,

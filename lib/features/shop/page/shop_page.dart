@@ -94,6 +94,7 @@ class _ShopPageState extends State<ShopPage> {
           _adRewardMsg =
               adConfig['description_${context.locale.languageCode}'] ??
               adConfig['description_ko'] ??
+              adConfig['description_ko'] ??
               '';
         }
         if (vipConfig != null) {
@@ -331,16 +332,17 @@ class _ShopPageState extends State<ShopPage> {
     final bool adDisabled = _adUsedToday >= _adDailyLimit;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F6FA), // 연한 배경색
       appBar: AppBar(
         title: Text(
           'coin_shop'.tr(),
           style: const TextStyle(
-            color: Colors.black87,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF3D3D3D),
         elevation: 0,
         centerTitle: true,
         actions: [
@@ -349,8 +351,9 @@ class _ShopPageState extends State<ShopPage> {
             child: Text(
               '${'watch_ad_get_coin'.tr()} ($_adUsedToday/$_adDailyLimit)',
               style: TextStyle(
-                color: adDisabled ? Colors.grey : Colors.blueAccent,
+                color: adDisabled ? Colors.grey[500] : const Color(0xFFFFD54F),
                 fontWeight: FontWeight.bold,
+                fontSize: 12,
               ),
             ),
           ),
@@ -361,50 +364,82 @@ class _ShopPageState extends State<ShopPage> {
           _isProductsLoading
               ? const Center(child: CircularProgressIndicator())
               : SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    10,
-                    16,
-                    MediaQuery.of(context).padding.bottom + 16, // ✅ 이걸로 교체
-                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildBalanceCard(),
+                      // ─── 상단 다크 헤더 영역 (잔액 카드 포함) ───
+                      _buildBalanceHeader(),
+
+                      const SizedBox(height: 24),
+
+                      // ─── 멤버십 플랜 섹션 ───
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'membership_plan'.tr(),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF222222),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 12),
-                      Text(
-                        'membership_plan'.tr(),
-                        style: AppTextStyles.sectionTitle,
-                      ),
-                      const SizedBox(height: 8),
-                      //일단주석 vip일때는 다가리고 premium일떄는 vip만 보이개 해줘야함
-                      // if (_isPremium)
-                      //   _buildSubscribedCard()
-                      // else
                       _buildSubscriptionSection(),
-                      const SizedBox(height: 10),
-                      Text(
-                        'charge_coins'.tr(),
-                        style: AppTextStyles.sectionTitle,
+
+                      const SizedBox(height: 24),
+
+                      // ─── 티켓 충전하기 섹션 ───
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'charge_coins'.tr(),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF222222),
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      _buildCoinGrid(),
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildCoinGrid(),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // ─── 복원 버튼 ───
                       Center(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: TextButton(
-                            onPressed: _handleRestore,
-                            child: Text(
-                              'restore'.tr(),
-                              style: const TextStyle(
-                                color: Colors.grey,
-                                fontSize: 13,
-                              ),
+                        child: ElevatedButton.icon(
+                          onPressed: _handleRestore,
+                          icon: const Icon(
+                            Icons.restore,
+                            size: 16,
+                            color: Colors.white,
+                          ),
+                          label: Text(
+                            'restore'.tr(),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFC8C8C8),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 8,
                             ),
                           ),
                         ),
                       ),
+
                       _buildFooterNotice(),
+                      SizedBox(
+                        height: MediaQuery.of(context).padding.bottom + 16,
+                      ),
                     ],
                   ),
                 ),
@@ -460,18 +495,84 @@ class _ShopPageState extends State<ShopPage> {
     return path;
   }
 
+  // ─── 상단 다크 헤더 위젯 (이미지 스타일 반영) ───
+  Widget _buildBalanceHeader() {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFF3D3D3D),
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      child: FutureBuilder<Map<String, int>>(
+        future: _balanceFuture,
+        builder: (context, snapshot) {
+          final free = snapshot.data?['free'] ?? 0;
+          final paid = snapshot.data?['paid'] ?? 0;
+          return Row(
+            children: [
+              Expanded(
+                child: _buildBalanceTile(
+                  label: 'free_stamp'.tr(),
+                  value: free.toString().padLeft(4, '0'),
+                  valueColor: const Color(0xFF4FC3F7), // 이미지의 블루 톤
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildBalanceTile(
+                  label: 'paid_stamp'.tr(),
+                  value: paid.toString().padLeft(4, '0'),
+                  valueColor: const Color(0xFFFFD54F), // 이미지의 골드 톤
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBalanceTile({
+    required String label,
+    required String value,
+    required Color valueColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4A4A4A),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSubscriptionSection() {
     return SizedBox(
-      height: 210,
+      height: 220,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: _subscriptionPackages.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 10),
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final p = _subscriptionPackages[index];
           final bool isVip = p.identifier.toLowerCase().contains('vip');
           return SizedBox(
-            width: MediaQuery.of(context).size.width * 0.78,
+            width: MediaQuery.of(context).size.width * 0.75,
             child: _buildSubscriptionCard(
               title: p.storeProduct.title,
               price: p.storeProduct.priceString,
@@ -504,60 +605,6 @@ class _ShopPageState extends State<ShopPage> {
     );
   }
 
-  Widget _buildBalanceCard() {
-    return FutureBuilder<Map<String, int>>(
-      future: _balanceFuture,
-      builder: (context, snapshot) {
-        final free = snapshot.data?['free'] ?? 0;
-        final paid = snapshot.data?['paid'] ?? 0;
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'free_stamp'.tr(),
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  Text(
-                    '$free',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'paid_stamp'.tr(),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '$paid',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildSubscriptionCard({
     required String title,
     required String price,
@@ -566,88 +613,74 @@ class _ShopPageState extends State<ShopPage> {
     required VoidCallback onTap,
     bool isVip = false,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isVip
-              ? [const Color(0xFF1A1A1A), const Color(0xFFC5A028)]
-              : [const Color(0xFF2E3192), const Color(0xFF1BFFFF)],
+    final List<Color> gradientColors = isVip
+        ? [const Color(0xFF917BFF), const Color(0xFF6B4BFF)] // VIP/연간용 퍼플
+        : [const Color(0xFF4A90D9), const Color(0xFF357ABD)]; // 월간구독용 블루
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: gradientColors,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: gradientColors.last.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  if (isVip)
-                    const Icon(
-                      Icons.workspace_premium,
-                      color: Colors.amber,
-                      size: 18,
-                    ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
               Text(
-                '$price $period',
+                '$title ($price $period)',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
                 ),
               ),
-              const Divider(color: Colors.white24, height: 14),
-              ...benefits
-                  .map(
-                    (b) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2.5),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.check_circle,
-                            color: isVip ? Colors.amber[200] : Colors.white70,
-                            size: 10,
-                          ),
-                          const SizedBox(width: 5),
-                          Expanded(
-                            child: Text(
-                              b,
-                              style: const TextStyle(
+              const SizedBox(height: 12),
+              Expanded(
+                child: Column(
+                  children: benefits
+                      .map(
+                        (b) => Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(
+                                Icons.check,
                                 color: Colors.white,
-                                fontSize: 11,
-                                height: 1.1,
+                                size: 14,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  b,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 12,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
             ],
           ),
         ),
@@ -663,24 +696,35 @@ class _ShopPageState extends State<ShopPage> {
       itemCount: _coinPackages.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.95,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.9,
       ),
       itemBuilder: (context, index) {
         final p = _coinPackages[index];
-        return InkWell(
+        return GestureDetector(
           onTap: () => _handlePurchase(p),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.stars, color: Colors.amber, size: 20),
-                const SizedBox(height: 4),
+                const Icon(
+                  Icons.confirmation_num_outlined,
+                  color: Color(0xFF666666),
+                  size: 24,
+                ),
+                const SizedBox(height: 8),
                 Text(
                   p.storeProduct.title.split('(').first.trim(),
                   style: const TextStyle(
@@ -688,9 +732,10 @@ class _ShopPageState extends State<ShopPage> {
                     fontSize: 13,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   p.storeProduct.priceString,
-                  style: TextStyle(color: AppColors.primary, fontSize: 12),
+                  style: const TextStyle(color: Colors.grey, fontSize: 11),
                 ),
               ],
             ),
@@ -702,24 +747,21 @@ class _ShopPageState extends State<ShopPage> {
 
   Widget _buildFooterNotice() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+      padding: const EdgeInsets.fromLTRB(20, 32, 20, 16),
       child: Column(
         children: [
-          // 🎯 iOS일 때만 구독 관련 상세 공지사항을 노출합니다.
           if (Platform.isIOS) ...[
             Text(
               'subscription_notice'.tr(),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 10,
-                color: Colors.grey[500],
-                height: 1.3,
+                color: Colors.grey[400],
+                height: 1.4,
               ),
             ),
             const SizedBox(height: 12),
           ],
-
-          // 🎯 이용약관 및 개인정보처리방침 링크 (안드로이드/iOS 공통)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -730,7 +772,7 @@ class _ShopPageState extends State<ShopPage> {
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 10),
                 width: 1,
-                height: 8,
+                height: 10,
                 color: Colors.grey[300],
               ),
               _buildTextLink(
@@ -739,7 +781,7 @@ class _ShopPageState extends State<ShopPage> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Text(
             '© 2026 Travel Memoir.',
             style: TextStyle(fontSize: 9, color: Colors.grey[400]),
