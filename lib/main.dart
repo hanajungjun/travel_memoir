@@ -20,6 +20,7 @@ import 'services/prompt_cache.dart';
 import 'env.dart';
 import 'app/app.dart';
 import 'package:travel_memoir/services/country_service.dart';
+import 'package:travel_memoir/features/guide/tutorial_manager.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -141,6 +142,7 @@ Future<void> main() async {
 
   await _initRevenueCat();
   await NetworkService().initialize();
+  await TutorialManager.init();
 
   runApp(
     EasyLocalization(

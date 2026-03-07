@@ -16,6 +16,8 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/travel_list_skeleton.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
+import 'package:travel_memoir/features/guide/app_guide.dart';
+import 'package:travel_memoir/features/guide/tutorial_manager.dart';
 
 /**
  * 📱 Screen ID : TRAVEL_LIST_PAGE
@@ -45,11 +47,22 @@ class TravelListPage extends StatefulWidget {
 
 class _TravelListPageState extends State<TravelListPage> with RouteAware {
   late Future<List<Map<String, dynamic>>> _future;
-
+  final GlobalKey _fabKey = GlobalKey();
+  bool _isGuideShown = false;
   @override
   void initState() {
     super.initState();
     _future = TravelListService.getTravels();
+
+    // 🎯 [추가] 화면이 그려지자마자 가이드를 띄움
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 상단 가이드가 끝날 무렵인 1초 뒤에 실행
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        if (mounted && !_isGuideShown) {
+          _showFabGuide();
+        }
+      });
+    });
   }
 
   void _refresh() {
@@ -197,6 +210,7 @@ class _TravelListPageState extends State<TravelListPage> with RouteAware {
         shadowColor: Colors.black.withOpacity(0.25),
         shape: const CircleBorder(),
         child: FloatingActionButton(
+          key: _fabKey, // 👈 🎯 여기에 키를 박았습니다!
           elevation: 0,
           backgroundColor: AppColors.travelingBlue,
           shape: RoundedRectangleBorder(
@@ -221,6 +235,36 @@ class _TravelListPageState extends State<TravelListPage> with RouteAware {
           child: const Icon(Icons.add, color: Colors.white, size: 32),
         ),
       ),
+    );
+  }
+
+  // 버튼 클릭 로직 분리 (가이드 강제 클릭 시 호출용)
+  Future<void> _handleFabClick() async {
+    final created = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(builder: (_) => const TravelTypeSelectPage()),
+    );
+    if (created != null && mounted) {
+      _refresh();
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => TravelDiaryListPage(travel: created)),
+      );
+      _refresh();
+    }
+  }
+
+  void _showFabGuide() {
+    if (TutorialManager.currentStep != 2) return; // 2단계일 때만 뜸
+
+    AppGuide.show(
+      context: context,
+      targetKey: _fabKey,
+      message: "home_cat_message".tr(),
+      onTargetClick: () {
+        TutorialManager.markStepComplete(2); // 🎯 2단계 완료 저장
+        _handleFabClick();
+      },
     );
   }
 }

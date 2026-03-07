@@ -16,8 +16,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
-import 'package:travel_memoir/services/logger_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+import 'package:travel_memoir/services/logger_service.dart';
 import 'package:travel_memoir/services/gemini_service.dart';
 import 'package:travel_memoir/services/image_upload_service.dart';
 import 'package:travel_memoir/services/travel_day_service.dart';
@@ -380,6 +381,31 @@ class _TravelDayPageState extends State<TravelDayPage>
     FocusScope.of(context).unfocus();
     final int currentTotal = _localPhotos.length + _remotePhotoUrls.length;
     if (currentTotal >= 3) return;
+
+    // ✅ Android 권한 요청 추가
+    if (Platform.isAndroid) {
+      PermissionStatus status;
+
+      // Android 13+ (API 33+)는 READ_MEDIA_IMAGES
+      // Android 12 이하는 READ_EXTERNAL_STORAGE
+      if (await Permission.photos.isDenied) {
+        status = await Permission.photos.request();
+      } else {
+        status = await Permission.photos.status;
+      }
+
+      if (status.isPermanentlyDenied) {
+        // 설정 화면으로 유도
+        AppToast.show(context, 'gallery_permission_denied'.tr());
+        await openAppSettings();
+        return;
+      }
+
+      if (!status.isGranted) {
+        AppToast.show(context, 'gallery_permission_required'.tr());
+        return;
+      }
+    }
 
     // ✅ 1. 재생성 방지 딜레이 추가
     await Future.delayed(const Duration(milliseconds: 200));

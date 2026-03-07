@@ -6,6 +6,8 @@ import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/features/my/pages/map_management/map_management_page.dart';
 import 'package:travel_memoir/core/widgets/popup/app_dialogs.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:travel_memoir/features/guide/app_guide.dart';
+import 'package:travel_memoir/features/guide/tutorial_manager.dart';
 
 import 'domestic_travel_date_page.dart';
 import 'overseas_travel_date_page.dart';
@@ -21,6 +23,7 @@ class TravelTypeSelectPage extends StatefulWidget {
 class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
   bool _loading = true;
   bool _hasUsaAccess = false;
+  final GlobalKey _overseasCardKey = GlobalKey();
 
   @override
   void initState() {
@@ -28,7 +31,6 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
     _checkMapAccess();
   }
 
-  /// ✅ 사용자의 미국 지도 구매 여부 확인
   Future<void> _checkMapAccess() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -44,7 +46,6 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
         final List activeMaps = res['active_maps'] as List;
         if (mounted) {
           setState(() {
-            // 'us'가 포함되어 있는지 확인
             _hasUsaAccess = activeMaps.contains('us');
           });
         }
@@ -54,21 +55,48 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
     } finally {
       if (mounted) {
         setState(() => _loading = false);
+        _showTutorialIfNecessary();
       }
     }
   }
 
-  // ✅ 구매 유도 팝업 (상점 연결 로직 추가)
-  // ✅ [수정 완료] AppDialogs.showAction 적용
+  void _showTutorialIfNecessary() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (TutorialManager.currentStep == 3) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        const double horizontalPadding = 27.0;
+        const double cardHeight = 94.0;
+        const double cardTop = 115.0; // y좌표는 항상 정확하게 나오고 있음
+
+        // ✅ x좌표는 padding 기반으로 직접 계산
+        final manualRect = Rect.fromLTWH(
+          horizontalPadding,
+          cardTop,
+          screenWidth - horizontalPadding * 2,
+          cardHeight,
+        );
+
+        AppGuide.show(
+          context: context,
+          targetKey: _overseasCardKey,
+          message: "onboarding_title_1".tr(),
+          manualRect: manualRect,
+          onTargetClick: () {
+            TutorialManager.markStepComplete(3);
+            _navigateToPage(context, const OverseasTravelDatePage());
+          },
+        );
+      }
+    });
+  }
+
   void _showPurchaseDialog() {
     AppDialogs.showAction(
       context: context,
       title: 'purchase_title',
       message: 'purchase_us_map_msg',
       actionLabel: 'go_to_management',
-      // actionColor는 AppDialogs의 기본값(amber 또는 blue)을 사용합니다.
       onAction: () {
-        // 🎯 관리 페이지 이동 및 복귀 후 권한 체크 로직
         Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const MapManagementPage()),
@@ -90,7 +118,7 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(left: 10), // 왼쪽 패딩 추가
+                      padding: const EdgeInsets.only(left: 10),
                       child: RichText(
                         text: TextSpan(
                           style: const TextStyle(
@@ -117,14 +145,18 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     const SizedBox(height: 16),
 
                     // 🌍 해외 여행
-                    _TravelTypeCard(
-                      title: 'overseas_travel_comma'.tr(),
-                      description: 'overseas_description'.tr(),
-                      iconPath: 'assets/icons/ico_Abroad.svg',
-                      iconColor: const Color(0xFF6C5CE7),
-                      onTap: () => _navigateToPage(
-                        context,
-                        const OverseasTravelDatePage(),
+                    SizedBox(
+                      key: _overseasCardKey,
+                      width: double.infinity,
+                      child: _TravelTypeCard(
+                        title: 'overseas_travel_comma'.tr(),
+                        description: 'overseas_description'.tr(),
+                        iconPath: 'assets/icons/ico_Abroad.svg',
+                        iconColor: const Color(0xFF6C5CE7),
+                        onTap: () => _navigateToPage(
+                          context,
+                          const OverseasTravelDatePage(),
+                        ),
                       ),
                     ),
 
@@ -143,7 +175,8 @@ class _TravelTypeSelectPageState extends State<TravelTypeSelectPage> {
                     ),
 
                     const SizedBox(height: 15),
-                    // 🇺🇸 미국 여행 (비구매 시 잠금 상태)
+
+                    // 🇺🇸 미국 여행
                     _TravelTypeCard(
                       title: 'us_travel_comma'.tr(),
                       description: 'us_description'.tr(),
@@ -184,6 +217,7 @@ class _TravelTypeCard extends StatelessWidget {
   final bool isLocked;
 
   const _TravelTypeCard({
+    super.key,
     required this.title,
     required this.description,
     required this.iconPath,
@@ -214,16 +248,13 @@ class _TravelTypeCard extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // ✅ BoxDecoration(Shape) 제거 후 아이콘만 배치
               Padding(
-                padding: const EdgeInsets.only(
-                  bottom: 20,
-                ), // 원하는 만큼 숫자 조절 (예: 4~8)
+                padding: const EdgeInsets.only(bottom: 20),
                 child: SvgPicture.asset(
                   iconPath,
                   width: 26,
                   height: 26,
-                  color: isLocked ? Color(0xFFCACBCC) : iconColor,
+                  color: isLocked ? const Color(0xFFCACBCC) : iconColor,
                   colorBlendMode: BlendMode.srcIn,
                 ),
               ),
@@ -232,7 +263,6 @@ class _TravelTypeCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ 이미지에서 오류나던 RichText를 깔끔한 Text 위젯으로 교체
                     Text(
                       title,
                       style: const TextStyle(

@@ -1,0 +1,10 @@
+{
+    "configurations": [
+        {
+            "name": "Flutter (lib/features/travel_info/pages/travel_info_page.dart)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/features/travel_info/pages/travel_info_page.dart"
+        }
+    ]
+}

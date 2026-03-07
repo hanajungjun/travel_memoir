@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // ✅ 추가
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:travel_memoir/services/travel_service.dart';
-import 'package:travel_memoir/services/stamp_service.dart'; // ✅ 추가
+import 'package:travel_memoir/services/stamp_service.dart';
 import 'package:travel_memoir/features/travel_diary/pages/travel_diary_list_page.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/core/widgets/skeletons/home_travel_status_header_skeleton.dart';
+import 'package:travel_memoir/features/guide/app_guide.dart';
+import 'package:travel_memoir/features/guide/tutorial_manager.dart';
 
 class HomeTravelStatusHeader extends StatefulWidget {
   final VoidCallback onGoToTravel;
@@ -24,7 +26,7 @@ class HomeTravelStatusHeader extends StatefulWidget {
 
 class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
   final StampService _stampService = StampService();
-
+  final GlobalKey _addBtnKey = GlobalKey();
   // 👇 핵심: 이전 데이터를 캐싱
   Map<String, dynamic>? _cachedTravel;
   Map<String, dynamic>? _cachedStampData;
@@ -56,6 +58,25 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
       _cachedStampData = results[1] as Map<String, dynamic>?;
       _isFirstLoad = false;
     });
+    // 🎯 데이터 로딩 후 화면이 그려지면 가이드 실행 (최초 1회 로직은 별도 추가 권장)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 0.5초 뒤에 상단 가이드 실행
+      Future.delayed(const Duration(milliseconds: 500), () => _showTutorial());
+    });
+  }
+
+  void _showTutorial() {
+    if (TutorialManager.currentStep != 1) return; // 1단계가 아니면 안 띄움
+
+    AppGuide.show(
+      context: context,
+      targetKey: _addBtnKey,
+      message: "no_travels_yet2".tr(),
+      onTargetClick: () {
+        TutorialManager.markStepComplete(1); // 🎯 1단계 완료 저장
+        widget.onGoToTravel();
+      },
+    );
   }
 
   @override
@@ -95,6 +116,7 @@ class _HomeTravelStatusHeaderState extends State<HomeTravelStatusHeader> {
       child: SafeArea(
         bottom: false,
         child: _HeaderContent(
+          addButtonKey: _addBtnKey, // 👈 키 전달
           travel: travel,
           stampData: stampData,
           onGoToTravel: widget.onGoToTravel,
@@ -112,6 +134,7 @@ class _HeaderContent extends StatelessWidget {
   final VoidCallback onGoToTravel;
   final Color bgColor;
   final VoidCallback onRefresh;
+  final GlobalKey addButtonKey; // 👈 1. 키를 받을 변수 추가
 
   const _HeaderContent({
     super.key,
@@ -120,6 +143,7 @@ class _HeaderContent extends StatelessWidget {
     required this.onGoToTravel,
     required this.bgColor,
     required this.onRefresh,
+    required this.addButtonKey, // 👈 2. 생성자 필수 인자로 추가
   });
 
   @override
@@ -253,6 +277,7 @@ class _HeaderContent extends StatelessWidget {
             ),
           ),
           GestureDetector(
+            key: addButtonKey, // 👈 3. 여기에 키를 박습니다!
             onTap: () async {
               if (travel == null) {
                 onGoToTravel();
