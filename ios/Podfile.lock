@@ -134,17 +134,17 @@ PODS:
   - Mantle (2.2.0):
     - Mantle/extobjc (= 2.2.0)
   - Mantle/extobjc (2.2.0)
-  - mapbox_maps_flutter (2.17.0):
+  - mapbox_maps_flutter (2.19.1):
     - Flutter
-    - MapboxMaps (= 11.17.0)
+    - MapboxMaps (= 11.19.0)
     - Turf (= 4.0.0)
-  - MapboxCommon (24.17.0):
+  - MapboxCommon (24.19.0):
     - Turf (= 4.0.0)
-  - MapboxCoreMaps (11.17.0):
-    - MapboxCommon (= 24.17.0)
-  - MapboxMaps (11.17.0):
-    - MapboxCommon (= 24.17.0)
-    - MapboxCoreMaps (= 11.17.0)
+  - MapboxCoreMaps (11.19.0):
+    - MapboxCommon (= 24.19.0)
+  - MapboxMaps (11.19.0):
+    - MapboxCommon (= 24.19.0)
+    - MapboxCoreMaps (= 11.19.0)
     - Turf (= 4.0.0)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
@@ -165,9 +165,9 @@ PODS:
   - PurchasesHybridCommon (14.3.0):
     - RevenueCat (= 5.32.0)
   - RevenueCat (5.32.0)
-  - SDWebImage (5.21.5):
-    - SDWebImage/Core (= 5.21.5)
-  - SDWebImage/Core (5.21.5)
+  - SDWebImage (5.21.7):
+    - SDWebImage/Core (= 5.21.7)
+  - SDWebImage/Core (5.21.7)
   - SDWebImageWebPCoder (0.15.0):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
@@ -337,10 +337,10 @@ SPEC CHECKSUMS:
   kakao_flutter_sdk_common: 600d55b532da0bd37268a529e1add49302477710
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   Mantle: c5aa8794a29a022dfbbfc9799af95f477a69b62d
-  mapbox_maps_flutter: a1dfc0a0825a5ded612bea16fc1eecc9c47cbaf8
-  MapboxCommon: 5cc0e77733478a7b2a3a28af7c38adc8485e07d8
-  MapboxCoreMaps: b7b7703cd8af3ae9088f42c6d23b591947a1eb1f
-  MapboxMaps: 10b01217e5634aa7b6fc1fb10d036598d9240ba6
+  mapbox_maps_flutter: 632563764d2dff820a123312fa5b50417a214b1f
+  MapboxCommon: b40bcf330493e0d218802a63cabbd2efe6ca303b
+  MapboxCoreMaps: badf69766576702ccb09a901c5859a45f0f600c0
+  MapboxMaps: db05259e1ea68e9a8a4e6f9014027418025f2ebe
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   objective_c: 89e720c30d716b036faf9c9684022048eee1eee2
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
@@ -349,7 +349,7 @@ SPEC CHECKSUMS:
   purchases_flutter: 3570127ba41583a75e553d68a763367007830eff
   PurchasesHybridCommon: 7f0944cc5411bdcd1ea5d69affa6a6f9aaf87b13
   RevenueCat: 7e1d0768fb287c9983173c9b28e39ccbeeb828a9
-  SDWebImage: e9c98383c7572d713c1a0d7dd2783b10599b9838
+  SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
