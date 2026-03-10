@@ -1,79 +1,168 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:travel_memoir/core/constants/app_colors.dart';
+import 'package:travel_memoir/env.dart';
 
 class UsaMapPage extends StatefulWidget {
   final bool isReadOnly;
   const UsaMapPage({super.key, this.isReadOnly = false});
 
   @override
-  State<UsaMapPage> createState() => _UsaMapPageState();
+  State<UsaMapPage> createState() => UsaMapPageState();
 }
 
-class _UsaMapPageState extends State<UsaMapPage> {
-  MapboxMap? _map;
-  bool _init = false;
+class UsaMapPageState extends State<UsaMapPage> {
+  final MapController _mapController = MapController();
+  List<Polygon> _polygons = [];
   bool _ready = false;
 
-  static const _usaSource = 'usa-states-source';
-  static const _usaFill = 'usa-states-fill';
   static const _usaGeo = 'assets/geo/processed/usa_states_standard.json';
 
-  final _mainland = CameraOptions(
-    center: Point(coordinates: Position(-98.5, 39.5)),
-    zoom: 2.5,
-  );
-  final _alaska = CameraOptions(
-    center: Point(coordinates: Position(-152.0, 63.0)),
-    zoom: 2.2,
-  );
-  final _hawaii = CameraOptions(
-    center: Point(coordinates: Position(-157.5, 20.5)),
-    zoom: 5.5,
-  );
+  // ✅ 미국 주요 지역 좌표 설정
+  final _mainland = const LatLng(39.5, -98.5);
+  final _alaska = const LatLng(63.0, -152.0);
+  final _hawaii = const LatLng(20.5, -157.5);
 
-  String _hex(Color c) =>
-      '#${c.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+  @override
+  void initState() {
+    super.initState();
+    _loadAndDrawStates();
+  }
 
-  void _moveCamera(CameraOptions options) {
-    _map?.flyTo(options, MapAnimationOptions(duration: 800));
+  // ✅ TravelMapPager 등 외부에서 부르는 새로고침 함수
+  Future<void> refreshData() async {
+    if (!mounted) return;
+    await _loadAndDrawStates();
+  }
+
+  void _moveCamera(LatLng point, double zoom) {
+    _mapController.move(point, zoom);
+  }
+
+  Future<void> _loadAndDrawStates() async {
+    try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      // 1. 수퍼베이스에서 미국 여행 데이터 가져오기
+      final travels = await Supabase.instance.client
+          .from('travels')
+          .select('region_name, is_completed')
+          .eq('user_id', user.id)
+          .eq('travel_type', 'usa');
+
+      final Set<String> visitedStates = {};
+      final Set<String> completedStates = {};
+
+      for (final t in travels) {
+        final stateName = t['region_name']?.toString().toUpperCase();
+        if (stateName != null) {
+          visitedStates.add(stateName);
+          if (t['is_completed'] == true) completedStates.add(stateName);
+        }
+      }
+
+      // 2. GeoJSON 파일 로드 및 파싱
+      final jsonString = await rootBundle.loadString(_usaGeo);
+      final data = json.decode(jsonString);
+      final List<Polygon> newPolygons = [];
+
+      // 색상 설정 (기존 형님 코드의 로직 유지)
+      final doneColor = AppColors.mapOverseaVisitedFill.withOpacity(0.8);
+      final activeColor = const Color(0xFFE74C3C).withOpacity(0.4);
+
+      for (var feature in data['features']) {
+        final name = feature['properties']['NAME'].toString().toUpperCase();
+        if (!visitedStates.contains(name)) continue;
+
+        final color = completedStates.contains(name) ? doneColor : activeColor;
+        final geometry = feature['geometry'];
+
+        // 폴리곤 및 멀티폴리곤 처리
+        if (geometry['type'] == 'Polygon') {
+          newPolygons.add(_buildPolygon(geometry['coordinates'], color));
+        } else if (geometry['type'] == 'MultiPolygon') {
+          for (var poly in geometry['coordinates']) {
+            newPolygons.add(_buildPolygon(poly, color));
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _polygons = newPolygons;
+          _ready = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ [UsaMapPage] Error: $e');
+    }
+  }
+
+  Polygon _buildPolygon(List coords, Color color) {
+    final List list = coords[0] is List ? coords[0] : coords;
+    return Polygon(
+      points: list
+          .map((c) => LatLng(c[1].toDouble(), c[0].toDouble()))
+          .toList(),
+      color: color,
+      borderStrokeWidth: 1,
+      borderColor: Colors.white,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        MapWidget(
-          styleUri: "mapbox://styles/hanajungjun/cmjztbzby003i01sth91eayzw",
-          cameraOptions: _mainland,
-          gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-            Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
-            Factory<ScaleGestureRecognizer>(() => ScaleGestureRecognizer()),
-          },
-          onMapCreated: (map) => _map = map,
-          onStyleLoadedListener: _onStyleLoaded,
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: _mainland,
+            initialZoom: 3.5,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            ),
+          ),
+          children: [
+            TileLayer(
+              urlTemplate:
+                  'https://api.mapbox.com/styles/v1/{styleId}/tiles/256/{z}/{x}/{y}@2x?access_token={accessToken}',
+              additionalOptions: {
+                'styleId': 'hanajungjun/cmjztbzby003i01sth91eayzw',
+                'accessToken': AppEnv.mapboxAccessToken,
+              },
+              tileSize: 256,
+              tileDisplay: const TileDisplay.fadeIn(
+                duration: Duration(milliseconds: 300),
+              ),
+            ),
+            PolygonLayer(polygons: _polygons),
+          ],
         ),
+        // 로딩 스피너
         if (!_ready)
           const ColoredBox(
             color: Colors.white,
             child: Center(child: CircularProgressIndicator()),
           ),
+        // ✅ 카메라 퀵 이동 버튼 (기존 기능 그대로!)
         if (_ready)
           Positioned(
             top: 10,
             left: 10,
             child: Row(
               children: [
-                _buildMapButton('Mainland', () => _moveCamera(_mainland)),
+                _buildMapButton('Mainland', () => _moveCamera(_mainland, 3.5)),
                 const SizedBox(width: 6),
-                _buildMapButton('Alaska', () => _moveCamera(_alaska)),
+                _buildMapButton('Alaska', () => _moveCamera(_alaska, 3.0)),
                 const SizedBox(width: 6),
-                _buildMapButton('Hawaii', () => _moveCamera(_hawaii)),
+                _buildMapButton('Hawaii', () => _moveCamera(_hawaii, 6.0)),
               ],
             ),
           ),
@@ -100,119 +189,5 @@ class _UsaMapPageState extends State<UsaMapPage> {
         ),
       ),
     );
-  }
-
-  Future<void> _onStyleLoaded(StyleLoadedEventData _) async {
-    if (_init || _map == null) return;
-    _init = true;
-
-    // ✅ 1. 안정적인 로드를 위해 지연 시간 추가
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return; // 🎯 비동기 대기 후 반드시 체크
-    try {
-      // 2. 각 메서드 호출 시 try-catch로 감싸서 채널 에러가 전역으로 퍼지지 않게 합니다.
-      await _map!.style.setProjection(
-        StyleProjection(name: StyleProjectionName.mercator),
-      );
-
-      await _localizeLabels();
-      await _drawVisitedStates();
-
-      if (mounted) setState(() => _ready = true);
-    } catch (e) {
-      debugPrint('Mapbox style init error: $e');
-    }
-  }
-
-  Future<void> _drawVisitedStates() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null || _map == null) return;
-
-    final travels = await Supabase.instance.client
-        .from('travels')
-        .select('region_name, is_completed')
-        .eq('user_id', user.id)
-        .eq('travel_type', 'usa');
-
-    final Set<String> visitedStates = {};
-    final Set<String> completedStates = {};
-
-    for (final t in (travels as List)) {
-      final stateName = t['region_name']?.toString();
-      if (stateName != null) {
-        // ✅ 2. DB 데이터를 대문자로 처리하여 세트에 저장
-        final upperName = stateName.toUpperCase();
-        visitedStates.add(upperName);
-        if (t['is_completed'] == true) completedStates.add(upperName);
-      }
-    }
-
-    final style = _map!.style;
-    final usaJson = await rootBundle.loadString(_usaGeo);
-
-    // 🎯 [핵심] 채널 연결 상태를 확인하며 안전하게 소스/레이어 제거
-    // styleSourceExists 호출 시 발생할 수 있는 PlatformException을 개별적으로 잡습니다.
-    try {
-      if (await style.styleSourceExists(_usaSource)) {
-        await style.removeStyleSource(_usaSource);
-      }
-      if (await style.styleLayerExists(_usaFill)) {
-        await style.removeStyleLayer(_usaFill);
-      }
-    } catch (e) {
-      debugPrint("Mapbox Source/Layer check error (Ignored): $e");
-    }
-
-    // 소스 및 레이어 추가 (위젯이 살아있을 때만)
-    if (!mounted) return;
-
-    await style.addSource(GeoJsonSource(id: _usaSource, data: usaJson));
-    await style.addLayer(FillLayer(id: _usaFill, sourceId: _usaSource));
-
-    final doneColor = _hex(AppColors.mapOverseaVisitedFill);
-    final activeColor = _hex(const Color(0xFFE74C3C).withOpacity(0.4));
-
-    // ✅ 3. GeoJSON의 NAME도 대문자로 변환(['upcase'])하여 비교
-    await style.setStyleLayerProperty(_usaFill, 'filter', [
-      'in',
-      [
-        'upcase',
-        ['get', 'NAME'],
-      ],
-      ['literal', visitedStates.toList()],
-    ]);
-    await style.setStyleLayerProperty(_usaFill, 'fill-color', [
-      'case',
-      [
-        'in',
-        [
-          'upcase',
-          ['get', 'NAME'],
-        ],
-        ['literal', completedStates.toList()],
-      ],
-      doneColor,
-      activeColor,
-    ]);
-    await style.setStyleLayerProperty(_usaFill, 'fill-opacity', 0.6);
-  }
-
-  Future<void> _localizeLabels() async {
-    final lang = context.locale.languageCode;
-    try {
-      if (await _map!.style.styleLayerExists('state-label')) {
-        await _map!.style.setStyleLayerProperty(
-          'state-label',
-          'text-field',
-          lang == 'ko' ? ['get', 'name_ko'] : ['get', 'name_en'],
-        );
-      }
-    } catch (_) {}
-  }
-
-  @override
-  void dispose() {
-    _map = null; // 🎯 컨트롤러 참조 해제
-    super.dispose();
   }
 }

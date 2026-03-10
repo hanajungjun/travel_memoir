@@ -120,10 +120,7 @@ class _MapMainPageState extends State<MapMainPage> {
       configs.add({
         'id': 'world',
         'label': 'overseas'.tr(),
-        'page': const GlobalMapPage(
-          key: ValueKey('GlobalMap_Main'),
-          showLastTravelFocus: true,
-        ),
+        'page': const GlobalMapPage(key: ValueKey('GlobalMap_Main')),
       });
     }
 

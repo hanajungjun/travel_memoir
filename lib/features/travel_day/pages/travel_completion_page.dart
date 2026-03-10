@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ 추가
 
 /**
  * 📱 Screen ID : TRAVEL_COMPLETION_PAGE
@@ -41,9 +42,8 @@ processingTask() (AI 커버 생성)
  ↓
 /travel_info 이동                              
 */
-
 class TravelCompletionPage extends StatefulWidget {
-  final Future<void> Function() processingTask; // ✅ Function()으로 변
+  final Future<void> Function() processingTask;
   final RewardedAd? rewardedAd;
   final bool usedPaidStamp;
   final bool isVip;
@@ -61,26 +61,44 @@ class TravelCompletionPage extends StatefulWidget {
 }
 
 class _TravelCompletionPageState extends State<TravelCompletionPage> {
+  static const int _adInterval = 5; // ✅ 광고 주기 (5번에 1번)
+  static const String _prefKey = 'travel_complete_count'; // ✅ 저장 키
+
   @override
   void initState() {
     super.initState();
     _startProcess();
   }
 
+  // ✅ 광고 표시 여부 판단 (5회마다 true)
+  Future<bool> _shouldShowAd() async {
+    final prefs = await SharedPreferences.getInstance();
+    final count = (prefs.getInt(_prefKey) ?? 0) + 1;
+    await prefs.setInt(_prefKey, count);
+
+    debugPrint('🧳 [TravelCompletion] 여행 완료 횟수: $count');
+    return count % _adInterval == 0;
+  }
+
   Future<void> _startProcess() async {
     try {
-      if (!widget.isVip && !widget.usedPaidStamp && widget.rewardedAd != null) {
+      final bool adEligible =
+          !widget.isVip && !widget.usedPaidStamp && widget.rewardedAd != null;
+      final bool shouldShow = adEligible && await _shouldShowAd();
+
+      if (shouldShow) {
         if (Platform.isIOS) {
-          // ✅ iOS: 광고 + task 병렬
           await Future.wait([_showAd(), widget.processingTask()]);
         } else {
-          // ✅ Android: 광고 먼저 → task 직렬
           await _showAd();
           await Future.delayed(const Duration(milliseconds: 300));
           await widget.processingTask();
         }
       } else {
-        // VIP or 유료코인: 광고 없이 바로 task
+        // ✅ 광고 없이 바로 처리 (VIP / 유료코인 / 5회 미만)
+        if (widget.rewardedAd != null && !adEligible == false) {
+          widget.rewardedAd!.dispose(); // ✅ 안 쓰는 광고 메모리 해제
+        }
         await widget.processingTask();
       }
     } catch (e) {
@@ -99,7 +117,6 @@ class _TravelCompletionPageState extends State<TravelCompletionPage> {
   Future<void> _showAd() async {
     final completer = Completer<void>();
 
-    // 30초 타임아웃 (광고 무응답 방어)
     Timer(const Duration(seconds: 30), () {
       if (!completer.isCompleted) {
         debugPrint('⏰ [TravelCompletionPage] 광고 타임아웃 - 강제 진행');

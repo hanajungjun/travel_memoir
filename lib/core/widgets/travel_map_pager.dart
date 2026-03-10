@@ -6,7 +6,7 @@ import 'package:travel_memoir/core/constants/app_colors.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 
 import 'package:travel_memoir/features/map/pages/domestic_map_page.dart';
-import 'package:travel_memoir/features/map/pages/global_map_page_%EC%9B%90%EB%B3%B8.dart';
+import 'package:travel_memoir/features/map/pages/global_map_page.dart';
 import 'package:travel_memoir/features/map/pages/map_main_page.dart';
 
 class TravelMapPager extends StatefulWidget {
@@ -169,39 +169,40 @@ class _TravelMapPagerState extends State<TravelMapPager> {
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Stack(
-              children: [
-                PageView(
-                  controller: _controller,
-                  physics: const NeverScrollableScrollPhysics(),
-                  onPageChanged: (i) => _safeSetState(() => _index = i),
-                  children: dynamicConfigs
-                      .map((c) => c['page'] as Widget)
-                      .toList(),
-                ),
-                // 💡 지도를 탭했을 때 현재 인덱스의 타입에 맞는 메인 페이지로 이동
-                Positioned.fill(
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () async {
-                        final currentType = dynamicConfigs[_index]['type'];
-
-                        await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => MapMainPage(
-                              travelId: widget.travelId,
-                              travelType: currentType,
+            child: ColoredBox(
+              color: const Color(0xFFD3E3F3), // ← 바다색 배경
+              child: Stack(
+                children: [
+                  PageView(
+                    controller: _controller,
+                    physics: const NeverScrollableScrollPhysics(),
+                    onPageChanged: (i) => _safeSetState(() => _index = i),
+                    children: dynamicConfigs
+                        .map((c) => c['page'] as Widget)
+                        .toList(),
+                  ),
+                  Positioned.fill(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () async {
+                          final currentType = dynamicConfigs[_index]['type'];
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MapMainPage(
+                                travelId: widget.travelId,
+                                travelType: currentType,
+                              ),
                             ),
-                          ),
-                        );
-                        await _refreshMap();
-                      },
+                          );
+                          await _refreshMap();
+                        },
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

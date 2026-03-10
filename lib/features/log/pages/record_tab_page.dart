@@ -264,12 +264,12 @@ class SummaryHeroCard extends StatelessWidget {
                       letterSpacing: -1,
                     ),
                   ),
-                  const SizedBox(height: 50),
+                  const SizedBox(height: 35),
                   _infoTile(
                     'total_travels_format1'.tr(),
                     'total_travels_format2'.tr(args: [totalCount.toString()]),
                   ),
-                  const SizedBox(height: 35),
+                  const SizedBox(height: 30),
                   _infoTile(
                     'last_travel_format1'.tr(),
                     'last_travel_format2'.tr(

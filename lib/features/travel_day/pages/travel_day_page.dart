@@ -378,7 +378,7 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   Future<void> _pickImages() async {
-    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
     final int currentTotal = _localPhotos.length + _remotePhotoUrls.length;
     if (currentTotal >= 3) return;
 
@@ -455,6 +455,7 @@ class _TravelDayPageState extends State<TravelDayPage>
 
   Future<void> _handleGenerateWithStamp() async {
     // ✅ AI 동의 팝업 (최초 1회만)
+    FocusManager.instance.primaryFocus?.unfocus();
     final prefs = await SharedPreferences.getInstance();
     final bool hasConsented = prefs.getBool('ai_data_consent') ?? false;
 
@@ -1026,7 +1027,17 @@ class _TravelDayPageState extends State<TravelDayPage>
         : AppColors.travelingPurple;
 
     return GestureDetector(
-      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      onTap: () {
+        // 🔍 현재 포커스가 어디 있는지 확인합니다.
+        final currentFocus = FocusScope.of(context);
+
+        // 🛑 만약 이미 일기장에 포커스가 가 있는 상태가 아니라면(즉, 빈 공간을 누른 거라면)
+        // 그때만 키보드를 닫으라고 명령합니다.
+        if (!currentFocus.hasPrimaryFocus &&
+            currentFocus.focusedChild != null) {
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+      },
       child: Scaffold(
         backgroundColor: const Color(0xFFF6F6F6),
         resizeToAvoidBottomInset: false,

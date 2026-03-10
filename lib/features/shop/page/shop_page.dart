@@ -153,6 +153,11 @@ class _ShopPageState extends State<ShopPage> {
                   id.contains('vip');
             }).toList();
 
+            for (final p in allPackages) {
+              debugPrint(
+                '📦 package: ${p.identifier}, type: ${p.packageType}, price: ${p.storeProduct.priceString}',
+              );
+            }
             _subscriptionPackages.sort(
               (a, b) => a.storeProduct.price.compareTo(b.storeProduct.price),
             );
@@ -632,7 +637,7 @@ class _ShopPageState extends State<ShopPage> {
 
   Widget _buildSubscriptionSection() {
     return SizedBox(
-      height: 220,
+      height: 230,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 27),
@@ -645,7 +650,7 @@ class _ShopPageState extends State<ShopPage> {
           return SizedBox(
             width: MediaQuery.of(context).size.width * 0.8,
             child: _buildSubscriptionCard(
-              title: p.storeProduct.title,
+              title: _getSubscriptionTitle(p),
               price: p.storeProduct.priceString,
               period: _packagePeriodLabel(context, p),
               benefits: isVip
@@ -734,7 +739,7 @@ class _ShopPageState extends State<ShopPage> {
                       ),
                     ),
                     TextSpan(
-                      text: ' (price $period)', // 👈 금액 부분
+                      text: ' ($price $period)', // ✅ 이렇게!
                       style: const TextStyle(
                         color: Color(0xFFFFD700), // ✨ 골드/옐로우 계열 색상
                         fontWeight: FontWeight.w800, // 좀 더 두껍게 강조
@@ -899,6 +904,19 @@ class _ShopPageState extends State<ShopPage> {
       } catch (e) {
         debugPrint('❌ URL 실행 에러: $e');
       }
+    }
+  }
+
+  String _getSubscriptionTitle(Package p) {
+    final isKo = context.locale.languageCode == 'ko';
+    final id = p.identifier.toLowerCase();
+
+    if (id.contains('vip')) {
+      return isKo ? 'VIP' : 'VIP';
+    } else if (p.packageType == PackageType.annual) {
+      return isKo ? '연간 구독' : 'Annual Premium';
+    } else {
+      return isKo ? '월간 구독' : 'Monthly Premium';
     }
   }
 
