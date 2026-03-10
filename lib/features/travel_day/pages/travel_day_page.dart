@@ -171,6 +171,8 @@ class _TravelDayPageState extends State<TravelDayPage>
     super.dispose();
   }
 
+  int _adShowCounter = 0;
+
   Future<void> _initData() async {
     await _loadDefaultCoinSetting();
     await _loadDiary();
@@ -179,6 +181,7 @@ class _TravelDayPageState extends State<TravelDayPage>
     _checkTripType();
     _checkVipStatus();
     _loadDailyUsage();
+    await _loadAdCounter(); // ✅ 추가
   }
 
   Future<void> _loadDailyUsage() async {
@@ -229,6 +232,17 @@ class _TravelDayPageState extends State<TravelDayPage>
         () => _usePaidStampMode =
             prefs.getBool('use_credit_mode_default') ?? false,
       );
+  }
+
+  Future<void> _loadAdCounter() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (mounted)
+      setState(() => _adShowCounter = prefs.getInt('ad_show_counter') ?? 0);
+  }
+
+  Future<void> _saveAdCounter(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('ad_show_counter', value);
   }
 
   Future<void> _saveDefaultCoinSetting(bool value) async {
@@ -384,18 +398,31 @@ class _TravelDayPageState extends State<TravelDayPage>
 
     // ✅ Android 권한 요청 추가
     if (Platform.isAndroid) {
+      // 1. 디바이스 정보 확인 (device_info_plus 패키지 사용 권장하나, 일단 permission_handler로 처리)
       PermissionStatus status;
 
-      // Android 13+ (API 33+)는 READ_MEDIA_IMAGES
-      // Android 12 이하는 READ_EXTERNAL_STORAGE
-      if (await Permission.photos.isDenied) {
-        status = await Permission.photos.request();
+      // ✅ Android 13 (SDK 33) 이상인지 확인하는 로직이 필요합니다.
+      // 하지만 permission_handler에서 .photos는 내부적으로 SDK 33 이상에서만 작동합니다.
+      // 구형 기기(S7, P11)를 위해 storage 권한도 체크해야 합니다.
+
+      if (await Permission.photos.isGranted ||
+          await Permission.storage.isGranted) {
+        status = PermissionStatus.granted;
       } else {
-        status = await Permission.photos.status;
+        // 🎯 핵심: Android 13 미만 기기들을 위해 storage 권한도 함께 요청
+        Map<Permission, PermissionStatus> statuses = await [
+          Permission.photos,
+          Permission.storage,
+        ].request();
+
+        status =
+            statuses[Permission.photos]!.isGranted ||
+                statuses[Permission.storage]!.isGranted
+            ? PermissionStatus.granted
+            : PermissionStatus.denied;
       }
 
       if (status.isPermanentlyDenied) {
-        // 설정 화면으로 유도
         AppToast.show(context, 'gallery_permission_denied'.tr());
         await openAppSettings();
         return;
@@ -532,17 +559,10 @@ class _TravelDayPageState extends State<TravelDayPage>
       _isAdDone = true;
       _checkSync();
     } else {
-      if (_rewardedAd != null && _isAdLoaded) {
-        _rewardedAd!.show(
-          onUserEarnedReward: (_, reward) {
-            _isAdDone = true;
-            _checkSync();
-          },
-        );
-      } else {
-        _isAdDone = true;
-        _checkSync();
-      }
+      // 🎯 카운터 체크: _playAdParallel/_playAdSerial에서 광고를 처리하므로
+      // 여기선 그냥 바로 done 처리
+      _isAdDone = true;
+      _checkSync();
     }
   }
 
@@ -707,7 +727,12 @@ class _TravelDayPageState extends State<TravelDayPage>
       }
     });
 
-    if (_rewardedAd != null && _isAdLoaded) {
+    // ✅ 2번에 1번만 광고 노출 (카운터가 짝수일 때만)
+    final bool shouldShowAd = (_adShowCounter % 2 == 0);
+    _adShowCounter++;
+    await _saveAdCounter(_adShowCounter);
+
+    if (shouldShowAd && _rewardedAd != null && _isAdLoaded) {
       _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
@@ -721,14 +746,13 @@ class _TravelDayPageState extends State<TravelDayPage>
           if (!completer.isCompleted) completer.complete();
         },
       );
-
       _rewardedAd!.show(
         onUserEarnedReward: (_, reward) {
           _logger.log("🎁 광고 보상 획득 완료", tag: "AD_PROCESS");
         },
       );
     } else {
-      _logger.warn("⚠️ 광고 미로드 상태", tag: "AD_PROCESS");
+      _logger.log("⏭️ 광고 스킵 (카운터: $_adShowCounter)", tag: "AD_PROCESS");
       if (!completer.isCompleted) completer.complete();
     }
 
@@ -745,12 +769,16 @@ class _TravelDayPageState extends State<TravelDayPage>
         completer.complete();
       }
     });
+    // ✅ 2번에 1번만 광고 노출
+    final bool shouldShowAd = (_adShowCounter % 2 == 0);
+    _adShowCounter++;
+    await _saveAdCounter(_adShowCounter);
 
-    if (_rewardedAd != null && _isAdLoaded) {
+    if (shouldShowAd && _rewardedAd != null && _isAdLoaded) {
       _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
-          _loadAds(); // 다음 광고 미리 로드
+          _loadAds();
           if (!completer.isCompleted) completer.complete();
         },
         onAdFailedToShowFullScreenContent: (ad, err) {
@@ -760,20 +788,17 @@ class _TravelDayPageState extends State<TravelDayPage>
           if (!completer.isCompleted) completer.complete();
         },
       );
-
       await _rewardedAd!.show(
         onUserEarnedReward: (_, reward) {
           _logger.log("🎁 광고 보상 획득", tag: "AD_PROCESS");
         },
       );
     } else {
-      _logger.warn("⚠️ 광고 미로드 상태 - 스킵", tag: "AD_PROCESS");
+      _logger.log("⏭️ 광고 스킵 (카운터: $_adShowCounter)", tag: "AD_PROCESS");
       completer.complete();
     }
 
     await completer.future;
-
-    // ✅ Android lifecycle 안정화
     await Future.delayed(const Duration(milliseconds: 300));
   }
 

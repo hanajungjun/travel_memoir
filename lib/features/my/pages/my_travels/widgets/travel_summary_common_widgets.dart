@@ -214,7 +214,7 @@ class CommonTravelSummaryCard extends StatelessWidget {
             'travel_summary'.tr(),
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
 
           // 🎯 이미지 아이콘(이모지) 적용
           _buildSummaryItem(
@@ -251,8 +251,16 @@ class CommonTravelSummaryCard extends StatelessWidget {
       children: [
         Text(emoji, style: const TextStyle(fontSize: 13)),
         const SizedBox(width: 5),
-        Text(label, style: TextStyle(fontSize: 13, color: Color(0xFF2B2B2B))),
-        const Spacer(),
+        Flexible(
+          // ✅ label을 Flexible로 감싸서 value에 공간 양보
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF2B2B2B)),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+        const SizedBox(width: 8), // ✅ Spacer → SizedBox로 교체
         Text(
           value,
           style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
