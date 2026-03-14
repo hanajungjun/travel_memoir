@@ -189,33 +189,56 @@ class MySupportPage extends StatelessWidget {
                               ),
 
                               // ❸ 하단 버전 정보 (맨 밑 오른쪽으로!)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'app_brand_name'.tr(),
-                                      style: AppTextStyles.sectionTitle
-                                          .copyWith(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.textColor01,
-                                          ),
+                              // ❸ 하단 영역 (인스타그램 + 버전 정보)
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment
+                                    .spaceBetween, // 👈 왼쪽(인스타)과 오른쪽(버전) 양 끝으로 배치!
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  // 📸 인스타그램 아이콘 + 연결 로직
+                                  GestureDetector(
+                                    onTap: () => _launchURL(
+                                      'https://www.instagram.com/hajungtech/',
                                     ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      'app_version_format'.tr(
-                                        args: ['1.0.3', '100'],
-                                      ),
-                                      style: AppTextStyles.caption.copyWith(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w300,
-                                        color: const Color(0xFF949494),
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 2,
+                                      ), // 버전 정보랑 높이 맞추기용
+                                      child: SvgPicture.asset(
+                                        'assets/icons/ico_instagram.svg', // 👈 형님 아이콘 파일명 확인!
+                                        width: 24,
+                                        height: 24,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+
+                                  // 🏷️ 기존 버전 정보 (Column 그대로 유지)
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        'app_brand_name'.tr(),
+                                        style: AppTextStyles.sectionTitle
+                                            .copyWith(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.textColor01,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'app_version_format'.tr(
+                                          args: ['1.0.3', '100'],
+                                        ),
+                                        style: AppTextStyles.caption.copyWith(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w300,
+                                          color: const Color(0xFF949494),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ],
                           ),

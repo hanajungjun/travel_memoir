@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -61,9 +62,12 @@ class _HomePageState extends State<HomePage> with RouteAware {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 
-    try {
-      await FlutterAppBadgeControl.removeBadge();
-    } catch (e) {}
+    // ✅ 안드로이드는 badge API 지원 안 함 → iOS만 실행
+    if (Platform.isIOS) {
+      try {
+        await FlutterAppBadgeControl.removeBadge();
+      } catch (e) {}
+    }
 
     // 일반 보상 수량
     int normalRewardAmount = 5;

@@ -13,7 +13,7 @@ import 'package:travel_memoir/services/payment_service.dart';
 import 'package:travel_memoir/shared/styles/text_styles.dart';
 import 'package:travel_memoir/services/stamp_service.dart';
 import 'package:travel_memoir/core/widgets/popup/app_toast.dart';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class ShopPage extends StatefulWidget {
@@ -195,9 +195,17 @@ class _ShopPageState extends State<ShopPage> {
   // ==========================================
 
   void _loadAds() {
-    final adId = Platform.isAndroid
-        ? 'ca-app-pub-3890698783881393/3553280276'
-        : 'ca-app-pub-3890698783881393/4814391052';
+    // final adId = Platform.isAndroid
+    //     ? 'ca-app-pub-3890698783881393/3553280276'
+    //     : 'ca-app-pub-3890698783881393/4814391052';
+
+    final adId = kDebugMode
+        ? (Platform.isAndroid
+              ? 'ca-app-pub-3940256099942544/6300978111' // 안드로이드 테스트 ID
+              : 'ca-app-pub-3940256099942544/2934735716') // iOS 테스트 ID
+        : (Platform.isAndroid
+              ? 'ca-app-pub-3890698783881393/3553280276' // 형님 실제 안드로이드 ID
+              : 'ca-app-pub-3890698783881393/4814391052'); // 형님 실제 iOS ID
     RewardedAd.load(
       adUnitId: adId,
       request: const AdRequest(),

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:async';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
@@ -464,9 +464,17 @@ class _TravelDayPageState extends State<TravelDayPage>
   }
 
   void _loadAds() {
-    final adId = Platform.isAndroid
-        ? 'ca-app-pub-3890698783881393/3553280276'
-        : 'ca-app-pub-3890698783881393/4814391052';
+    // final adId = Platform.isAndroid
+    //     ? 'ca-app-pub-3890698783881393/3553280276'
+    //     : 'ca-app-pub-3890698783881393/4814391052';
+
+    final adId = kDebugMode
+        ? (Platform.isAndroid
+              ? 'ca-app-pub-3940256099942544/6300978111' // 안드로이드 테스트 ID
+              : 'ca-app-pub-3940256099942544/2934735716') // iOS 테스트 ID
+        : (Platform.isAndroid
+              ? 'ca-app-pub-3890698783881393/3553280276' // 형님 실제 안드로이드 ID
+              : 'ca-app-pub-3890698783881393/4814391052'); // 형님 실제 iOS ID
     RewardedAd.load(
       adUnitId: adId,
       request: const AdRequest(),

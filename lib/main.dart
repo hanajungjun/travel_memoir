@@ -191,7 +191,7 @@ class _TravelMemoirAppWrapperState extends State<_TravelMemoirAppWrapper> {
   @override
   void initState() {
     super.initState();
-
+    _loadMyToken();
     _initNotificationPermission(); // 🔔 안드로이드 13+ 알림 권한 시스템 팝업 요청
     _initMediaStorePermission(); // ✅ [추가] 갤러리 접근 권한 요청
 
@@ -200,6 +200,13 @@ class _TravelMemoirAppWrapperState extends State<_TravelMemoirAppWrapper> {
         setState(() => _isLoadingComplete = true);
       }
     });
+  }
+
+  Future<void> _loadMyToken() async {
+    String? token = await FirebaseMessaging.instance.getToken();
+    print("--------- 내 기기 FCM 토큰 ---------");
+    print(token);
+    print("----------------------------------");
   }
 
   // 🎯 배포 버전에서 알림 팝업을 확실히 띄우기 위한 함수
