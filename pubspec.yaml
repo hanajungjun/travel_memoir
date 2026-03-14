@@ -4,8 +4,8 @@ description: Travel Memoir project.
 publish_to: 'none'
 
 
-#version: 1.0.3+3
-version: 1.0.0+53
+version: 1.0.4+4
+#version: 1.0.0+53
 
 
 environment:

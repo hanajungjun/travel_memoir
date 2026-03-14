@@ -228,7 +228,7 @@ class MySupportPage extends StatelessWidget {
                                       const SizedBox(height: 3),
                                       Text(
                                         'app_version_format'.tr(
-                                          args: ['1.0.3', '100'],
+                                          args: ['1.0.4', '100'],
                                         ),
                                         style: AppTextStyles.caption.copyWith(
                                           fontSize: 12,
