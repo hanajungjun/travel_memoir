@@ -136,6 +136,15 @@ class DomesticMapPageState extends State<DomesticMapPage>
     return list.map((c) => LatLng(c[1].toDouble(), c[0].toDouble())).toList();
   }
 
+  String get _mapStyleId {
+    switch (context.locale.languageCode) {
+      case 'ko':
+        return 'hanajungjun/cmmu9b4h400bc01sk8irsdheu'; // 한국어
+      default:
+        return 'hanajungjun/cmjztbzby003i01sth91eayzw'; // 영어(기본)
+    }
+  }
+
   // ✅ 터치 시 지역 판별 (Ray-casting)
   void _handleMapTap(LatLng tapPoint) {
     if (widget.readOnly) return;
@@ -205,13 +214,11 @@ class DomesticMapPageState extends State<DomesticMapPage>
           urlTemplate:
               'https://api.mapbox.com/styles/v1/{styleId}/tiles/256/{z}/{x}/{y}@2x?access_token={accessToken}',
           additionalOptions: {
-            'styleId': 'hanajungjun/cmjztbzby003i01sth91eayzw',
+            'styleId': _mapStyleId, // ← 여기만 변경
             'accessToken': AppEnv.mapboxAccessToken,
           },
-          // 💡 맵박스 타일 규격 맞춤 (여백 방지 핵심)
           userAgentPackageName: 'com.hanajungjun.travelmemoir',
           tileSize: 256,
-
           tileDisplay: const TileDisplay.fadeIn(
             duration: Duration(milliseconds: 300), // ✅ 수정완료
           ),

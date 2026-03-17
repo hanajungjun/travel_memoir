@@ -38,8 +38,9 @@ class GlobalMapPageState extends State<GlobalMapPage>
   List<Polygon> _polygons = [];
   Map<String, List<List<LatLng>>> _countryPolygonsData = {};
 
-  // 나라 이름 (언어별)
-  Map<String, String> _countryNameData = {};
+  // ✅ 언어별 나라 이름 분리 저장 (탭 시점에 locale 읽기 위해)
+  Map<String, String> _countryNameKo = {};
+  Map<String, String> _countryNameEn = {};
 
   // 캐시된 월드 GeoJSON
   String? _cachedWorldJson;
@@ -79,12 +80,13 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
       final List<Polygon> newPolygons = [];
       final Map<String, List<List<LatLng>>> newData = {};
-      final Map<String, String> newNameData = {};
+
+      // ✅ ko/en 분리
+      final Map<String, String> newNameKo = {};
+      final Map<String, String> newNameEn = {};
 
       final doneColor = AppColors.mapFill.withOpacity(0.8);
       final activeColor = AppColors.mapActiveFill.withOpacity(0.8);
-
-      final isKo = context.locale.languageCode == 'ko';
 
       for (var feature in data['features']) {
         final props = feature['properties'];
@@ -100,14 +102,15 @@ class GlobalMapPageState extends State<GlobalMapPage>
         }
         if (code.isEmpty) continue;
 
-        // 언어별 나라 이름 저장
+        // ✅ 저장 시점에 locale 판단 없이 ko/en 둘 다 저장
         if (code == MapConstants.kosovoCode) {
-          newNameData[code] = 'kosovo'.tr();
+          newNameKo[code] = 'kosovo'.tr();
+          newNameEn[code] = 'Kosovo';
         } else {
-          final name = isKo
-              ? (props['NAME_KO'] ?? props['name'] ?? code).toString()
-              : (props['name'] ?? props['NAME'] ?? code).toString();
-          newNameData[code] = name;
+          newNameKo[code] =
+              (props['NAME_KO'] ?? props['name'] ?? props['NAME'] ?? code)
+                  .toString();
+          newNameEn[code] = (props['name'] ?? props['NAME'] ?? code).toString();
         }
 
         Color fillColor = Colors.transparent;
@@ -161,7 +164,8 @@ class GlobalMapPageState extends State<GlobalMapPage>
         setState(() {
           _polygons = newPolygons;
           _countryPolygonsData = newData;
-          _countryNameData = newNameData;
+          _countryNameKo = newNameKo; // ✅
+          _countryNameEn = newNameEn; // ✅
           _ready = true;
         });
         if (widget.showLastTravelFocus) _focusOnLast();
@@ -280,7 +284,12 @@ class GlobalMapPageState extends State<GlobalMapPage>
 
     // 미국은 나라 단위 팝업 제외 (주 단위로만)
     if (hitCode != null && hitCode != MapConstants.usCode) {
-      final regionName = _countryNameData[hitCode] ?? hitCode;
+      // ✅ 탭 시점에 locale 판단 → 항상 정확한 언어로 표시
+      final isKo = context.locale.languageCode == 'ko';
+      final regionName = isKo
+          ? (_countryNameKo[hitCode] ?? hitCode)
+          : (_countryNameEn[hitCode] ?? hitCode);
+
       _showPopup(
         countryCode: hitCode,
         regionName: regionName,
@@ -303,6 +312,15 @@ class GlobalMapPageState extends State<GlobalMapPage>
       }
     }
     return isInside;
+  }
+
+  String get _mapStyleId {
+    switch (context.locale.languageCode) {
+      case 'ko':
+        return 'hanajungjun/cmmu9b4h400bc01sk8irsdheu'; // 한국어
+      default:
+        return 'hanajungjun/cmjztbzby003i01sth91eayzw'; // 영어(기본)
+    }
   }
 
   Future<void> _focusOnLast() async {
@@ -353,7 +371,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
                   urlTemplate:
                       'https://api.mapbox.com/styles/v1/{styleId}/tiles/256/{z}/{x}/{y}@2x?access_token={accessToken}',
                   additionalOptions: {
-                    'styleId': 'hanajungjun/cmjztbzby003i01sth91eayzw',
+                    'styleId': _mapStyleId, // ← 여기만 변경
                     'accessToken': AppEnv.mapboxAccessToken,
                   },
                   userAgentPackageName: 'com.hanajungjun.travelmemoir',
@@ -395,7 +413,7 @@ class GlobalMapPageState extends State<GlobalMapPage>
         opacity: anim.value,
         child: AiMapPopup(
           imageUrl: finalUrl,
-          regionName: regionName, // 이미 언어별 이름이므로 .tr() 불필요
+          regionName: regionName,
           summary: result.summary.isEmpty
               ? 'no_memories_recorded'.tr()
               : result.summary,
