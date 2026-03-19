@@ -224,14 +224,21 @@ class SummaryHeroCard extends StatelessWidget {
     final end =
         DateTime.tryParse(lastTravel['end_date'] ?? '') ?? DateTime.now();
 
-    // 🎯 디자인 수정: Spacer 사용 시 발생할 수 있는 런타임 오류 방지를 위해 LayoutBuilder 사용
     return LayoutBuilder(
       builder: (context, constraints) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          // 🎯 Spacer 대신 spaceBetween을 사용해 요소들이 화면에 골고루 배치되게 합니다.
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // 1. 상단 텍스트 및 정보 영역
             Padding(
-              padding: const EdgeInsets.fromLTRB(45, 115, 45, 0),
+              padding: const EdgeInsets.fromLTRB(
+                45,
+                80,
+                45,
+                0,
+              ), // 상단 여백을 115에서 80으로 줄임
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -239,9 +246,9 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_title'.tr(),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 29,
+                      fontSize: 27, // 29 -> 27 소폭 조정
                       fontWeight: FontWeight.w500,
-                      height: 1.4,
+                      height: 1.3,
                       letterSpacing: -0.5,
                     ),
                   ),
@@ -249,7 +256,7 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_label'.tr(),
                     style: const TextStyle(
                       color: Color(0xFFFFC669),
-                      fontSize: 29,
+                      fontSize: 27,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
                       letterSpacing: -0.5,
@@ -259,17 +266,17 @@ class SummaryHeroCard extends StatelessWidget {
                     'memory_hero_subtitle'.tr(),
                     style: const TextStyle(
                       color: Colors.white60,
-                      fontSize: 24,
+                      fontSize: 22,
                       fontWeight: FontWeight.w100,
                       letterSpacing: -1,
                     ),
                   ),
-                  const SizedBox(height: 35),
+                  const SizedBox(height: 25), // 35 -> 25 줄임
                   _infoTile(
                     'total_travels_format1'.tr(),
                     'total_travels_format2'.tr(args: [totalCount.toString()]),
                   ),
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20), // 30 -> 20 줄임
                   _infoTile(
                     'last_travel_format1'.tr(),
                     'last_travel_format2'.tr(
@@ -280,11 +287,9 @@ class SummaryHeroCard extends StatelessWidget {
               ),
             ),
 
-            // 🎯 디자인 핵심: Spacer를 통해 하단 카드 리스트를 바닥으로 밀착시킵니다.
-            const Spacer(),
-
+            // 2. 중간 가로 카드 리스트 (요청하신 로직 포함)
             SizedBox(
-              height: 250,
+              height: 230, // 250 -> 230으로 줄여서 하단 공간 확보
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -298,6 +303,7 @@ class SummaryHeroCard extends StatelessWidget {
                   final String rawPath = (travel['map_image_url'] ?? '')
                       .toString();
 
+                  // 이미지 URL 결정 로직 유지
                   String finalUrl = (type == 'usa' || countryCode == 'US')
                       ? StorageUrls.usaMapFromPath(rawPath)
                       : (type == 'domestic')
@@ -312,7 +318,7 @@ class SummaryHeroCard extends StatelessWidget {
                       ),
                     ),
                     child: Container(
-                      width: 250,
+                      width: 230, // 높이에 맞춰 너비도 소폭 조정
                       margin: const EdgeInsets.only(right: 18),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(15),
@@ -350,24 +356,22 @@ class SummaryHeroCard extends StatelessWidget {
                 },
               ),
             ),
-            // 🎯 수정 후 (SummaryHeroCard 맨 하단 아이콘 부분)
-            Container(
-              padding: EdgeInsets.fromLTRB(
-                27,
-                20,
-                27,
-                MediaQuery.of(context).padding.bottom, // 🎯 요청하신 정밀 수치
+
+            // 3. 하단 화살표 아이콘 영역
+            Padding(
+              padding: EdgeInsets.only(
+                top: 10,
+                bottom: MediaQuery.of(context).padding.bottom + 10,
               ),
               child: Center(
                 child: SvgPicture.asset(
                   'assets/icons/ico_arrowdown.svg',
                   width: 18,
                   height: 11,
-                  color: Colors.white24, // 1.1.6 버전은 colorFilter 대신 color 사용
+                  color: Colors.white24,
                 ),
               ),
             ),
-            const SizedBox(height: 20),
           ],
         );
       },
