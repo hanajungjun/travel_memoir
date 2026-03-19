@@ -621,7 +621,8 @@ class _ShopPageState extends State<ShopPage> {
 
       color: const Color(0xFF474D51),
 
-      padding: EdgeInsets.fromLTRB(27, topPadding + 20, 27, 24),
+      // padding: EdgeInsets.fromLTRB(27, topPadding + 20, 27, 24),
+      padding: EdgeInsets.fromLTRB(16, topPadding + 20, 16, 24),
 
       child: Column(
         children: [
